@@ -13,7 +13,9 @@ const listeners = new Set<() => void>();
 export const setAccessToken = (t: string | null) => (accessToken = t);
 export const onSessionExpired = (fn: () => void) => {
   listeners.add(fn);
-  return () => listeners.delete(fn);
+  return () => {
+    listeners.delete(fn);
+  };
 };
 
 /** One refresh at a time, however many requests hit 401 together. */

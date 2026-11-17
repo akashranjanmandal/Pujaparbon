@@ -6,7 +6,7 @@ import { Skeleton } from "./primitives";
 
 export interface Column<T> { key: string; header: ReactNode; cell: (row: T) => ReactNode; className?: string; align?: "right" | "center" }
 
-export function Table<T extends { id?: string }>({ columns, rows, loading, onRowClick, empty, rowKey, selected, onToggle }: {
+export function Table<T extends object>({ columns, rows, loading, onRowClick, empty, rowKey, selected, onToggle }: {
   columns: Column<T>[];
   rows: T[] | undefined;
   loading?: boolean;
@@ -16,7 +16,7 @@ export function Table<T extends { id?: string }>({ columns, rows, loading, onRow
   selected?: Set<string>;
   onToggle?: (id: string) => void;
 }) {
-  const key = (r: T, i: number) => rowKey?.(r) ?? r.id ?? String(i);
+  const key = (r: T, i: number) => rowKey?.(r) ?? (r as { id?: string }).id ?? String(i);
   return (
     <div className="overflow-x-auto">
       <table className="w-full min-w-[640px] border-separate border-spacing-0 text-sm">
