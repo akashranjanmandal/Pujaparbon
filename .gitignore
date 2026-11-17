@@ -1,0 +1,20 @@
+# dependencies & builds
+node_modules
+.next
+dist
+coverage
+*.tsbuildinfo
+next-env.d.ts
+
+# secrets — never commit (Turso token, JWT secrets)
+.env
+.env.local
+.env.*.local
+
+# local data: libSQL files, selfies and uploads
+apps/api/data
+apps/api/uploads
+uploads
+
+*.log
+.DS_Store
