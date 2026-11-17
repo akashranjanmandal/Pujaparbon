@@ -34,7 +34,7 @@ export default function ReconciliationPage() {
       )}
       <Card plain className="overflow-hidden" title="Order-level payouts" action={<Segmented value={filter} onChange={setFilter} options={[{ value: "SHORT", label: "Short" }, { value: "PENDING", label: "Pending" }, { value: "MATCHED", label: "Matched" }, { value: "ALL", label: "All" }]} />}>
         <Table rows={rows} loading={!data} columns={[
-          { key: "o", header: "Order", cell: (r) => <div><code className="text-xs font-semibold">{r.channelOrderId}</code><div className="text-xs text-muted">{fmtDate(r.orderedAt)}</div></div> },
+          { key: "o", header: "Order", cell: (r) => <div><code className="text-[14px] font-semibold">{r.channelOrderId}</code><div className="text-[14px] text-muted">{fmtDate(r.orderedAt)}</div></div> },
           { key: "c", header: "Channel", cell: (r) => <ChannelDot color={r.channelColor} name={r.channelName} /> },
           { key: "t", header: "Order value", align: "right", cell: (r) => <span className="num">{formatINR(r.totalPaise, { decimals: false })}</span> },
           { key: "f", header: "Fees", align: "right", cell: (r) => <span className="text-muted num">{r.feesPaise ? `−${formatINR(r.feesPaise, { decimals: false })}` : "—"}</span> },
@@ -60,7 +60,7 @@ function UploadDrawer({ onClose }: { onClose: () => void }) {
       footer={<Button variant="primary" disabled={!file} loading={run.isPending} onClick={() => run.mutate(undefined)}>Reconcile</Button>}>
       <div className="space-y-4">
         <Field label="Marketplace"><Select value={channel} onChange={(e) => setChannel(e.target.value)}>{CHANNELS.filter((c) => IMPORTABLE_CHANNELS.includes(c.code)).map((c) => <option key={c.code} value={c.code}>{c.name}</option>)}</Select></Field>
-        <Field label="File (.csv or .xlsx)"><input type="file" accept=".csv,.xlsx" onChange={(e) => setFile(e.target.files?.[0] ?? null)} className="block w-full text-sm text-muted file:mr-4 file:rounded-xl file:border-0 file:bg-gold/15 file:px-4 file:py-2 file:text-gold" /></Field>
+        <Field label="File (.csv or .xlsx)"><input type="file" accept=".csv,.xlsx" onChange={(e) => setFile(e.target.files?.[0] ?? null)} className="block w-full text-[15.5px] text-muted file:mr-4 file:rounded-xl file:border-0 file:bg-primary-tint file:px-4 file:py-2 file:text-primary" /></Field>
       </div>
     </Drawer>
   );

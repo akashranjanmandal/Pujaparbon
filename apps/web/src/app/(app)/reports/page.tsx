@@ -35,9 +35,9 @@ export default function ReportsPage() {
             <motion.div key={r.key} initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
               <Card className="flex h-full flex-col p-5">
                 <div className="grid h-12 w-12 place-items-center rounded-2xl border border-line/10 bg-line/[0.04] text-sindoor"><Icon className="h-6 w-6" /></div>
-                <div className="mt-4 text-[15px] font-semibold">{r.title}</div>
-                <p className="mt-1 flex-1 text-sm text-muted">{DESC[r.key]}</p>
-                {!r.ranged && <p className="mt-1 text-xs text-muted">As of today</p>}
+                <div className="mt-4 text-[16px] font-semibold">{r.title}</div>
+                <p className="mt-1 flex-1 text-[15.5px] text-muted">{DESC[r.key]}</p>
+                {!r.ranged && <p className="mt-1 text-[14px] text-muted">As of today</p>}
                 <div className="mt-4 flex gap-2">
                   <Button size="sm" variant="gold" icon={<FileSpreadsheet className="h-3.5 w-3.5" />} loading={busy === r.key + "xlsx"} onClick={() => get(r.key, "xlsx")}>Excel</Button>
                   <Button size="sm" icon={<FileText className="h-3.5 w-3.5" />} loading={busy === r.key + "pdf"} onClick={() => get(r.key, "pdf")}>PDF</Button>

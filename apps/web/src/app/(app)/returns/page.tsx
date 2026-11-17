@@ -47,8 +47,8 @@ function ReturnsInner() {
       <Card plain className="overflow-hidden">
         <Table rows={data?.items} loading={!data} columns={[
           { key: "date", header: "Date", cell: (r) => fmtDate(r.createdAt) },
-          { key: "order", header: "Order", cell: (r) => <div><code className="text-xs">{r.channelOrderId}</code><ChannelDot color={r.channelColor} name={r.channelName} className="mt-1 block" /></div> },
-          { key: "item", header: "Item", cell: (r) => <div className="flex items-center gap-2"><ProductGlyph name={r.name} size={34} /><div><div className="max-w-[200px] truncate">{r.name}</div><code className="text-xs text-muted">{r.sku} × {r.qty}</code></div></div> },
+          { key: "order", header: "Order", cell: (r) => <div><code className="text-[14px]">{r.channelOrderId}</code><ChannelDot color={r.channelColor} name={r.channelName} className="mt-1 block" /></div> },
+          { key: "item", header: "Item", cell: (r) => <div className="flex items-center gap-2"><ProductGlyph name={r.name} size={34} /><div><div className="max-w-[200px] truncate">{r.name}</div><code className="text-[14px] text-muted">{r.sku} × {r.qty}</code></div></div> },
           { key: "type", header: "Type", cell: (r) => <Badge tone={r.type === "RTO" ? "blue" : "muted"}>{r.type === "RTO" ? "RTO" : "Customer"}</Badge> },
           { key: "reason", header: "Reason", cell: (r) => <span className="text-muted">{r.reason}</span> },
           { key: "status", header: "Outcome", cell: (r) => <StatusBadge status={r.status} /> },
@@ -84,7 +84,7 @@ function ReturnDrawer({ orderId, onClose }: { orderId: string; onClose: () => vo
               <button key={c} onClick={() => setCondition(c)} className={cn("rounded-2xl border p-5 text-left transition", condition === c ? (c === "GOOD" ? "border-leaf/60 bg-leaf/10" : "border-sindoor/60 bg-sindoor/10") : "border-line/10 text-muted")}>
                 <div className="text-2xl">{c === "GOOD" ? "✨" : "💔"}</div>
                 <div className="mt-2 font-semibold">{c === "GOOD" ? "Good condition" : "Damaged"}</div>
-                <div className="text-xs text-muted">{c === "GOOD" ? "Goes back into stock" : "Written off at cost"}</div>
+                <div className="text-[14px] text-muted">{c === "GOOD" ? "Goes back into stock" : "Written off at cost"}</div>
               </button>
             ))}
           </div>

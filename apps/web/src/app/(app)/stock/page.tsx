@@ -77,8 +77,8 @@ function StockInner() {
           <Table rows={data?.items} loading={isLoading} rowKey={(r) => r.variantId} onRowClick={(r) => setMoveFor(r)}
             empty={<Empty icon={<Boxes />} title="Nothing here" body="No SKUs match this filter." />}
             columns={[
-              { key: "item", header: "Item", cell: (s) => <div className="flex items-center gap-3"><ProductGlyph name={s.name} size={34} /><div><div className="font-medium">{s.name}</div><code className="text-xs text-muted">{s.sku}{s.size ? ` · ${s.size}` : ""}{s.color ? ` · ${s.color}` : ""}</code></div></div> },
-              { key: "bin", header: "Bin", cell: (s) => <div className="flex flex-wrap gap-1">{s.bins.slice(0, 2).map((b) => <Badge key={b.code} tone="gold">{b.code} · {b.qty}</Badge>)}{!s.bins.length && <span className="text-xs text-muted">—</span>}</div> },
+              { key: "item", header: "Item", cell: (s) => <div className="flex items-center gap-3"><ProductGlyph name={s.name} size={34} /><div><div className="font-medium">{s.name}</div><code className="text-[14px] text-muted">{s.sku}{s.size ? ` · ${s.size}` : ""}{s.color ? ` · ${s.color}` : ""}</code></div></div> },
+              { key: "bin", header: "Bin", cell: (s) => <div className="flex flex-wrap gap-1">{s.bins.slice(0, 2).map((b) => <Badge key={b.code} tone="gold">{b.code} · {b.qty}</Badge>)}{!s.bins.length && <span className="text-[14px] text-muted">—</span>}</div> },
               { key: "level", header: "Level", cell: (s) => <Level s={s} /> },
               { key: "onhand", header: "On hand", align: "right", cell: (s) => <b className="num">{fmtNum(s.onHand)}</b> },
               { key: "committed", header: "Committed", align: "right", cell: (s) => <span className="text-muted num">{s.committed}</span> },
@@ -99,7 +99,7 @@ function Level({ s }: { s: StockItem }) {
   const pct = Math.min(100, (s.onHand / Math.max(1, s.reorderLevel * 3)) * 100);
   return (
     <div className="h-2 w-28 overflow-hidden rounded-full bg-line/10">
-      <motion.div initial={{ width: 0 }} animate={{ width: `${pct}%` }} transition={{ duration: 1 }} className={cn("h-full rounded-full", s.state === "OK" ? "bg-leaf" : s.state === "LOW" ? "bg-marigold" : "bg-sindoor")} />
+      <motion.div initial={{ width: 0 }} animate={{ width: `${pct}%` }} transition={{ duration: 1 }} className={cn("h-full rounded-full", s.state === "OK" ? "bg-leaf" : s.state === "LOW" ? "bg-marigold" : "bg-primary")} />
     </div>
   );
 }
@@ -116,7 +116,7 @@ function Ledger() {
     }>
       <Table rows={data} loading={isLoading} columns={[
         { key: "when", header: "When", cell: (m) => <span className="text-muted">{fmtDateTime(m.createdAt)}</span> },
-        { key: "item", header: "Item", cell: (m) => <div className="flex items-center gap-2"><ProductGlyph name={m.name} size={26} /><div><div className="max-w-[240px] truncate">{m.name}</div><code className="text-xs text-muted">{m.sku}</code></div></div> },
+        { key: "item", header: "Item", cell: (m) => <div className="flex items-center gap-2"><ProductGlyph name={m.name} size={26} /><div><div className="max-w-[240px] truncate">{m.name}</div><code className="text-[14px] text-muted">{m.sku}</code></div></div> },
         { key: "type", header: "Type", cell: (m) => <Badge tone={m.type === "SALE" ? "blue" : m.type === "ADJUSTMENT" ? "gold" : m.qty > 0 ? "green" : "red"}>{m.type.toLowerCase()}</Badge> },
         { key: "qty", header: "Qty", align: "right", cell: (m) => <b className={cn("num", m.qty > 0 ? "text-leaf" : "text-sindoor")}>{m.qty > 0 ? `+${m.qty}` : m.qty}</b> },
         { key: "bin", header: "Bin", cell: (m) => <span className="text-muted">{m.bin ?? "—"}</span> },
@@ -141,11 +141,11 @@ function Bins({ canAdd }: { canAdd: boolean }) {
           <div className="grid grid-cols-2 gap-3 p-5 sm:grid-cols-3 lg:grid-cols-6">
             {data!.filter((b) => b.zone === z).map((b, i) => (
               <motion.div key={b.id} initial={{ opacity: 0, rotateY: -60 }} animate={{ opacity: 1, rotateY: 0 }} transition={{ delay: zi * 0.05 + i * 0.05 }} className="relative overflow-hidden rounded-2xl border border-line/15 bg-bg2/70 p-4">
-                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-sindoor/30 to-transparent" style={{ height: `${(b.units / max) * 100}%` }} />
+                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-primary-soft to-transparent" style={{ height: `${(b.units / max) * 100}%` }} />
                 <div className="relative">
-                  <code className="text-[15px] font-semibold">{b.code}</code>
+                  <code className="text-[16px] font-semibold">{b.code}</code>
                   <div className="mt-3 text-2xl font-semibold num">{b.units}</div>
-                  <div className="text-xs text-muted">units · {b.skus} SKUs</div>
+                  <div className="text-[14px] text-muted">units · {b.skus} SKUs</div>
                 </div>
               </motion.div>
             ))}
@@ -180,7 +180,7 @@ function MoveDrawer({ target, onClose, items, canAdjust }: { target: StockItem |
   const types = [
     { v: "INWARD" as const, l: "Stock in", icon: ArrowDownToLine, c: "text-leaf" },
     { v: "OUTWARD" as const, l: "Stock out", icon: ArrowUpFromLine, c: "text-sindoor" },
-    ...(canAdjust ? [{ v: "ADJUSTMENT" as const, l: "Correct count", icon: SlidersHorizontal, c: "text-gold" }] : []),
+    ...(canAdjust ? [{ v: "ADJUSTMENT" as const, l: "Correct count", icon: SlidersHorizontal, c: "text-primary" }] : []),
   ];
 
   return (
@@ -198,16 +198,16 @@ function MoveDrawer({ target, onClose, items, canAdjust }: { target: StockItem |
         {item && (
           <div className="flex items-center gap-4 rounded-2xl border border-line/10 bg-panel/50 p-4">
             <ProductGlyph name={item.name} size={34} />
-            <div className="flex-1"><div className="font-medium">{item.name}</div><code className="text-xs text-muted">{item.sku}</code></div>
+            <div className="flex-1"><div className="font-medium">{item.name}</div><code className="text-[14px] text-muted">{item.sku}</code></div>
             <div className="text-right">
-              <div className="text-xs text-muted">On hand</div>
+              <div className="text-[14px] text-muted">On hand</div>
               <div className="text-[22px] font-semibold tracking-tight">{item.onHand} <span className={cn("text-base", delta >= 0 ? "text-leaf" : "text-sindoor")}>→ {item.onHand + (Number.isFinite(delta) ? delta : 0)}</span></div>
             </div>
           </div>
         )}
         <div className="grid grid-cols-3 gap-2">
           {types.map((t) => (
-            <button key={t.v} onClick={() => setType(t.v)} className={cn("flex flex-col items-center gap-2 rounded-2xl border p-4 text-sm font-semibold transition", type === t.v ? "border-gold/50 bg-gold/10" : "border-line/10 text-muted hover:text-text")}>
+            <button key={t.v} onClick={() => setType(t.v)} className={cn("flex flex-col items-center gap-2 rounded-2xl border p-4 text-[15.5px] font-semibold transition", type === t.v ? "border-primary bg-primary-tint" : "border-line/10 text-muted hover:text-text")}>
               <t.icon className={cn("h-5 w-5", t.c)} /> {t.l}
             </button>
           ))}

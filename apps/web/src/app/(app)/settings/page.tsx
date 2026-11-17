@@ -56,9 +56,9 @@ function Business() {
       </Card>
       <Card title="Attendance fence & shift" subtitle="Staff can only check in within this circle around the warehouse">
         <div className="grid gap-4 p-5 sm:grid-cols-2">
-          <div className="flex items-center gap-4 rounded-2xl border border-gold/20 bg-gold/[0.06] p-4 sm:col-span-2">
-            <MapPinned className="h-8 w-8 text-gold" />
-            <div className="flex-1 text-sm"><b>{f.geofenceLat.toFixed(5)}, {f.geofenceLng.toFixed(5)}</b><div className="text-muted">Stand in the middle of the warehouse and tap the button to set the centre.</div></div>
+          <div className="flex items-center gap-4 rounded-2xl border border-primary/30 bg-primary-tint/60 p-4 sm:col-span-2">
+            <MapPinned className="h-8 w-8 text-primary" />
+            <div className="flex-1 text-[15.5px]"><b>{f.geofenceLat.toFixed(5)}, {f.geofenceLng.toFixed(5)}</b><div className="text-muted">Stand in the middle of the warehouse and tap the button to set the centre.</div></div>
             <Button variant="gold" size="sm" loading={locating} icon={<Crosshair className="h-4 w-4" />} onClick={here}>Use my location</Button>
           </div>
           <Field label="Radius (metres)"><Input type="number" value={f.geofenceRadiusM} onChange={(e) => set("geofenceRadiusM", Number(e.target.value))} /></Field>
@@ -80,11 +80,11 @@ function Logins() {
   return (
     <Card plain className="overflow-hidden" title="Who can sign in" subtitle="Passwords are hashed with Argon2id; nobody, including GOBT, can read them." action={<Button variant="primary" size="sm" icon={<UserPlus className="h-4 w-4" />} onClick={() => setAdding(true)}>New login</Button>}>
       <Table rows={data} loading={!data} columns={[
-        { key: "n", header: "Person", cell: (u) => <div><div className="font-medium">{u.name}</div><div className="text-xs text-muted">{u.email}</div></div> },
+        { key: "n", header: "Person", cell: (u) => <div><div className="font-medium">{u.name}</div><div className="text-[14px] text-muted">{u.email}</div></div> },
         { key: "r", header: "Role", cell: (u) => <Badge tone={u.role === "OWNER" ? "red" : u.role === "MANAGER" ? "gold" : "blue"}>{u.role.toLowerCase()}</Badge> },
         { key: "e", header: "Employee", cell: (u) => <span className="text-muted">{u.employeeName ?? "—"}</span> },
-        { key: "d", header: "Phone", cell: (u) => u.hasDevice ? <span className="flex items-center gap-1 text-xs text-leaf"><Smartphone className="h-3.5 w-3.5" />Registered</span> : <span className="text-xs text-muted">None</span> },
-        { key: "l", header: "Last sign-in", cell: (u) => <span className="text-xs text-muted">{u.lastLoginAt ? timeAgo(u.lastLoginAt) : "Never"}</span> },
+        { key: "d", header: "Phone", cell: (u) => u.hasDevice ? <span className="flex items-center gap-1 text-[14px] text-leaf"><Smartphone className="h-3.5 w-3.5" />Registered</span> : <span className="text-[14px] text-muted">None</span> },
+        { key: "l", header: "Last sign-in", cell: (u) => <span className="text-[14px] text-muted">{u.lastLoginAt ? timeAgo(u.lastLoginAt) : "Never"}</span> },
         { key: "a", header: "", align: "right", cell: (u) => (
           <div className="flex justify-end gap-1">
             {u.hasDevice && <Button size="sm" variant="ghost" onClick={() => upd.mutate({ id: u.id, body: { resetDevice: true } })}>Reset phone</Button>}
@@ -125,7 +125,7 @@ function AuditTrail() {
       <Table rows={data} loading={!data} columns={[
         { key: "w", header: "When", cell: (a) => <span className="text-muted">{fmtDateTime(a.createdAt)}</span> },
         { key: "b", header: "Who", cell: (a) => a.by ?? "System" },
-        { key: "a", header: "Action", cell: (a) => <code className="text-xs text-gold">{a.action}</code> },
+        { key: "a", header: "Action", cell: (a) => <code className="text-[14px] text-primary">{a.action}</code> },
         { key: "e", header: "On", cell: (a) => <span className="text-muted">{a.entity}</span> },
       ]} />
     </Card>

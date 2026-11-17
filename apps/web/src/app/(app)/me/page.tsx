@@ -35,9 +35,9 @@ export default function MyDay() {
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <div className="border-b hairline pb-5">
-        <div className="label mb-2 flex items-center gap-2"><span className="h-1 w-1 rounded-full bg-sindoor" />My shift</div>
+        <div className="label mb-2 flex items-center gap-2"><span className="h-1 w-1 rounded-full bg-primary" />My shift</div>
         <h1 className="text-[24px] font-semibold tracking-tight">Hi {user?.name.split(" ")[0]}, ready for today?</h1>
-        <div className="mt-1 font-mono text-[12px] text-muted">{fmtDate(new Date(), { weekday: "short", day: "numeric", month: "short" }).toUpperCase()} · SHIFT {me.fence?.shiftStart}–{me.fence?.shiftEnd} · {me.employee.designation.toUpperCase()}</div>
+        <div className="mt-1 font-mono text-[14px] text-muted">{fmtDate(new Date(), { weekday: "short", day: "numeric", month: "short" }).toUpperCase()} · SHIFT {me.fence?.shiftStart}–{me.fence?.shiftEnd} · {me.employee.designation.toUpperCase()}</div>
       </div>
       <PresenceCard me={me} state={state} onDone={refetch} />
       {me.month && (
@@ -125,15 +125,15 @@ function PresenceCard({ me, state, onDone }: { me: Me; state: "OUT" | "IN" | "DO
                   {shot ? <img src={shot} alt="Your selfie" className="h-full w-full object-cover" /> : <video ref={video} playsInline muted className="h-full w-full -scale-x-100 object-cover" />}
                 </div>
                 {step === "sending" && <div className="absolute inset-[22px] grid place-items-center rounded-2xl bg-black/60"><RefreshCcw className="h-7 w-7 animate-spin text-text" /></div>}
-                {!shot && step === "camera" && <div className="pointer-events-none absolute inset-x-[22px] top-[22px] h-1/2 animate-scan bg-gradient-to-b from-transparent to-sindoor/20" />}
+                {!shot && step === "camera" && <div className="pointer-events-none absolute inset-x-[22px] top-[22px] h-1/2 animate-scan bg-gradient-to-b from-transparent to-primary-soft/40" />}
               </motion.div>
             ) : step === "success" ? (
               <motion.div key="ok" initial={{ opacity: 0, scale: 0.6 }} animate={{ opacity: 1, scale: 1 }} className="relative grid h-[300px] w-[300px] place-items-center">
                 {[0, 1, 2].map((i) => <motion.span key={i} className="absolute h-40 w-40 rounded-full border border-leaf/60" initial={{ scale: 0.4, opacity: 0.8 }} animate={{ scale: 1.8, opacity: 0 }} transition={{ duration: 1.6, delay: i * 0.3, repeat: 1 }} />)}
                 <div className="absolute grid place-items-center text-center">
                   <CheckCircle2 className="h-14 w-14 text-leaf" />
-                  <div className="mt-2 text-[15px] font-semibold">{state === "OUT" ? "Checked in. Have a great shift." : "Checked out. See you tomorrow."}</div>
-                  <div className="font-mono text-[12px] text-muted">{fmtTime(new Date())} IST · verified</div>
+                  <div className="mt-2 text-[16px] font-semibold">{state === "OUT" ? "Checked in. Have a great shift." : "Checked out. See you tomorrow."}</div>
+                  <div className="font-mono text-[14px] text-muted">{fmtTime(new Date())} IST · verified</div>
                 </div>
               </motion.div>
             ) : (
@@ -155,8 +155,8 @@ function PresenceCard({ me, state, onDone }: { me: Me; state: "OUT" | "IN" | "DO
                 <div className="absolute left-1/2 top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rotate-45 border-2 border-text bg-bg" title="Warehouse" />
                 {dot && (
                   <motion.div className="absolute left-1/2 top-1/2" initial={{ x: 0, y: 0, opacity: 0 }} animate={{ x: dot.x, y: dot.y, opacity: 1 }} transition={{ type: "spring", damping: 14 }}>
-                    <span className={cn("absolute -left-5 -top-5 h-10 w-10 animate-radar rounded-full", inside ? "bg-leaf/50" : "bg-sindoor/50")} />
-                    <span className={cn("absolute -left-2 -top-2 h-4 w-4 rounded-full ring-2 ring-white", inside ? "bg-leaf" : "bg-sindoor")} />
+                    <span className={cn("absolute -left-5 -top-5 h-10 w-10 animate-radar rounded-full", inside ? "bg-leaf/50" : "bg-primary/50")} />
+                    <span className={cn("absolute -left-2 -top-2 h-4 w-4 rounded-full ring-2 ring-white", inside ? "bg-leaf" : "bg-primary")} />
                   </motion.div>
                 )}
               </motion.div>
@@ -175,9 +175,9 @@ function PresenceCard({ me, state, onDone }: { me: Me; state: "OUT" | "IN" | "DO
           ) : (
             <div className="mt-1 text-[24px] font-semibold">Not checked in yet</div>
           )}
-          {me.record?.checkOutAt && <div className="mt-1 text-sm text-muted">Out at {fmtTime(me.record.checkOutAt)} — see you tomorrow.</div>}
+          {me.record?.checkOutAt && <div className="mt-1 text-[15.5px] text-muted">Out at {fmtTime(me.record.checkOutAt)} — see you tomorrow.</div>}
 
-          <div className={cn("mt-5 flex items-center gap-3 rounded-2xl border px-4 py-3 text-sm", locError ? "border-sindoor/30 bg-sindoor/10" : inside ? "border-leaf/30 bg-leaf/10" : "border-marigold/30 bg-marigold/10")}>
+          <div className={cn("mt-5 flex items-center gap-3 rounded-2xl border px-4 py-3 text-[15.5px]", locError ? "border-sindoor/30 bg-sindoor/10" : inside ? "border-leaf/30 bg-leaf/10" : "border-marigold/30 bg-marigold/10")}>
             {locating ? <LocateFixed className="h-5 w-5 animate-pulse text-muted" /> : locError ? <ShieldAlert className="h-5 w-5 text-sindoor" /> : <MapPin className={cn("h-5 w-5", inside ? "text-leaf" : "text-marigold")} />}
             <div className="flex-1">
               {locating ? "Finding you…" : locError ? locError : fix && off ? (
@@ -188,12 +188,12 @@ function PresenceCard({ me, state, onDone }: { me: Me; state: "OUT" | "IN" | "DO
             <button onClick={locate} className="text-muted hover:text-text" aria-label="Refresh location"><RefreshCcw className="h-4 w-4" /></button>
           </div>
           {DEMO && (
-            <label className="mt-3 flex items-center gap-2 text-xs text-muted">
-              <input type="checkbox" checked={simulate} onChange={(e) => setSimulate(e.target.checked)} className="accent-[rgb(var(--gold))]" />
+            <label className="mt-3 flex items-center gap-2 text-[14px] text-muted">
+              <input type="checkbox" checked={simulate} onChange={(e) => setSimulate(e.target.checked)} className="accent-[rgb(var(--primary))]" />
               <Sparkles className="h-3.5 w-3.5" /> Demo only: simulate being at the warehouse
             </label>
           )}
-          {error && <div className="mt-3 rounded-xl bg-sindoor/10 px-3 py-2 text-sm text-sindoor">{error}</div>}
+          {error && <div className="mt-3 rounded-xl bg-sindoor/10 px-3 py-2 text-[15.5px] text-sindoor">{error}</div>}
 
           <div className="mt-6 flex flex-wrap gap-2">
             {state !== "DONE" && step === "idle" && (
@@ -209,7 +209,7 @@ function PresenceCard({ me, state, onDone }: { me: Me; state: "OUT" | "IN" | "DO
               </>
             )}
           </div>
-          <p className="mt-4 text-xs text-muted/80">Your location is read only when you tap check-in or check-out. Selfies are kept for the period your employer set, then deleted.</p>
+          <p className="mt-4 text-[14px] text-muted/80">Your location is read only when you tap check-in or check-out. Selfies are kept for the period your employer set, then deleted.</p>
         </div>
       </div>
     </Card>
@@ -222,13 +222,13 @@ function MyTasks() {
   return (
     <Card title="My tasks" subtitle="Tap to move a task along">
       <div className="space-y-2 p-4">
-        {data?.length === 0 && <div className="py-6 text-center text-sm text-muted">No tasks today.</div>}
+        {data?.length === 0 && <div className="py-6 text-center text-[15.5px] text-muted">No tasks today.</div>}
         {data?.map((t) => (
           <motion.div layout key={t.id} className={cn("flex items-center gap-3 rounded-2xl border border-line/10 bg-bg2/60 p-4", t.status === "DONE" && "opacity-60")}>
             <button onClick={() => update.mutate({ id: t.id, status: t.status === "TODO" ? "IN_PROGRESS" : t.status === "IN_PROGRESS" ? "DONE" : "TODO" })} className={cn("grid h-9 w-9 shrink-0 place-items-center rounded-lg border transition", t.status === "DONE" ? "border-leaf bg-leaf/15 text-leaf" : t.status === "IN_PROGRESS" ? "border-marigold text-marigold" : "border-line/20")}>
               {t.status === "DONE" ? <CheckCircle2 className="h-5 w-5" /> : t.status === "IN_PROGRESS" ? <RefreshCcw className="h-4 w-4" /> : null}
             </button>
-            <div className="flex-1"><div className={cn("font-medium", t.status === "DONE" && "line-through")}>{t.title}</div><div className="text-xs text-muted">Due {fmtDate(t.dueDate)}</div></div>
+            <div className="flex-1"><div className={cn("font-medium", t.status === "DONE" && "line-through")}>{t.title}</div><div className="text-[14px] text-muted">Due {fmtDate(t.dueDate)}</div></div>
             <StatusBadge status={t.priority} />
           </motion.div>
         ))}
@@ -252,7 +252,7 @@ function MyLeave() {
       </div>
       <div className="space-y-2 px-5 pb-5">
         {data?.map((l) => (
-          <div key={l.id} className="flex items-center justify-between rounded-xl bg-panel2/50 px-4 py-2.5 text-sm">
+          <div key={l.id} className="flex items-center justify-between rounded-xl bg-panel2/50 px-4 py-2.5 text-[15.5px]">
             <span>{fmtDate(l.from)}{l.to !== l.from ? ` – ${fmtDate(l.to)}` : ""} · {l.days} day{l.days > 1 ? "s" : ""} · <span className="text-muted">{l.reason}</span></span>
             <StatusBadge status={l.status} />
           </div>

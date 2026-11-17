@@ -2,86 +2,65 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ── Dark: graphite mission control (default) ───────────────────── */
-:root,
-[data-theme="dark"] {
-  --bg: 7 7 9;
-  --bg2: 12 12 15;
-  --panel: 16 16 20;
-  --panel2: 23 23 28;
-  --line: 255 255 255;
-  --text: 236 236 240;
-  --muted: 134 134 146;
-  --sindoor: 240 56 70;
-  --sindoor-deep: 170 22 38;
-  --gold: 246 246 248;
-  --marigold: 245 166 35;
-  --shiuli: 255 255 255;
-  --stem: 255 138 61;
-  --leaf: 52 211 145;
-  --sky: 96 160 255;
-  color-scheme: dark;
-}
-
-/* ── Light ──────────────────────────────────────────────────────── */
-[data-theme="light"] {
-  --bg: 248 248 250;
-  --bg2: 242 242 245;
+:root {
+  /* Warm paper neutrals */
+  --bg: 250 247 242;
+  --bg2: 243 239 232;
   --panel: 255 255 255;
-  --panel2: 245 245 248;
-  --line: 10 10 14;
-  --text: 16 16 20;
-  --muted: 100 100 112;
-  --sindoor: 214 32 48;
-  --sindoor-deep: 160 18 34;
-  --gold: 16 16 20;
-  --marigold: 196 120 6;
-  --shiuli: 255 255 255;
-  --stem: 214 92 24;
-  --leaf: 16 150 92;
-  --sky: 37 99 235;
+  --panel2: 247 244 239;
+  --line: 28 32 46;
+  --text: 28 32 46;
+  --muted: 96 102 120;
+  /* Powder blue — primary */
+  --primary: 46 104 140;
+  --primary-soft: 182 214 233;
+  --primary-tint: 232 243 250;
+  /* Soft lavender — secondary */
+  --lav: 104 90 166;
+  --lav-soft: 210 202 238;
+  --lav-tint: 243 240 252;
+  /* Sunset peach — accent */
+  --peach: 210 100 62;
+  --peach-soft: 255 199 170;
+  --peach-tint: 255 240 231;
+  /* Status */
+  --sindoor: 196 60 50;
+  --sindoor-deep: 150 40 34;
+  --marigold: 186 120 18;
+  --leaf: 38 132 90;
   color-scheme: light;
 }
 
 @layer base {
-  html { -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; font-feature-settings: "ss01", "cv11"; }
+  html { -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
   body {
-    @apply bg-bg font-sans text-[14px] text-text;
-    background-image:
-      radial-gradient(900px 420px at 50% -120px, rgb(var(--sindoor) / 0.10), transparent 70%),
-      linear-gradient(rgb(var(--line) / 0.035) 1px, transparent 1px),
-      linear-gradient(90deg, rgb(var(--line) / 0.035) 1px, transparent 1px);
-    background-size: 100% 100%, 48px 48px, 48px 48px;
-    background-attachment: fixed;
+    @apply bg-bg font-sans text-[16px] leading-relaxed text-text;
+    /* Paper grain: a whisper of texture so flat colour never looks digital-flat. */
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.1 0 0 0 0 0.12 0 0 0 0 0.18 0 0 0 .05 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
   }
-  ::selection { background: rgb(var(--sindoor) / 0.35); }
-  * { scrollbar-width: thin; scrollbar-color: rgb(var(--line) / 0.15) transparent; }
-  :focus-visible { outline: 2px solid rgb(var(--sindoor) / 0.7); outline-offset: 2px; border-radius: 6px; }
+  ::selection { background: rgb(var(--primary-soft)); }
+  * { scrollbar-width: thin; scrollbar-color: rgb(var(--line) / 0.18) transparent; }
+  :focus-visible { outline: 2px solid rgb(var(--primary)); outline-offset: 2px; border-radius: 8px; }
+  h1, h2, h3 { letter-spacing: -0.025em; }
+  em { font-style: normal; }
   code, kbd { @apply font-mono; }
 }
 
 @layer components {
-  /* Panel with a glass top edge. (Class name kept for compatibility.) */
-  .paar-card {
-    @apply relative overflow-hidden rounded-xl2 border border-line/[0.07] bg-panel/80 backdrop-blur-xl transition-colors;
-    box-shadow: 0 1px 0 rgb(var(--line) / 0.04) inset, 0 16px 40px -28px rgb(0 0 0 / 0.7);
-  }
-  .paar-card::before {
-    content: "";
-    @apply pointer-events-none absolute inset-x-0 top-0 h-px;
-    background: linear-gradient(90deg, transparent, rgb(var(--line) / 0.16), transparent);
-  }
-  .paar-card.plain::before { opacity: 0.6; }
+  /* Card (class name kept for compatibility). */
+  .paar-card { @apply relative overflow-hidden rounded-xl2 border border-line/[0.08] bg-panel shadow-soft; }
+  .paar-card.plain { @apply shadow-none; }
   .gold-text { color: rgb(var(--text)); }
-  .accent-text { color: rgb(var(--sindoor)); }
-  .hairline { @apply border-line/[0.07]; }
-  .label { @apply font-mono text-[10.5px] font-medium uppercase tracking-[0.14em] text-muted; }
+  .hairline { @apply border-line/[0.08]; }
+  .label { @apply text-[14px] font-medium text-muted; }
+  .eyebrow { @apply text-[15px] font-semibold text-primary; }
+  .display { @apply font-sans font-semibold tracking-[-0.035em]; }
   .skeleton {
-    background: linear-gradient(90deg, rgb(var(--panel2)) 0%, rgb(var(--line) / 0.06) 50%, rgb(var(--panel2)) 100%);
+    background: linear-gradient(90deg, rgb(var(--bg2)) 0%, rgb(var(--panel2)) 50%, rgb(var(--bg2)) 100%);
     background-size: 200% 100%;
-    @apply animate-shimmer rounded-md;
+    @apply animate-shimmer rounded-lg;
   }
-  .num { font-variant-numeric: tabular-nums; font-feature-settings: "tnum"; }
+  .num { font-variant-numeric: tabular-nums; }
 }
 
 @media (prefers-reduced-motion: reduce) {

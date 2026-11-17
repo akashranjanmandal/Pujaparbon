@@ -19,7 +19,7 @@ export function Network({ className = "" }: { className?: string }) {
   return (
     <svg viewBox="0 0 640 520" className={className} aria-hidden>
       <defs>
-        <radialGradient id="hubglow"><stop offset="0" stopColor="rgb(var(--sindoor))" stopOpacity="0.45" /><stop offset="1" stopColor="rgb(var(--sindoor))" stopOpacity="0" /></radialGradient>
+        <radialGradient id="hubglow"><stop offset="0" stopColor="rgb(var(--primary))" stopOpacity="0.45" /><stop offset="1" stopColor="rgb(var(--primary))" stopOpacity="0" /></radialGradient>
       </defs>
       {chans.map((c, i) => {
         const y = 120 + i * 70;
@@ -35,7 +35,7 @@ export function Network({ className = "" }: { className?: string }) {
             ))}
             <rect x="34" y={y - 13} width="76" height="26" rx="6" fill="rgb(var(--panel))" stroke="rgb(var(--line) / 0.12)" />
             <rect x="40" y={y - 3} width="6" height="6" rx="1.5" fill={c.color} />
-            <text x="52" y={y + 4} fontSize="11" fill="rgb(var(--text))" fontFamily="var(--font-sans)">{c.name}</text>
+            <text x="52" y={y + 4} fontSize="12.5" fill="rgb(var(--text))" fontFamily="var(--font-sans)">{c.name}</text>
           </g>
         );
       })}
@@ -48,16 +48,16 @@ export function Network({ className = "" }: { className?: string }) {
               <animateMotion dur={`${2.2 + i * 0.3}s`} begin={`${0.6 + i * 0.25}s`} repeatCount="indefinite" path={d} />
             </circle>
             <circle cx="534" cy={y} r="3" fill="rgb(var(--leaf))" />
-            <text x="544" y={y + 4} fontSize="11" fill="rgb(var(--muted))" fontFamily="var(--font-mono)">{name.toUpperCase()}</text>
+            <text x="544" y={y + 4} fontSize="12.5" fill="rgb(var(--muted))" fontFamily="var(--font-mono)">{name.toUpperCase()}</text>
           </g>
         );
       })}
       <circle cx={hub.x} cy={hub.y} r="90" fill="url(#hubglow)" />
-      <circle cx={hub.x} cy={hub.y} r="54" fill="none" stroke="rgb(var(--sindoor) / 0.35)" strokeDasharray="2 6" className="origin-center" style={{ transformOrigin: `${hub.x}px ${hub.y}px`, animation: "spinslow 40s linear infinite" }} />
-      <rect x={hub.x - 34} y={hub.y - 34} width="68" height="68" rx="14" fill="rgb(var(--panel2))" stroke="rgb(var(--sindoor) / 0.7)" />
-      <path d={`M${hub.x - 14} ${hub.y - 6} L${hub.x} ${hub.y - 14} L${hub.x + 14} ${hub.y - 6} L${hub.x} ${hub.y + 2} Z`} fill="rgb(var(--sindoor))" />
-      <path d={`M${hub.x - 14} ${hub.y + 2} L${hub.x} ${hub.y + 10} L${hub.x + 14} ${hub.y + 2}`} stroke="rgb(var(--sindoor))" strokeWidth="2" fill="none" />
-      <text x={hub.x} y={hub.y + 58} textAnchor="middle" fontSize="10" fill="rgb(var(--muted))" fontFamily="var(--font-mono)" letterSpacing="2">SARISHA · WB</text>
+      <circle cx={hub.x} cy={hub.y} r="54" fill="none" stroke="rgb(var(--primary) / 0.35)" strokeDasharray="2 6" className="origin-center" style={{ transformOrigin: `${hub.x}px ${hub.y}px`, animation: "spinslow 40s linear infinite" }} />
+      <rect x={hub.x - 34} y={hub.y - 34} width="68" height="68" rx="14" fill="rgb(var(--panel2))" stroke="rgb(var(--primary) / 0.7)" />
+      <path d={`M${hub.x - 14} ${hub.y - 6} L${hub.x} ${hub.y - 14} L${hub.x + 14} ${hub.y - 6} L${hub.x} ${hub.y + 2} Z`} fill="rgb(var(--primary))" />
+      <path d={`M${hub.x - 14} ${hub.y + 2} L${hub.x} ${hub.y + 10} L${hub.x + 14} ${hub.y + 2}`} stroke="rgb(var(--primary))" strokeWidth="2" fill="none" />
+      <text x={hub.x} y={hub.y + 58} textAnchor="middle" fontSize="12" fill="rgb(var(--muted))" fontFamily="var(--font-mono)" letterSpacing="2">SARISHA · WB</text>
     </svg>
   );
 }

@@ -36,7 +36,7 @@ export default function ExpensesPage() {
             </div>
           </Card>
           <Card plain className="overflow-hidden">
-            <Table rows={data?.items} loading={!data} empty={<div className="py-10 text-center text-sm text-muted">No expenses this month.</div>} columns={[
+            <Table rows={data?.items} loading={!data} empty={<div className="py-10 text-center text-[15.5px] text-muted">No expenses this month.</div>} columns={[
               { key: "d", header: "Date", cell: (e) => fmtDate(e.date) },
               { key: "c", header: "Category", cell: (e) => <span className="flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full" style={{ background: COLORS[EXPENSE_CATEGORIES.indexOf(e.category as never)] }} />{e.category}</span> },
               { key: "n", header: "Note", cell: (e) => <span className="text-muted">{e.note}</span> },
@@ -48,7 +48,7 @@ export default function ExpensesPage() {
         <Card title="Where it went">
           <div className="flex flex-col items-center gap-4 p-5">
             <Donut data={cats.map(([c, v]) => ({ name: c, value: v, color: COLORS[EXPENSE_CATEGORIES.indexOf(c as never)] }))} label={compactINR(data?.totalPaise ?? 0)} sub="this month" />
-            <ul className="w-full space-y-2 text-sm">{cats.sort((a, b) => b[1] - a[1]).map(([c, v]) => <li key={c} className="flex justify-between"><span className="text-muted">{c}</span><b className="num">{formatINR(v, { decimals: false })}</b></li>)}</ul>
+            <ul className="w-full space-y-2 text-[15.5px]">{cats.sort((a, b) => b[1] - a[1]).map(([c, v]) => <li key={c} className="flex justify-between"><span className="text-muted">{c}</span><b className="num">{formatINR(v, { decimals: false })}</b></li>)}</ul>
           </div>
         </Card>
       </div>

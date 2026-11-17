@@ -16,7 +16,7 @@ interface BoardItem { employee: { id: string; name: string; code: string; design
 interface Board { date: string; items: BoardItem[]; summary: Record<string, number> }
 interface Grid { month: string; employees: { id: string; name: string; code: string; avatarHue: number }[]; records: { employeeId: string; date: string; status: string }[]; holidays: { date: string; name: string }[] }
 
-const CELL: Record<string, string> = { PRESENT: "bg-leaf/80", LATE: "bg-marigold/90", HALF_DAY: "bg-gold/60", ABSENT: "bg-sindoor/80", LEAVE: "bg-sky/70" };
+const CELL: Record<string, string> = { PRESENT: "bg-leaf/80", LATE: "bg-marigold/90", HALF_DAY: "bg-primary/60", ABSENT: "bg-primary/80", LEAVE: "bg-lav" };
 
 export default function AttendancePage() {
   const [tab, setTab] = useState<"today" | "month">("today");
@@ -46,12 +46,12 @@ function Today() {
           <motion.div key={i.employee.id} initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: n * 0.04 }} className={cn("paar-card flex items-center gap-4 p-5", i.state === "NOT_IN" && "opacity-70")}>
             <div className="relative">
               <SelfieImg id={i.record?.id ?? ""} has={!!i.record?.checkInSelfie} name={i.employee.name} hue={i.employee.avatarHue} size={64} />
-              {i.record?.checkInSelfie && <span className="absolute -bottom-1 -right-1 grid h-6 w-6 place-items-center rounded-full bg-gold text-[#2a1306]"><Camera className="h-3.5 w-3.5" /></span>}
+              {i.record?.checkInSelfie && <span className="absolute -bottom-1 -right-1 grid h-6 w-6 place-items-center rounded-full bg-primary text-[#2a1306]"><Camera className="h-3.5 w-3.5" /></span>}
             </div>
             <div className="min-w-0 flex-1">
               <div className="truncate font-semibold">{i.employee.name}</div>
-              <div className="text-xs text-muted">{i.employee.designation} · {i.employee.code}</div>
-              <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+              <div className="text-[14px] text-muted">{i.employee.designation} · {i.employee.code}</div>
+              <div className="mt-2 flex flex-wrap items-center gap-2 text-[14px]">
                 <StatusBadge status={i.state} />
                 {i.record?.checkInAt && <span className="text-muted">In {fmtTime(i.record.checkInAt)}{i.record.checkOutAt ? ` · Out ${fmtTime(i.record.checkOutAt)}` : ""}</span>}
                 {i.record?.checkInDistanceM != null && <span className="flex items-center gap-0.5 text-muted"><MapPin className="h-3 w-3" />{i.record.checkInDistanceM} m</span>}
@@ -76,7 +76,7 @@ function Month() {
   return (
     <Card title="Month register" subtitle="Click a cell to correct it. Sundays and holidays are shaded." action={<Input type="month" value={month} onChange={(e) => setMonth(e.target.value)} className="w-44" />}>
       <div className="overflow-x-auto p-5">
-        <table className="border-separate border-spacing-[3px] text-xs">
+        <table className="border-separate border-spacing-[3px] text-[14px]">
           <thead>
             <tr>
               <th className="sticky left-0 bg-panel/90 pr-3 text-left font-medium text-muted">Employee</th>
@@ -106,7 +106,7 @@ function Month() {
             })}
           </tbody>
         </table>
-        <div className="mt-4 flex flex-wrap gap-4 text-xs text-muted">
+        <div className="mt-4 flex flex-wrap gap-4 text-[14px] text-muted">
           {Object.entries(CELL).map(([k, c]) => <span key={k} className="flex items-center gap-1.5"><span className={cn("h-3 w-3 rounded", c)} />{k.replace("_", " ").toLowerCase()}</span>)}
         </div>
       </div>

@@ -28,15 +28,15 @@ export function Table<T extends object>({ columns, rows, loading, onRowClick, em
       <div className="divide-y divide-line/[0.06] md:hidden">
         {loading && Array.from({ length: 4 }, (_, i) => <div key={i} className="space-y-2 p-4"><Skeleton className="h-4 w-1/2" /><Skeleton className="h-3 w-3/4" /></div>)}
         {!loading && rows?.map((r, i) => (
-          <div key={key(r, i)} onClick={() => onRowClick?.(r)} className={cn("flex gap-3 p-4 active:bg-line/[0.04]", selected?.has(key(r, i)) && "bg-sindoor/[0.06]")}>
+          <div key={key(r, i)} onClick={() => onRowClick?.(r)} className={cn("flex gap-3 p-4 active:bg-primary-tint/60", selected?.has(key(r, i)) && "bg-sindoor/[0.06]")}>
             {onToggle && <input type="checkbox" checked={selected?.has(key(r, i)) ?? false} onClick={(e) => e.stopPropagation()} onChange={() => onToggle(key(r, i))} className="mt-1 h-4 w-4 accent-[rgb(var(--sindoor))]" />}
             <div className="min-w-0 flex-1">
-              <div className="text-[14px]">{first.cell(r)}</div>
+              <div className="text-[16px]">{first.cell(r)}</div>
               <dl className="mt-2.5 grid grid-cols-2 gap-x-4 gap-y-2">
                 {rest.filter((c) => !c.hideMobile).map((c) => (
                   <div key={c.key} className="min-w-0">
-                    {c.header ? <dt className="label !text-[9.5px]">{c.header}</dt> : null}
-                    <dd className="mt-0.5 truncate text-[13px]">{c.cell(r)}</dd>
+                    {c.header ? <dt className="text-[13.5px] font-medium text-muted">{c.header}</dt> : null}
+                    <dd className="mt-0.5 truncate text-[15px]">{c.cell(r)}</dd>
                   </div>
                 ))}
               </dl>
@@ -50,9 +50,9 @@ export function Table<T extends object>({ columns, rows, loading, onRowClick, em
         <table className="w-full border-separate border-spacing-0 text-sm">
           <thead>
             <tr>
-              {onToggle && <th className="w-10 border-b hairline bg-bg2/40 px-4 py-2.5" />}
+              {onToggle && <th className="w-10 border-b hairline bg-panel2 px-5 py-3" />}
               {columns.map((c) => (
-                <th key={c.key} className={cn("border-b hairline bg-bg2/40 px-4 py-2.5 text-left font-mono text-[10.5px] font-medium uppercase tracking-[0.12em] text-muted", c.align === "right" && "text-right", c.align === "center" && "text-center", c.className)}>
+                <th key={c.key} className={cn("border-b hairline bg-panel2 px-5 py-3 text-left text-[14px] font-semibold text-muted", c.align === "right" && "text-right", c.align === "center" && "text-center", c.className)}>
                   {c.header}
                 </th>
               ))}
@@ -73,7 +73,7 @@ export function Table<T extends object>({ columns, rows, loading, onRowClick, em
                     animate={{ opacity: 1 }}
                     transition={{ delay: Math.min(i * 0.012, 0.25), duration: 0.25 }}
                     onClick={() => onRowClick?.(r)}
-                    className={cn("group transition-colors hover:bg-line/[0.025]", onRowClick && "cursor-pointer", selected?.has(key(r, i)) && "bg-sindoor/[0.06]")}
+                    className={cn("group transition-colors hover:bg-primary-tint/50", onRowClick && "cursor-pointer", selected?.has(key(r, i)) && "bg-sindoor/[0.06]")}
                   >
                     {onToggle && (
                       <td className="border-b border-line/[0.05] px-4 py-2.5" onClick={(e) => e.stopPropagation()}>
@@ -81,7 +81,7 @@ export function Table<T extends object>({ columns, rows, loading, onRowClick, em
                       </td>
                     )}
                     {columns.map((c) => (
-                      <td key={c.key} className={cn("border-b border-line/[0.05] px-4 py-2.5 align-middle text-[13px]", c.align === "right" && "text-right", c.align === "center" && "text-center", c.className)}>
+                      <td key={c.key} className={cn("border-b border-line/[0.06] px-5 py-3.5 align-middle text-[15.5px]", c.align === "right" && "text-right", c.align === "center" && "text-center", c.className)}>
                         {c.cell(r)}
                       </td>
                     ))}

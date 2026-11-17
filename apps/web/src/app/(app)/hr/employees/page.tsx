@@ -25,7 +25,7 @@ export default function TeamPage() {
       <PageHeader title="Team" subtitle="The people who keep Puja Parbon moving." actions={can("employees.manage") && <Button variant="primary" icon={<UserPlus className="h-4 w-4" />} onClick={() => setAdding(true)}>Add employee</Button>} />
       {depts.map((d) => (
         <div key={d} className="mb-8">
-          <div className="mb-3 flex items-center gap-3 text-xs font-semibold uppercase tracking-[0.2em] text-muted"><span className="h-px w-6 bg-gold/40" />{d}</div>
+          <div className="mb-3 flex items-center gap-3 text-[14px] font-semibold text-muted"><span className="h-px w-6 bg-primary/40" />{d}</div>
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             {data!.filter((e) => e.department === d).map((e, i) => (
               <motion.div key={e.id} initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }} whileHover={{ y: -4 }}>
@@ -34,14 +34,14 @@ export default function TeamPage() {
                     <Avatar name={e.name} hue={e.avatarHue} size={76} />
                     <span className={`absolute bottom-1 right-1 h-4 w-4 rounded-full ring-4 ring-panel ${e.todayStatus === "PRESENT" ? "bg-leaf" : e.todayStatus === "LATE" ? "bg-marigold" : e.todayStatus === "LEAVE" ? "bg-sky" : "bg-muted/40"}`} />
                   </div>
-                  <div className="mt-3 text-[15px] font-semibold">{e.name}</div>
-                  <div className="text-xs text-muted">{e.designation} · {e.code}</div>
+                  <div className="mt-3 text-[16px] font-semibold">{e.name}</div>
+                  <div className="text-[14px] text-muted">{e.designation} · {e.code}</div>
                   <div className="mt-3 flex justify-center gap-2">
                     {e.todayStatus ? <StatusBadge status={e.todayStatus} /> : <StatusBadge status="NOT_IN" />}
                     {e.openTasks > 0 && <Badge tone="gold">{e.openTasks} tasks</Badge>}
                   </div>
-                  <div className="mt-3 text-xs text-muted">{e.checkInAt ? `In at ${fmtTime(e.checkInAt)}` : " "}</div>
-                  <div className="mt-3 flex items-center justify-center gap-3 border-t hairline pt-3 text-xs text-muted">
+                  <div className="mt-3 text-[14px] text-muted">{e.checkInAt ? `In at ${fmtTime(e.checkInAt)}` : " "}</div>
+                  <div className="mt-3 flex items-center justify-center gap-3 border-t hairline pt-3 text-[14px] text-muted">
                     <span className="flex items-center gap-1"><Phone className="h-3 w-3" />{e.phone}</span>
                     {e.hasLogin && <span className="flex items-center gap-1 text-leaf"><KeyRound className="h-3 w-3" />App</span>}
                   </div>

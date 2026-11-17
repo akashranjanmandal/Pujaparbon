@@ -40,12 +40,12 @@ export default function PayrollPage() {
         </div>
       )}
       <Card plain className="overflow-hidden" title={`Payslips · ${new Date(`${month}-01`).toLocaleString("en-IN", { month: "long", year: "numeric" })}`} action={drafts.length > 0 && <Button variant="gold" size="sm" loading={paid.isPending} onClick={() => paid.mutate(drafts.map((d) => d.id))}>Mark all {drafts.length} as paid</Button>}>
-        <Table rows={data?.items} loading={!data} empty={<div className="py-12 text-center text-sm text-muted">No payroll yet for this month. Press <b>Run payroll</b>.</div>} columns={[
-          { key: "e", header: "Employee", cell: (s) => <div className="flex items-center gap-3"><Avatar name={s.name} hue={s.avatarHue} size={32} /><div><div className="font-medium">{s.name}</div><div className="text-xs text-muted">{s.designation}</div></div></div> },
-          { key: "d", header: "Days", cell: (s) => <div className="text-xs"><b className="text-sm">{s.payableDays}</b> / {s.workingDays}<div className="text-muted">{s.presentDays} present · {s.paidLeaveDays} leave · {s.lateCount} late</div></div> },
+        <Table rows={data?.items} loading={!data} empty={<div className="py-12 text-center text-[15.5px] text-muted">No payroll yet for this month. Press <b>Run payroll</b>.</div>} columns={[
+          { key: "e", header: "Employee", cell: (s) => <div className="flex items-center gap-3"><Avatar name={s.name} hue={s.avatarHue} size={32} /><div><div className="font-medium">{s.name}</div><div className="text-[14px] text-muted">{s.designation}</div></div></div> },
+          { key: "d", header: "Days", cell: (s) => <div className="text-[14px]"><b className="text-[15.5px]">{s.payableDays}</b> / {s.workingDays}<div className="text-muted">{s.presentDays} present · {s.paidLeaveDays} leave · {s.lateCount} late</div></div> },
           { key: "g", header: "Gross", align: "right", cell: (s) => <span className="num">{formatINR(s.grossPaise, { decimals: false })}</span> },
           { key: "a", header: "Advance", align: "right", cell: (s) => s.status === "DRAFT" ? <Input type="number" placeholder={String(s.advancePaise / 100 || "")} value={adv[s.employeeId] ?? ""} onChange={(e) => setAdv({ ...adv, [s.employeeId]: e.target.value })} className="ml-auto h-8 w-24 text-right" /> : <span className="text-muted num">{formatINR(s.advancePaise, { decimals: false })}</span> },
-          { key: "n", header: "Net pay", align: "right", cell: (s) => <b className="text-[14px] font-semibold num">{formatINR(s.netPaise, { decimals: false })}</b> },
+          { key: "n", header: "Net pay", align: "right", cell: (s) => <b className="text-[15px] font-semibold num">{formatINR(s.netPaise, { decimals: false })}</b> },
           { key: "s", header: "", cell: (s) => <StatusBadge status={s.status} /> },
           { key: "p", header: "", align: "right", cell: (s) => <Button size="sm" variant="ghost" icon={<FileText className="h-3.5 w-3.5" />} onClick={() => openFile(`/payroll/${s.id}/pdf`)}>Slip</Button> },
         ]} />

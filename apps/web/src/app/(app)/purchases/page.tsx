@@ -32,19 +32,19 @@ export default function PurchasesPage() {
       <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {suppliers?.map((s, i) => (
           <motion.button key={s.id} onClick={() => setSupplierId(supplierId === s.id ? "" : s.id)} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}
-            className={`paar-card p-5 text-left transition ${supplierId === s.id ? "border-gold/50 shadow-glow" : "hover:border-gold/30"}`}>
+            className={`paar-card p-5 text-left transition ${supplierId === s.id ? "border-primary shadow-glow" : "hover:border-primary/30"}`}>
             <div className="flex items-start justify-between">
               <div>
-                <div className="text-[15px] font-semibold">{s.name}</div>
-                <div className="text-xs text-muted">{s.contactName} · {s.city}</div>
+                <div className="text-[16px] font-semibold">{s.name}</div>
+                <div className="text-[14px] text-muted">{s.contactName} · {s.city}</div>
               </div>
               <Badge tone="gold">{s.purchases} POs</Badge>
             </div>
             <div className="mt-4 flex items-end justify-between">
-              <div><div className="text-xs text-muted">Bought so far</div><div className="text-[22px] font-semibold tracking-tight">{compactINR(s.spentPaise)}</div></div>
-              {s.phone && <a href={`tel:${s.phone}`} onClick={(e) => e.stopPropagation()} className="flex items-center gap-1 text-xs text-gold"><Phone className="h-3 w-3" />{s.phone}</a>}
+              <div><div className="text-[14px] text-muted">Bought so far</div><div className="text-[22px] font-semibold tracking-tight">{compactINR(s.spentPaise)}</div></div>
+              {s.phone && <a href={`tel:${s.phone}`} onClick={(e) => e.stopPropagation()} className="flex items-center gap-1 text-[14px] text-primary"><Phone className="h-3 w-3" />{s.phone}</a>}
             </div>
-            <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-line/10"><motion.div className="h-full bg-sindoor" initial={{ width: 0 }} animate={{ width: `${(s.spentPaise / top) * 100}%` }} transition={{ duration: 1, delay: 0.3 }} /></div>
+            <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-line/10"><motion.div className="h-full bg-primary" initial={{ width: 0 }} animate={{ width: `${(s.spentPaise / top) * 100}%` }} transition={{ duration: 1, delay: 0.3 }} /></div>
           </motion.button>
         ))}
       </div>
@@ -77,7 +77,7 @@ function PurchaseDrawer({ suppliers, onClose }: { suppliers: Supplier[]; onClose
   });
   return (
     <Drawer open onClose={onClose} wide title="Receive a purchase" subtitle="Enter the supplier's bill. Stock goes up the moment you save."
-      footer={<><div className="mr-auto text-[15px] font-semibold">Total {formatINR(total * 100)}</div><Button variant="ghost" onClick={onClose}>Cancel</Button><Button variant="primary" loading={save.isPending} disabled={!invoiceNo || !lines.some((l) => l.variantId)} onClick={() => save.mutate(undefined)}>Save purchase</Button></>}>
+      footer={<><div className="mr-auto text-[16px] font-semibold">Total {formatINR(total * 100)}</div><Button variant="ghost" onClick={onClose}>Cancel</Button><Button variant="primary" loading={save.isPending} disabled={!invoiceNo || !lines.some((l) => l.variantId)} onClick={() => save.mutate(undefined)}>Save purchase</Button></>}>
       <div className="space-y-5">
         <div className="grid gap-4 sm:grid-cols-3">
           <Field label="Supplier"><Select value={supplierId} onChange={(e) => setSupplierId(e.target.value)}>{suppliers.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</Select></Field>
@@ -97,7 +97,7 @@ function PurchaseDrawer({ suppliers, onClose }: { suppliers: Supplier[]; onClose
               <Field label={i === 0 ? "Qty" : ""}><Input type="number" value={l.qty} onChange={(e) => setLines((ls) => ls.map((x, j) => (j === i ? { ...x, qty: e.target.value } : x)))} /></Field>
               <Field label={i === 0 ? "Cost ₹" : ""}><Input type="number" value={l.cost} onChange={(e) => setLines((ls) => ls.map((x, j) => (j === i ? { ...x, cost: e.target.value } : x)))} /></Field>
               <button className="mb-2 p-2 text-muted hover:text-sindoor" onClick={() => setLines((ls) => ls.filter((_, j) => j !== i))}><Trash2 className="h-4 w-4" /></button>
-              {sku && <div className="col-span-4 -mt-1 text-xs text-muted">On hand {sku.onHand} → <b className="text-leaf">{sku.onHand + Number(l.qty || 0)}</b></div>}
+              {sku && <div className="col-span-4 -mt-1 text-[14px] text-muted">On hand {sku.onHand} → <b className="text-leaf">{sku.onHand + Number(l.qty || 0)}</b></div>}
             </div>
           );
         })}

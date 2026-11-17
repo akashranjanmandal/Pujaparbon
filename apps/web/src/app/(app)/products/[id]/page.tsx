@@ -31,14 +31,14 @@ export default function ProductDetail() {
 
   return (
     <div className="space-y-6">
-      <button onClick={() => router.push("/products")} className="flex items-center gap-2 text-sm text-muted hover:text-text"><ArrowLeft className="h-4 w-4" /> All products</button>
+      <button onClick={() => router.push("/products")} className="flex items-center gap-2 text-[15.5px] text-muted hover:text-text"><ArrowLeft className="h-4 w-4" /> All products</button>
       <Card className="relative overflow-hidden p-6">
         <div className="relative flex flex-col gap-6 sm:flex-row sm:items-center">
           <ProductGlyph name={p.name} size={88} className="rounded-2xl" />
           <div className="flex-1">
             <div className="label">{p.category} · HSN {p.hsnCode} · GST {p.gstRate}%</div>
             <h1 className="mt-1 text-[26px] font-semibold tracking-tight">{p.name}</h1>
-            {p.description && <p className="mt-2 max-w-2xl text-sm text-muted">{p.description}</p>}
+            {p.description && <p className="mt-2 max-w-2xl text-[15.5px] text-muted">{p.description}</p>}
           </div>
           <div className="flex gap-2">
             <Button icon={<Barcode className="h-4 w-4" />} onClick={() => openFile("/products/labels", { variantIds: p.variants.map((v) => v.id), copies: 3 })}>Labels</Button>
@@ -50,8 +50,8 @@ export default function ProductDetail() {
 
       <Card title="Variants and marketplace listings" plain>
         <Table rows={p.variants} columns={[
-          { key: "sku", header: "SKU", cell: (v) => <div><code className="font-semibold">{v.sku}</code><div className="text-xs text-muted">{[v.size, v.color].filter(Boolean).join(" · ") || "Standard"}</div></div> },
-          { key: "price", header: "Price / MRP", cell: (v) => <div className="num"><b>{formatINR(v.pricePaise, { decimals: false })}</b> <span className="text-xs text-muted line-through">{formatINR(v.mrpPaise, { decimals: false })}</span></div> },
+          { key: "sku", header: "SKU", cell: (v) => <div><code className="font-semibold">{v.sku}</code><div className="text-[14px] text-muted">{[v.size, v.color].filter(Boolean).join(" · ") || "Standard"}</div></div> },
+          { key: "price", header: "Price / MRP", cell: (v) => <div className="num"><b>{formatINR(v.pricePaise, { decimals: false })}</b> <span className="text-[14px] text-muted line-through">{formatINR(v.mrpPaise, { decimals: false })}</span></div> },
           { key: "margin", header: "Margin", cell: (v) => <Badge tone={margin(v) > 40 ? "green" : "gold"}>{margin(v)}%</Badge> },
           { key: "stock", header: "On hand", align: "right", cell: (v) => <span className={v.onHand <= v.reorderLevel ? "font-semibold text-marigold" : "font-semibold"}>{v.onHand}</span> },
           { key: "list", header: "Listed on", cell: (v) => <div className="flex flex-wrap gap-x-3 gap-y-1">{v.listings.map((l) => <span key={l.code} title={`${l.channelSku}${l.listingId ? ` · ${l.listingId}` : ""}`}><ChannelDot color={CHANNELS.find((c) => c.code === l.code)?.color ?? "#999"} name={l.channelSku} /></span>)}</div> },

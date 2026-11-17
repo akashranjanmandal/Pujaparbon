@@ -3,7 +3,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Bell, LogOut, Moon, Search, Sun } from "lucide-react";
+import { Bell, LogOut, Search } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Logo } from "@/components/brand/Logo";
 import { Avatar } from "@/components/ui/primitives";
@@ -11,24 +11,11 @@ import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { cn } from "@/lib/cn";
 import { groupOf, navFor } from "@/lib/nav";
-import { useTheme } from "@/lib/theme";
 
 interface Note { id: string; level: "critical" | "warning" | "info"; title: string; body: string; href: string }
 
-function Clock() {
-  const [now, setNow] = useState<Date | null>(null);
-  useEffect(() => {
-    setNow(new Date());
-    const t = setInterval(() => setNow(new Date()), 1000);
-    return () => clearInterval(t);
-  }, []);
-  if (!now) return <span className="w-[86px]" />;
-  return <span className="num font-mono text-[12px] text-muted">{now.toLocaleTimeString("en-GB", { timeZone: "Asia/Kolkata" })} <span className="text-muted/50">IST</span></span>;
-}
-
 export function Topbar({ onSearch }: { onSearch: () => void }) {
   const { user, logout } = useAuth();
-  const { theme, toggle } = useTheme();
   const path = usePathname();
   const [open, setOpen] = useState<"alerts" | "me" | null>(null);
   const ref = useRef<HTMLDivElement>(null);
@@ -40,55 +27,60 @@ export function Topbar({ onSearch }: { onSearch: () => void }) {
   }, []);
   if (!user) return null;
   const group = navFor(user.permissions, user.role).find((g) => g.id === groupOf(path)?.id);
-  const icon = "grid h-8 w-8 place-items-center rounded-lg text-muted transition hover:bg-line/[0.06] hover:text-text";
+  const icon = "relative grid h-10 w-10 place-items-center rounded-xl text-muted transition hover:bg-line/[0.05] hover:text-text";
 
   return (
-    <header className="sticky top-0 z-30 border-b hairline bg-bg/75 backdrop-blur-xl" ref={ref}>
-      <div className="flex h-14 items-center gap-4 px-4 sm:px-6">
-        <Link href={user.role === "STAFF" ? "/me" : "/dashboard"}><Logo className="[&>div]:hidden sm:[&>div]:block" /></Link>
-        <span className="hidden h-5 w-px bg-line/10 md:block" />
-        <span className="hidden font-mono text-[11px] uppercase tracking-[0.14em] text-muted md:block">{user.tenant?.name ?? "Workspace"} · {user.role.toLowerCase()}</span>
-
-        <button onClick={onSearch} className="mx-auto hidden h-8 w-full max-w-md items-center sm:flex gap-2.5 rounded-lg border border-line/10 bg-line/[0.03] px-3 text-left text-[13px] text-muted transition hover:border-line/20">
-          <Search className="h-3.5 w-3.5" />
-          <span className="flex-1 truncate">Search or jump to…</span>
-          <kbd className="rounded border border-line/10 px-1.5 text-[10px]">⌘K</kbd>
-        </button>
-
-        <div className="ml-auto flex items-center gap-1 sm:ml-0">
-          <button className={cn(icon, "sm:hidden")} onClick={onSearch} aria-label="Search"><Search className="h-4 w-4" /></button>
-          <span className="mr-2 hidden items-center gap-3 lg:flex">
-            <span className="flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-wider text-leaf"><span className="h-1.5 w-1.5 animate-dhak rounded-full bg-leaf shadow-[0_0_8px_rgb(var(--leaf))]" />Live</span>
-            <Clock />
-          </span>
-          <button className={icon} onClick={toggle} title="Toggle theme">{theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}</button>
+    <header className="sticky top-0 z-30 border-b hairline bg-bg/85 backdrop-blur-xl" ref={ref}>
+      <div className="mx-auto flex h-16 max-w-[1440px] items-center gap-4 px-4 sm:px-8">
+        <Link href={user.role === "STAFF" ? "/me" : "/dashboard"} className="shrink-0"><Logo className="[&>div:last-child]:hidden sm:[&>div:last-child]:block" /></Link>
+        {group && (
+          <nav className="ml-4 hidden items-center gap-1 lg:flex">
+            {group.items.map((i) => {
+              const active = path === i.href || path.startsWith(`${i.href}/`);
+              return (
+                <Link key={i.href} href={i.href} className={cn("relative rounded-xl px-3.5 py-2 text-[15.5px] font-medium transition-colors", active ? "text-text" : "text-muted hover:text-text")}>
+                  {active && <motion.span layoutId="top-tab" className="absolute inset-0 -z-10 rounded-xl bg-primary-tint" transition={{ type: "spring", bounce: 0.15, duration: 0.45 }} />}
+                  {i.label}
+                </Link>
+              );
+            })}
+          </nav>
+        )}
+        <div className="ml-auto flex items-center gap-1.5">
+          <button onClick={onSearch} className="hidden h-10 items-center gap-2.5 rounded-xl border border-line/[0.1] bg-panel px-3.5 text-[15px] text-muted shadow-[0_1px_2px_rgb(var(--line)/0.04)] transition hover:border-line/20 md:flex md:w-64">
+            <Search className="h-4 w-4" /><span className="flex-1 text-left">Search anything</span><kbd className="rounded-md bg-bg2 px-1.5 py-0.5 text-[11px]">⌘K</kbd>
+          </button>
+          <button className={cn(icon, "md:hidden")} onClick={onSearch} aria-label="Search"><Search className="h-[18px] w-[18px]" /></button>
           <div className="relative">
             <button className={icon} onClick={() => setOpen(open === "alerts" ? null : "alerts")} aria-label="Alerts">
-              <Bell className="h-4 w-4" />
-              {notes.length > 0 && <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-sindoor shadow-[0_0_8px_rgb(var(--sindoor))]" />}
+              <Bell className="h-[18px] w-[18px]" />
+              {notes.length > 0 && <span className="absolute right-1.5 top-1.5 grid h-4 min-w-4 place-items-center rounded-full bg-peach px-1 text-[10px] font-bold text-white">{notes.length}</span>}
             </button>
             <AnimatePresence>
               {open === "alerts" && (
-                <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} className="paar-card fixed inset-x-3 top-14 mt-2 bg-bg2/95 p-1.5 sm:absolute sm:inset-x-auto sm:right-0 sm:top-auto sm:w-[360px]">
-                  <div className="label px-3 pb-2 pt-2.5">Needs attention · {notes.length}</div>
-                  {notes.length === 0 && <div className="px-3 py-6 text-center text-[13px] text-muted">All systems normal.</div>}
+                <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} className="paar-card fixed inset-x-3 top-16 mt-1 p-2 shadow-lift sm:absolute sm:inset-x-auto sm:right-0 sm:top-auto sm:w-[380px]">
+                  <div className="px-3 pb-2 pt-2 text-[16px] font-semibold">Needs your attention</div>
+                  {notes.length === 0 && <div className="px-3 py-6 text-center text-[15px] text-muted">Nothing urgent right now.</div>}
                   {notes.map((n) => (
-                    <Link key={n.id} href={n.href} onClick={() => setOpen(null)} className="flex gap-3 rounded-lg px-3 py-2.5 transition hover:bg-line/[0.04]">
-                      <span className={cn("mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full", n.level === "critical" ? "bg-sindoor shadow-[0_0_8px_rgb(var(--sindoor))]" : n.level === "warning" ? "bg-marigold" : "bg-sky")} />
-                      <span><span className="block text-[13px] font-medium">{n.title}</span><span className="block text-[12px] text-muted">{n.body}</span></span>
+                    <Link key={n.id} href={n.href} onClick={() => setOpen(null)} className="flex gap-3 rounded-xl px-3 py-3 transition hover:bg-bg2">
+                      <span className={cn("mt-1.5 h-2 w-2 shrink-0 rounded-full", n.level === "critical" ? "bg-sindoor" : n.level === "warning" ? "bg-peach" : "bg-primary")} />
+                      <span><span className="block text-[15.5px] font-semibold">{n.title}</span><span className="block text-[14.5px] text-muted">{n.body}</span></span>
                     </Link>
                   ))}
                 </motion.div>
               )}
             </AnimatePresence>
           </div>
-          <div className="relative ml-1">
-            <button onClick={() => setOpen(open === "me" ? null : "me")} className="rounded-full"><Avatar name={user.name} hue={user.avatarHue} size={28} /></button>
+          <div className="relative">
+            <button onClick={() => setOpen(open === "me" ? null : "me")} className="ml-1 flex items-center gap-2.5 rounded-xl py-1 pl-1 pr-2 transition hover:bg-line/[0.05]">
+              <Avatar name={user.name} hue={user.avatarHue} size={34} />
+              <span className="hidden text-left leading-tight xl:block"><span className="block text-[15px] font-semibold">{user.name}</span><span className="block text-[13.5px] text-muted">{user.designation}</span></span>
+            </button>
             <AnimatePresence>
               {open === "me" && (
-                <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="paar-card absolute right-0 mt-2 w-56 bg-bg2/95 p-1.5">
-                  <div className="px-3 py-2.5"><div className="text-[13px] font-medium">{user.name}</div><div className="text-[12px] text-muted">{user.email}</div></div>
-                  <button onClick={logout} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-[13px] text-muted hover:bg-line/[0.04] hover:text-sindoor"><LogOut className="h-3.5 w-3.5" />Sign out</button>
+                <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="paar-card absolute right-0 mt-2 w-60 p-2 shadow-lift">
+                  <div className="px-3 py-2"><div className="text-[15.5px] font-semibold">{user.name}</div><div className="text-[14px] text-muted">{user.email}</div></div>
+                  <button onClick={logout} className="flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-[15px] text-muted hover:bg-bg2 hover:text-sindoor"><LogOut className="h-4 w-4" />Sign out</button>
                 </motion.div>
               )}
             </AnimatePresence>
@@ -96,15 +88,10 @@ export function Topbar({ onSearch }: { onSearch: () => void }) {
         </div>
       </div>
       {group && group.items.length > 1 && (
-        <nav className="flex h-10 items-end gap-1 overflow-x-auto px-4 sm:px-6">
+        <nav className="flex gap-1 overflow-x-auto px-4 pb-2.5 lg:hidden">
           {group.items.map((i) => {
             const active = path === i.href || path.startsWith(`${i.href}/`);
-            return (
-              <Link key={i.href} href={i.href} className={cn("relative flex h-9 items-center gap-2 whitespace-nowrap px-3 text-[13px] transition-colors", active ? "text-text" : "text-muted hover:text-text")}>
-                <i.icon className="h-3.5 w-3.5" />{i.label}
-                {active && <motion.span layoutId="tab-ul" className="absolute inset-x-2 -bottom-px h-[2px] rounded-full bg-sindoor shadow-[0_0_10px_rgb(var(--sindoor))]" />}
-              </Link>
-            );
+            return <Link key={i.href} href={i.href} className={cn("whitespace-nowrap rounded-full px-3.5 py-1.5 text-[15px] font-medium", active ? "bg-primary-tint text-primary" : "text-muted")}>{i.label}</Link>;
           })}
         </nav>
       )}

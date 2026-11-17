@@ -53,8 +53,8 @@ export default function AnalyticsPage() {
           </ResponsiveContainer>
         </div>
         <div className="overflow-x-auto border-t hairline px-5 py-4">
-          <table className="w-full min-w-[640px] text-sm">
-            <thead><tr className="text-xs text-muted"><th className="text-left font-medium">₹</th>{pnl.map((p) => <th key={p.month} className="text-right font-medium">{p.label}</th>)}</tr></thead>
+          <table className="w-full min-w-[640px] text-[15.5px]">
+            <thead><tr className="text-[14px] text-muted"><th className="text-left font-medium">₹</th>{pnl.map((p) => <th key={p.month} className="text-right font-medium">{p.label}</th>)}</tr></thead>
             <tbody>
               {([["Revenue", "revenue"], ["Returns", "returns"], ["Marketplace fees", "fees"], ["Cost of goods", "cogs"], ["Expenses", "expenses"], ["Payroll", "payroll"], ["Net profit", "netProfit"]] as const).map(([l, k]) => (
                 <tr key={k} className={k === "netProfit" ? "font-semibold" : ""}>
@@ -72,10 +72,10 @@ export default function AnalyticsPage() {
           <ul className="space-y-1 p-4">
             {a.skuPerformance.slice(0, 8).map((s, i) => (
               <li key={s.sku} className="flex items-center gap-3 rounded-xl px-2 py-2">
-                <span className="w-5 text-right text-xs text-muted">{i + 1}</span>
+                <span className="w-5 text-right text-[14px] text-muted">{i + 1}</span>
                 <ProductGlyph name={s.name} size={34} />
-                <div className="min-w-0 flex-1"><div className="truncate text-sm">{s.name}</div><code className="text-[11px] text-muted">{s.sku} · {s.units} sold</code></div>
-                <div className="text-right"><div className="text-sm font-semibold num">{compactINR(s.paise)}</div><Badge tone={s.marginPct >= 45 ? "green" : s.marginPct >= 30 ? "gold" : "red"}>{s.marginPct}% margin</Badge></div>
+                <div className="min-w-0 flex-1"><div className="truncate text-[15.5px]">{s.name}</div><code className="text-[13.5px] text-muted">{s.sku} · {s.units} sold</code></div>
+                <div className="text-right"><div className="text-[15.5px] font-semibold num">{compactINR(s.paise)}</div><Badge tone={s.marginPct >= 45 ? "green" : s.marginPct >= 30 ? "gold" : "red"}>{s.marginPct}% margin</Badge></div>
               </li>
             ))}
           </ul>
@@ -85,11 +85,11 @@ export default function AnalyticsPage() {
             {a.reorder.map((r) => (
               <div key={r.sku} className="flex items-center gap-3 rounded-2xl border border-line/10 bg-bg2/60 p-3">
                 <ProductGlyph name={r.name} size={34} />
-                <div className="min-w-0 flex-1"><div className="truncate text-sm font-medium">{r.name}</div><div className="text-xs text-muted">{r.available} left · selling {r.perDay}/day</div></div>
-                <div className="text-right"><div className={`text-sm font-semibold ${r.coverDays < 5 ? "text-sindoor" : "text-marigold"}`}>{r.coverDays} days left</div><div className="text-xs text-muted">order ~{r.suggestQty}</div></div>
+                <div className="min-w-0 flex-1"><div className="truncate text-[15.5px] font-medium">{r.name}</div><div className="text-[14px] text-muted">{r.available} left · selling {r.perDay}/day</div></div>
+                <div className="text-right"><div className={`text-[15.5px] font-semibold ${r.coverDays < 5 ? "text-sindoor" : "text-marigold"}`}>{r.coverDays} days left</div><div className="text-[14px] text-muted">order ~{r.suggestQty}</div></div>
               </div>
             ))}
-            {!a.reorder.length && <div className="py-8 text-center text-sm text-muted">Every SKU has at least two weeks of stock.</div>}
+            {!a.reorder.length && <div className="py-8 text-center text-[15.5px] text-muted">Every SKU has at least two weeks of stock.</div>}
           </div>
         </Card>
       </div>
@@ -102,10 +102,10 @@ export default function AnalyticsPage() {
         <Card title="Where your customers are" subtitle="Sales by state, last 6 months">
           <div className="space-y-2.5 p-5">
             {a.states.slice(0, 10).map((s, i) => (
-              <div key={s.state} className="flex items-center gap-3 text-sm">
+              <div key={s.state} className="flex items-center gap-3 text-[15.5px]">
                 <span className="w-32 truncate">{s.state}</span>
                 <div className="h-6 flex-1 overflow-hidden rounded-lg bg-line/[0.06]">
-                  <motion.div initial={{ width: 0 }} animate={{ width: `${(s.paise / topState) * 100}%` }} transition={{ duration: 1, delay: i * 0.06 }} className="flex h-full items-center justify-end rounded-lg bg-sindoor/80 pr-2 font-mono text-[10.5px] text-white">{s.n}</motion.div>
+                  <motion.div initial={{ width: 0 }} animate={{ width: `${(s.paise / topState) * 100}%` }} transition={{ duration: 1, delay: i * 0.06 }} className="flex h-full items-center justify-end rounded-lg bg-primary/80 pr-2 font-mono text-[13px] text-white">{s.n}</motion.div>
                 </div>
                 <span className="w-16 text-right font-semibold num">{compactINR(s.paise)}</span>
               </div>
@@ -117,11 +117,11 @@ export default function AnalyticsPage() {
             {a.deadStock.map((d) => (
               <div key={d.sku} className="flex items-center gap-3 rounded-xl px-2 py-2">
                 <ProductGlyph name={d.name} size={34} />
-                <div className="min-w-0 flex-1"><div className="truncate text-sm">{d.name}</div><div className="text-xs text-muted">{d.onHand} units · last sold {d.lastSaleAt ? fmtDate(d.lastSaleAt) : "never"}</div></div>
-                <span className="text-sm font-semibold text-marigold num">{formatINR(d.valuePaise, { decimals: false })}</span>
+                <div className="min-w-0 flex-1"><div className="truncate text-[15.5px]">{d.name}</div><div className="text-[14px] text-muted">{d.onHand} units · last sold {d.lastSaleAt ? fmtDate(d.lastSaleAt) : "never"}</div></div>
+                <span className="text-[15.5px] font-semibold text-marigold num">{formatINR(d.valuePaise, { decimals: false })}</span>
               </div>
             ))}
-            {!a.deadStock.length && <div className="py-8 text-center text-sm text-muted">Everything sold in the last 60 days. Wonderful.</div>}
+            {!a.deadStock.length && <div className="py-8 text-center text-[15.5px] text-muted">Everything sold in the last 60 days. Wonderful.</div>}
           </div>
         </Card>
       </div>

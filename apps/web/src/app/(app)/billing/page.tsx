@@ -37,10 +37,10 @@ function BillingInner() {
       )}
       <Card plain className="overflow-hidden">
         <Table rows={data?.items} loading={!data} onRowClick={(i) => openFile(`/invoices/${i.id}/pdf`)} columns={[
-          { key: "n", header: "Invoice", cell: (i) => <div><code className="font-semibold">{i.number}</code><div className="text-xs text-muted">{fmtDate(i.date, { day: "numeric", month: "short", year: "numeric" })}</div></div> },
-          { key: "c", header: "Bill to", cell: (i) => <div><div>{i.customerName}</div>{i.customerGstin && <code className="text-xs text-muted">{i.customerGstin}</code>}</div> },
+          { key: "n", header: "Invoice", cell: (i) => <div><code className="font-semibold">{i.number}</code><div className="text-[14px] text-muted">{fmtDate(i.date, { day: "numeric", month: "short", year: "numeric" })}</div></div> },
+          { key: "c", header: "Bill to", cell: (i) => <div><div>{i.customerName}</div>{i.customerGstin && <code className="text-[14px] text-muted">{i.customerGstin}</code>}</div> },
           { key: "p", header: "Place of supply", cell: (i) => <span className="text-muted">{i.placeOfSupply}</span> },
-          { key: "t", header: "Tax", cell: (i) => <span className="text-xs text-muted">{i.igstPaise ? `IGST ${formatINR(i.igstPaise)}` : `CGST+SGST ${formatINR(i.cgstPaise + i.sgstPaise)}`}</span> },
+          { key: "t", header: "Tax", cell: (i) => <span className="text-[14px] text-muted">{i.igstPaise ? `IGST ${formatINR(i.igstPaise)}` : `CGST+SGST ${formatINR(i.cgstPaise + i.sgstPaise)}`}</span> },
           { key: "v", header: "Total", align: "right", cell: (i) => <b className={cn("num", i.status === "CANCELLED" && "line-through opacity-50")}>{formatINR(i.totalPaise)}</b> },
           { key: "s", header: "", cell: (i) => <StatusBadge status={i.status} /> },
           { key: "a", header: "", align: "right", cell: (i) => (
@@ -98,18 +98,18 @@ function InvoiceDrawer({ onClose }: { onClose: () => void }) {
               <Field label="HSN" className="col-span-3 sm:col-span-2"><Input value={l.hsn} onChange={(e) => setLines((ls) => ls.map((x, j) => (j === i ? { ...x, hsn: e.target.value } : x)))} /></Field>
               <Field label="Qty" className="col-span-2 sm:col-span-1"><Input type="number" value={l.qty} onChange={(e) => setLines((ls) => ls.map((x, j) => (j === i ? { ...x, qty: e.target.value } : x)))} /></Field>
               <Field label="Rate ₹" className="col-span-3 sm:col-span-2"><Input type="number" value={l.rate} onChange={(e) => setLines((ls) => ls.map((x, j) => (j === i ? { ...x, rate: e.target.value } : x)))} /></Field>
-              <div className="col-span-3 pb-2.5 text-right text-xs text-muted sm:col-span-1">{l.gstRate}%</div>
+              <div className="col-span-3 pb-2.5 text-right text-[14px] text-muted sm:col-span-1">{l.gstRate}%</div>
               <button className="col-span-1 pb-2 text-muted hover:text-sindoor" onClick={() => setLines((ls) => ls.filter((_, j) => j !== i))}><Trash2 className="h-4 w-4" /></button>
             </div>
           ))}
           <Button size="sm" icon={<Plus className="h-3.5 w-3.5" />} onClick={() => setLines((ls) => [...ls, { variantId: "", description: "", hsn: "", qty: "1", rate: "", gstRate: 5 }])}>Add line</Button>
         </div>
-        <label className="flex items-center gap-2 text-sm text-muted"><input type="checkbox" checked={deductStock} onChange={(e) => setDeduct(e.target.checked)} className="h-4 w-4 accent-[rgb(var(--sindoor))]" /> Take these items out of stock</label>
-        <motion.div layout className="ml-auto max-w-sm space-y-2 rounded-2xl border border-gold/25 bg-gold/[0.06] p-5 text-sm">
+        <label className="flex items-center gap-2 text-[15.5px] text-muted"><input type="checkbox" checked={deductStock} onChange={(e) => setDeduct(e.target.checked)} className="h-4 w-4 accent-[rgb(var(--primary))]" /> Take these items out of stock</label>
+        <motion.div layout className="ml-auto max-w-sm space-y-2 rounded-2xl border border-primary/30 bg-primary-tint/60 p-5 text-[15.5px]">
           <Row k="Taxable value" v={totals.subtotalPaise} />
           {totals.interState ? <Row k="IGST" v={totals.igstPaise} /> : <><Row k="CGST" v={totals.cgstPaise} /><Row k="SGST" v={totals.sgstPaise} /></>}
-          <div className="flex justify-between border-t border-gold/20 pt-2 text-[15px] font-semibold"><span>Total</span><span className="gold-text num">{formatINR(totals.totalPaise)}</span></div>
-          <div className="text-xs text-muted">{totals.interState ? `Inter-state supply to ${pos}: IGST applies.` : "Intra-state supply: CGST and SGST split equally."}</div>
+          <div className="flex justify-between border-t border-primary/30 pt-2 text-[16px] font-semibold"><span>Total</span><span className="gold-text num">{formatINR(totals.totalPaise)}</span></div>
+          <div className="text-[14px] text-muted">{totals.interState ? `Inter-state supply to ${pos}: IGST applies.` : "Intra-state supply: CGST and SGST split equally."}</div>
         </motion.div>
       </div>
     </Drawer>

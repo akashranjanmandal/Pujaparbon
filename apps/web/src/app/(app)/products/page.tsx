@@ -40,7 +40,7 @@ export default function ProductsPage() {
           <Input placeholder="Name or SKU" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
         </div>
         {["", ...(data?.categories ?? [])].map((c) => (
-          <button key={c} onClick={() => setCat(c)} className={cn("rounded-full border px-3.5 py-1.5 text-xs font-semibold transition", cat === c ? "border-gold/50 bg-gold/15 text-gold" : "border-line/10 text-muted hover:text-text")}>{c || "All"}</button>
+          <button key={c} onClick={() => setCat(c)} className={cn("rounded-full border px-3.5 py-1.5 text-[14px] font-semibold transition", cat === c ? "border-primary bg-primary-tint text-primary" : "border-line/10 text-muted hover:text-text")}>{c || "All"}</button>
         ))}
       </div>
 
@@ -56,13 +56,13 @@ export default function ProductsPage() {
                 </div>
                 {p.lowStock ? <Badge tone="gold" dot>Low stock</Badge> : <Badge tone="green" dot>In stock</Badge>}
               </div>
-              <div className="mt-4 text-xs font-medium uppercase tracking-[0.12em] text-muted">{p.category}</div>
-              <div className="mt-1 text-[15px] font-semibold leading-snug">{p.name}</div>
+              <div className="mt-4 text-[14px] font-medium text-muted">{p.category}</div>
+              <div className="mt-1 text-[16px] font-semibold leading-snug">{p.name}</div>
               <div className="mt-2 flex items-baseline gap-2">
                 <span className="text-lg font-semibold num">{formatINR(p.minPricePaise, { decimals: false })}</span>
-                {p.maxPricePaise !== p.minPricePaise && <span className="text-sm text-muted">– {formatINR(p.maxPricePaise, { decimals: false })}</span>}
+                {p.maxPricePaise !== p.minPricePaise && <span className="text-[15.5px] text-muted">– {formatINR(p.maxPricePaise, { decimals: false })}</span>}
               </div>
-              <div className="mt-4 flex items-center justify-between border-t hairline pt-3 text-xs text-muted">
+              <div className="mt-4 flex items-center justify-between border-t hairline pt-3 text-[14px] text-muted">
                 <span>{p.variants.length} variant{p.variants.length > 1 ? "s" : ""} · <b className="text-text">{p.onHand}</b> on hand</span>
                 <span className="flex -space-x-1">
                   {p.channels.map((c) => {

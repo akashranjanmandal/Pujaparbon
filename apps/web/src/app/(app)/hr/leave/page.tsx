@@ -30,12 +30,12 @@ export default function LeavePage() {
             <div className="space-y-3 p-5">
               <AnimatePresence>
                 {pending.map((l) => (
-                  <motion.div key={l.id} layout exit={{ opacity: 0, x: 60 }} className="flex flex-wrap items-center gap-4 rounded-2xl border border-gold/20 bg-gold/[0.05] p-4">
+                  <motion.div key={l.id} layout exit={{ opacity: 0, x: 60 }} className="flex flex-wrap items-center gap-4 rounded-2xl border border-primary/30 bg-primary/[0.05] p-4">
                     <Avatar name={l.employeeName} hue={l.avatarHue} size={44} />
                     <div className="min-w-[180px] flex-1">
                       <div className="font-semibold">{l.employeeName}</div>
-                      <div className="text-sm text-muted">{l.type.toLowerCase()} · {fmtDate(l.from)}{l.to !== l.from ? ` – ${fmtDate(l.to)}` : ""} · {l.days} day{l.days > 1 ? "s" : ""}</div>
-                      <div className="mt-1 text-sm">“{l.reason}”</div>
+                      <div className="text-[15.5px] text-muted">{l.type.toLowerCase()} · {fmtDate(l.from)}{l.to !== l.from ? ` – ${fmtDate(l.to)}` : ""} · {l.days} day{l.days > 1 ? "s" : ""}</div>
+                      <div className="mt-1 text-[15.5px]">“{l.reason}”</div>
                     </div>
                     <div className="flex gap-2">
                       <Button variant="danger" size="sm" icon={<X className="h-4 w-4" />} onClick={() => decide.mutate({ id: l.id, status: "REJECTED" })}>Decline</Button>
@@ -44,13 +44,13 @@ export default function LeavePage() {
                   </motion.div>
                 ))}
               </AnimatePresence>
-              {!pending.length && <div className="py-8 text-center text-sm text-muted">No pending requests. 🌼</div>}
+              {!pending.length && <div className="py-8 text-center text-[15.5px] text-muted">No pending requests. 🌼</div>}
             </div>
           </Card>
           <Card title="History">
             <div className="space-y-2 p-5">
               {data?.filter((l) => l.status !== "PENDING").map((l) => (
-                <div key={l.id} className="flex items-center gap-3 rounded-xl bg-panel2/40 px-4 py-2.5 text-sm">
+                <div key={l.id} className="flex items-center gap-3 rounded-xl bg-panel2/40 px-4 py-2.5 text-[15.5px]">
                   <Avatar name={l.employeeName} hue={l.avatarHue} size={28} />
                   <span className="flex-1">{l.employeeName} · {fmtDate(l.from)}{l.to !== l.from ? ` – ${fmtDate(l.to)}` : ""} · <span className="text-muted">{l.reason}</span></span>
                   <StatusBadge status={l.status} />
@@ -64,7 +64,7 @@ export default function LeavePage() {
             {upcoming.map((x, i) => (
               <motion.div key={x.id} initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.05 }} className="flex items-center gap-4 rounded-2xl border border-line/10 bg-bg2/60 p-3">
                 <div className="grid h-12 w-12 place-items-center rounded-xl border border-line/10 bg-line/[0.04] text-center leading-none">
-                  <div><div className="text-[15px] font-semibold">{Number(x.date.slice(8))}</div><div className="text-[10px] uppercase text-muted">{fmtDate(x.date, { month: "short" })}</div></div>
+                  <div><div className="text-[16px] font-semibold">{Number(x.date.slice(8))}</div><div className="text-[10px] uppercase text-muted">{fmtDate(x.date, { month: "short" })}</div></div>
                 </div>
                 <div className="font-medium">{x.name}</div>
               </motion.div>

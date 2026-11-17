@@ -1,13 +1,14 @@
 import { cn } from "@/lib/cn";
 
-/** Geometric "PP" monogram: two stacked chevrons inside a rounded square — reads as a parcel and a forward arrow. */
-export function LogoMark({ size = 30, className }: { size?: number; className?: string }) {
+/** Monogram: an open parcel seen from above — a square with folded flaps, peach seal. */
+export function LogoMark({ size = 34, className }: { size?: number; className?: string }) {
   return (
-    <svg viewBox="0 0 32 32" width={size} height={size} className={className} aria-hidden>
-      <rect x="0.5" y="0.5" width="31" height="31" rx="8" fill="rgb(var(--sindoor))" />
-      <path d="M9 10.5 L16 7 L23 10.5 L16 14 Z" fill="white" fillOpacity="0.95" />
-      <path d="M9 15.5 L16 19 L23 15.5" stroke="white" strokeWidth="2" fill="none" strokeLinejoin="round" strokeOpacity="0.8" />
-      <path d="M9 20.5 L16 24 L23 20.5" stroke="white" strokeWidth="2" fill="none" strokeLinejoin="round" strokeOpacity="0.55" />
+    <svg viewBox="0 0 34 34" width={size} height={size} className={className} aria-hidden>
+      <rect width="34" height="34" rx="10" fill="rgb(var(--primary))" />
+      <path d="M9 13 L17 9 L25 13 L17 17 Z" fill="rgb(var(--primary-soft))" />
+      <path d="M9 13 V21.5 L17 25.5 V17 Z" fill="white" fillOpacity="0.92" />
+      <path d="M25 13 V21.5 L17 25.5 V17 Z" fill="white" fillOpacity="0.7" />
+      <circle cx="26.5" cy="7.5" r="3.5" fill="rgb(var(--peach-soft))" stroke="rgb(var(--primary))" strokeWidth="1.5" />
     </svg>
   );
 }
@@ -18,8 +19,8 @@ export function Logo({ compact = false, className }: { compact?: boolean; classN
       <LogoMark />
       {!compact && (
         <div className="leading-none">
-          <div className="text-[14px] font-semibold tracking-tight">Puja Parbon</div>
-          <div className="mt-1 font-mono text-[10px] uppercase tracking-[0.16em] text-muted">Seller OS</div>
+          <div className="text-[17px] font-semibold tracking-tight">Puja Parbon</div>
+          <div className="mt-1 text-[13px] font-medium text-muted">Seller OS</div>
         </div>
       )}
     </div>

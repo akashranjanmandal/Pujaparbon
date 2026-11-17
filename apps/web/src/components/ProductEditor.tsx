@@ -63,7 +63,7 @@ export function ProductEditor({ product, open, onClose, categories }: { product?
 
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <div className="text-[14px] font-semibold">Variants</div>
+            <div className="text-[15px] font-semibold">Variants</div>
             <Button size="sm" icon={<Plus className="h-3.5 w-3.5" />} onClick={() => setVars((v) => [...v, blankV()])}>Add variant</Button>
           </div>
           {vars.map((v, i) => (
@@ -81,7 +81,7 @@ export function ProductEditor({ product, open, onClose, categories }: { product?
                 </div>
               </div>
               <div className="space-y-2">
-                <div className="text-xs font-semibold uppercase tracking-[0.12em] text-muted">Marketplace listings</div>
+                <div className="text-[14px] font-semibold text-muted">Marketplace listings</div>
                 {v.listings.map((l, li) => {
                   const ch = CHANNELS.find((c) => c.code === l.channel);
                   return (
@@ -95,7 +95,7 @@ export function ProductEditor({ product, open, onClose, categories }: { product?
                     </div>
                   );
                 })}
-                <button className="text-xs font-semibold text-gold hover:underline" onClick={() => setV(i, { listings: [...v.listings, { channel: "FLIPKART", channelSku: "", listingId: "" }] })}>+ Map to a marketplace</button>
+                <button className="text-[14px] font-semibold text-primary hover:underline" onClick={() => setV(i, { listings: [...v.listings, { channel: "FLIPKART", channelSku: "", listingId: "" }] })}>+ Map to a marketplace</button>
               </div>
             </div>
           ))}

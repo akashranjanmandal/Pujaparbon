@@ -30,7 +30,7 @@ export default function TasksPage() {
           return (
             <div key={c.s} onDragOver={(e) => e.preventDefault()} onDrop={() => drag && move.mutate({ id: drag, status: c.s })} className="paar-card min-h-[300px] w-[84vw] shrink-0 snap-center p-4 lg:w-auto">
               <div className="mb-3 flex items-center justify-between px-1">
-                <span className="rounded-full bg-panel2 px-2.5 py-1 text-sm font-semibold">{items.length}</span>
+                <span className="rounded-full bg-panel2 px-2.5 py-1 text-[15.5px] font-semibold">{items.length}</span>
               </div>
               <div className="space-y-2">
                 {items.map((t) => {
@@ -38,7 +38,7 @@ export default function TasksPage() {
                   return (
                     <motion.div layout key={t.id} draggable onDragStartCapture={() => setDrag(t.id)} className={cn("cursor-grab rounded-2xl border bg-bg2/70 p-4", overdue ? "border-sindoor/40" : "border-line/10")}>
                       <div className="flex items-start justify-between gap-2"><div className={cn("font-medium", t.status === "DONE" && "text-muted line-through")}>{t.title}</div><StatusBadge status={t.priority} /></div>
-                      <div className="mt-3 flex items-center justify-between text-xs text-muted">
+                      <div className="mt-3 flex items-center justify-between text-[14px] text-muted">
                         <span className="flex items-center gap-2"><Avatar name={t.employeeName} hue={t.avatarHue} size={22} />{t.employeeName}</span>
                         <span className={overdue ? "font-semibold text-sindoor" : ""}>{overdue ? "Overdue · " : ""}{fmtDate(t.dueDate)}</span>
                       </div>
