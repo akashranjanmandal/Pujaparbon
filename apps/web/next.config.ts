@@ -5,6 +5,7 @@ const API = process.env.API_ORIGIN ?? "http://localhost:4000";
 const config: NextConfig = {
   transpilePackages: ["@pp/shared"],
   reactStrictMode: true,
+  devIndicators: false,
   poweredByHeader: false,
   // Same-origin API: the refresh cookie stays SameSite=Strict and no CORS is needed in the browser.
   async rewrites() {

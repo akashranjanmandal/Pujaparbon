@@ -63,6 +63,18 @@ export async function recordMovement(ex: Executor, c: Ctx, m: MovementInput) {
   return row;
 }
 
+/** The bin holding the most units of a variant — where pickers take stock from. */
+export async function pickBin(ex: Executor, tenantId: string, variantId: string, qty: number) {
+  const [row] = await ex
+    .select({ binId: stockMovements.binId, qty: sql<number>`sum(${stockMovements.qty})` })
+    .from(stockMovements)
+    .where(and(eq(stockMovements.tenantId, tenantId), eq(stockMovements.variantId, variantId), sql`${stockMovements.binId} is not null`))
+    .groupBy(stockMovements.binId)
+    .orderBy(desc(sql`sum(${stockMovements.qty})`))
+    .limit(1);
+  return row && Number(row.qty) >= qty ? row.binId : null;
+}
+
 export async function move(c: Ctx, input: StockMoveInput) {
   const qty = input.type === "OUTWARD" ? -Math.abs(input.qty) : input.type === "INWARD" ? Math.abs(input.qty) : input.qty;
   return db.transaction(async (tx) => {
@@ -170,8 +182,8 @@ export async function listBins(tenantId: string) {
       id: bins.id,
       code: bins.code,
       zone: bins.zone,
-      units: sql<number>`coalesce((select sum(qty) from stock_movements m where m.bin_id = ${bins.id}), 0)`,
-      skus: sql<number>`(select count(*) from (select variant_id from stock_movements m where m.bin_id = ${bins.id} group by variant_id having sum(qty) > 0))`,
+      units: sql<number>`coalesce((select sum(m.qty) from stock_movements m where m.bin_id = "bins"."id"), 0)`,
+      skus: sql<number>`(select count(*) from (select m.variant_id from stock_movements m where m.bin_id = "bins"."id" group by m.variant_id having sum(m.qty) > 0))`,
     })
     .from(bins)
     .where(eq(bins.tenantId, tenantId))

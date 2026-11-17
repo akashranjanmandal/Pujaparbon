@@ -1,4 +1,5 @@
 "use client";
+import { ProductGlyph } from "@/components/ui/ProductGlyph";
 import { useQuery } from "@tanstack/react-query";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
@@ -28,7 +29,7 @@ function ReturnsInner() {
 
   return (
     <div>
-      <PageHeader bn="ফেরত পণ্য" title="Returns" subtitle="Good returns go straight back on the shelf. Damaged ones are written off at cost so you see the real loss."
+      <PageHeader title="Returns" subtitle="Good returns go straight back on the shelf. Damaged ones are written off at cost so you see the real loss."
         actions={
           <div className="flex gap-2">
             <Input placeholder="Scan or type order ID" value={lookup} onChange={(e) => setLookup(e.target.value)} onKeyDown={(e) => e.key === "Enter" && find.mutate(lookup)} className="w-56" />
@@ -47,7 +48,7 @@ function ReturnsInner() {
         <Table rows={data?.items} loading={!data} columns={[
           { key: "date", header: "Date", cell: (r) => fmtDate(r.createdAt) },
           { key: "order", header: "Order", cell: (r) => <div><code className="text-xs">{r.channelOrderId}</code><ChannelDot color={r.channelColor} name={r.channelName} className="mt-1 block" /></div> },
-          { key: "item", header: "Item", cell: (r) => <div className="flex items-center gap-2"><span className="text-lg">{r.emoji}</span><div><div className="max-w-[200px] truncate">{r.name}</div><code className="text-xs text-muted">{r.sku} × {r.qty}</code></div></div> },
+          { key: "item", header: "Item", cell: (r) => <div className="flex items-center gap-2"><ProductGlyph name={r.name} size={34} /><div><div className="max-w-[200px] truncate">{r.name}</div><code className="text-xs text-muted">{r.sku} × {r.qty}</code></div></div> },
           { key: "type", header: "Type", cell: (r) => <Badge tone={r.type === "RTO" ? "blue" : "muted"}>{r.type === "RTO" ? "RTO" : "Customer"}</Badge> },
           { key: "reason", header: "Reason", cell: (r) => <span className="text-muted">{r.reason}</span> },
           { key: "status", header: "Outcome", cell: (r) => <StatusBadge status={r.status} /> },
@@ -73,7 +74,7 @@ function ReturnDrawer({ orderId, onClose }: { orderId: string; onClose: () => vo
       footer={<Button variant="primary" loading={save.isPending} onClick={() => save.mutate(undefined)}>Save return</Button>}>
       {o && (
         <div className="space-y-5">
-          <Field label="Item"><Select value={variantId} onChange={(e) => setVariantId(e.target.value)}>{o.items.filter((i) => i.variantId).map((i) => <option key={i.variantId!} value={i.variantId!}>{i.emoji} {i.name} ({i.sku}) × {i.qty}</option>)}</Select></Field>
+          <Field label="Item"><Select value={variantId} onChange={(e) => setVariantId(e.target.value)}>{o.items.filter((i) => i.variantId).map((i) => <option key={i.variantId!} value={i.variantId!}>{i.name} ({i.sku}) × {i.qty}</option>)}</Select></Field>
           <div className="grid grid-cols-2 gap-4">
             <Field label="Quantity"><Input type="number" value={qty} onChange={(e) => setQty(e.target.value)} /></Field>
             <Field label="Type"><Select value={type} onChange={(e) => setType(e.target.value)}><option value="CUSTOMER">Customer return</option><option value="RTO">RTO (not delivered)</option></Select></Field>

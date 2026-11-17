@@ -5,8 +5,9 @@ import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
 import { ArrowLeft, Barcode, Pencil, Trash2 } from "lucide-react";
 import { CHANNELS } from "@pp/shared";
-import { AlpanaLoader } from "@/components/brand/AlpanaLoader";
+import { Loader } from "@/components/ui/Loader";
 import { ProductEditor, type ProductRow } from "@/components/ProductEditor";
+import { ProductGlyph } from "@/components/ui/ProductGlyph";
 import { Table } from "@/components/ui/Table";
 import { Badge, Button, Card, ChannelDot } from "@/components/ui/primitives";
 import { api, openFile } from "@/lib/api";
@@ -25,19 +26,18 @@ export default function ProductDetail() {
   const { data: cats } = useQuery({ queryKey: ["products", ""], queryFn: () => api.get<{ categories: string[] }>("/products") });
   const { data: moves } = useQuery({ queryKey: ["stock", "ledger", p?.variants[0]?.id], queryFn: () => Promise.all(p!.variants.map((v) => api.get<Move[]>(`/stock/ledger?variantId=${v.id}&limit=20`))).then((r) => r.flat().sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt)).slice(0, 25)), enabled: !!p });
   const remove = useAction(() => api.del(`/products/${id}`), { success: "Product archived", invalidate: ["products"], onSuccess: () => router.push("/products") });
-  if (!p) return <AlpanaLoader />;
+  if (!p) return <Loader />;
   const margin = (v: ProductRow["variants"][number]) => Math.round(((v.pricePaise - v.costPaise) / v.pricePaise) * 100);
 
   return (
     <div className="space-y-6">
       <button onClick={() => router.push("/products")} className="flex items-center gap-2 text-sm text-muted hover:text-text"><ArrowLeft className="h-4 w-4" /> All products</button>
-      <Card className="relative overflow-hidden p-7">
-        <div className="absolute -right-10 -top-10 text-[220px] leading-none opacity-[0.07]">{p.emoji}</div>
+      <Card className="relative overflow-hidden p-6">
         <div className="relative flex flex-col gap-6 sm:flex-row sm:items-center">
-          <motion.div initial={{ scale: 0.6, rotate: -20 }} animate={{ scale: 1, rotate: 0 }} transition={{ type: "spring" }} className="grid h-28 w-28 place-items-center rounded-3xl bg-gradient-to-br from-sindoor/30 via-panel2 to-gold/20 text-6xl shadow-glow">{p.emoji}</motion.div>
+          <ProductGlyph name={p.name} size={88} className="rounded-2xl" />
           <div className="flex-1">
-            <div className="text-xs font-semibold uppercase tracking-[0.14em] text-gold/80">{p.category} · HSN {p.hsnCode} · GST {p.gstRate}%</div>
-            <h1 className="mt-1 font-display text-3xl font-semibold">{p.name}</h1>
+            <div className="label">{p.category} · HSN {p.hsnCode} · GST {p.gstRate}%</div>
+            <h1 className="mt-1 text-[26px] font-semibold tracking-tight">{p.name}</h1>
             {p.description && <p className="mt-2 max-w-2xl text-sm text-muted">{p.description}</p>}
           </div>
           <div className="flex gap-2">

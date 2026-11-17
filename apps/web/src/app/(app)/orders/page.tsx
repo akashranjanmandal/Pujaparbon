@@ -1,4 +1,5 @@
 "use client";
+import { ProductGlyph } from "@/components/ui/ProductGlyph";
 import { useQuery } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "framer-motion";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -27,11 +28,11 @@ interface OrderDetail extends Omit<Order, "units" | "unmapped" | "firstItem" | "
   returns: { id: string; qty: number; condition: string; status: string; reason: string }[];
 }
 
-const BOARD: { status: OrderStatus; title: string; bn: string }[] = [
-  { status: "NEW", title: "New", bn: "নতুন" },
-  { status: "PICKED", title: "Picked", bn: "বাছাই হয়েছে" },
-  { status: "PACKED", title: "Packed", bn: "প্যাক হয়েছে" },
-  { status: "DISPATCHED", title: "Dispatched", bn: "রওনা দিয়েছে" },
+const BOARD: { status: OrderStatus; title: string }[] = [
+  { status: "NEW", title: "New" },
+  { status: "PICKED", title: "Picked" },
+  { status: "PACKED", title: "Packed" },
+  { status: "DISPATCHED", title: "Dispatched" },
 ];
 const NEXT_LABEL: Partial<Record<OrderStatus, string>> = { NEW: "Mark picked", PICKED: "Mark packed", PACKED: "Dispatch", DISPATCHED: "Mark delivered" };
 
@@ -71,7 +72,7 @@ function OrdersInner() {
   return (
     <div>
       <PageHeader
-        bn="অর্ডার ও ডেলিভারি"
+       
         title="Orders & Dispatch"
         subtitle="Every marketplace in one queue. Stock leaves the shelf only when an order is dispatched."
         actions={
@@ -128,7 +129,7 @@ function OrdersInner() {
             columns={[
               { key: "id", header: "Order", cell: (o) => <div><code className="text-[13px] font-semibold text-text">{o.channelOrderId}</code><div className="text-xs text-muted">{fmtDateTime(o.orderedAt)}</div></div> },
               { key: "ch", header: "Channel", cell: (o) => <ChannelDot color={o.channel.color} name={o.channel.name} /> },
-              { key: "item", header: "Item", cell: (o) => <div className="flex items-center gap-2"><span className="text-lg">{o.emoji ?? "📦"}</span><div><div className="max-w-[220px] truncate">{o.firstItem ?? "Unmapped SKU"}</div><div className="text-xs text-muted">{o.units} unit{o.units > 1 ? "s" : ""}{o.unmapped ? <span className="text-sindoor"> · {o.unmapped} not mapped</span> : ""}</div></div></div> },
+              { key: "item", header: "Item", cell: (o) => <div className="flex items-center gap-2"><ProductGlyph name={o.firstItem ?? "?"} size={30} /><div><div className="max-w-[220px] truncate">{o.firstItem ?? "Unmapped SKU"}</div><div className="text-xs text-muted">{o.units} unit{o.units > 1 ? "s" : ""}{o.unmapped ? <span className="text-sindoor"> · {o.unmapped} not mapped</span> : ""}</div></div></div> },
               { key: "cust", header: "Customer", cell: (o) => <div><div>{o.customerName}</div><div className="text-xs text-muted">{[o.city, o.state].filter(Boolean).join(", ")}</div></div> },
               { key: "status", header: "Status", cell: (o) => <StatusBadge status={o.status} /> },
               { key: "total", header: "Value", align: "right", cell: (o) => <span className="font-semibold num">{formatINR(o.totalPaise, { decimals: false })}</span> },
@@ -160,7 +161,7 @@ function Board({ orders, loading, onOpen, onMove }: { orders: Order[]; loading: 
   const allowed = (target: OrderStatus) => !!drag && ORDER_FLOW[drag.status].includes(target);
 
   return (
-    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+    <div className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-2 md:mx-0 md:grid md:grid-cols-2 md:overflow-visible md:px-0 xl:grid-cols-4">
       {cols.map((col, ci) => (
         <motion.div
           key={col.status}
@@ -170,12 +171,11 @@ function Board({ orders, loading, onOpen, onMove }: { orders: Order[]; loading: 
           onDragOver={(e) => { if (allowed(col.status)) { e.preventDefault(); setOver(col.status); } }}
           onDragLeave={() => setOver(null)}
           onDrop={() => { if (drag && allowed(col.status)) onMove(drag.id, col.status); setOver(null); setDrag(null); }}
-          className={cn("paar-card flex max-h-[72vh] min-h-[300px] flex-col transition-all", over === col.status && "scale-[1.01] border-gold/50 shadow-glow", drag && !allowed(col.status) && drag.status !== col.status && "opacity-50")}
+          className={cn("paar-card flex max-h-[72vh] min-h-[300px] w-[84vw] shrink-0 snap-center flex-col transition-all md:w-auto", over === col.status && "scale-[1.01] border-gold/50 shadow-glow", drag && !allowed(col.status) && drag.status !== col.status && "opacity-50")}
         >
           <header className="flex items-center justify-between px-4 pb-3 pt-5">
             <div>
-              <div className="font-display text-base font-semibold">{col.title}</div>
-              <div className="font-bangla text-[11px] text-gold/70">{col.bn}</div>
+              <div className="text-[14px] font-semibold">{col.title}</div>
             </div>
             <span className="grid h-8 min-w-8 place-items-center rounded-full bg-panel2 px-2 text-sm font-semibold num">{col.items.length}</span>
           </header>
@@ -199,7 +199,7 @@ function Board({ orders, loading, onOpen, onMove }: { orders: Order[]; loading: 
                     <GripVertical className="h-4 w-4 text-muted/40 group-hover:text-muted" />
                   </div>
                   <div className="mt-2.5 flex items-center gap-2.5">
-                    <span className="text-2xl">{o.emoji ?? "📦"}</span>
+                    <ProductGlyph name={o.firstItem ?? "?"} size={34} />
                     <div className="min-w-0">
                       <div className="truncate text-[13px] font-medium">{o.firstItem ?? "Unmapped SKU"}</div>
                       <code className="text-[11px] text-muted">{o.channelOrderId}</code>
@@ -255,7 +255,7 @@ function OrderDrawer({ id, onClose, onMove, moving }: { id: string | null; onClo
             {steps.map((s, i) => (
               <div key={s} className="flex flex-1 items-center last:flex-none">
                 <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: i * 0.08 }} className={cn("grid h-8 w-8 place-items-center rounded-full border text-[11px] font-bold", i <= at ? "border-gold bg-gold/20 text-gold shadow-diya" : "border-line/20 text-muted")}>{i + 1}</motion.div>
-                {i < steps.length - 1 && <div className={cn("mx-1 h-0.5 flex-1 rounded", i < at ? "bg-gradient-to-r from-gold to-marigold" : "bg-line/10")} />}
+                {i < steps.length - 1 && <div className={cn("mx-1 h-0.5 flex-1 rounded", i < at ? "bg-sindoor" : "bg-line/10")} />}
               </div>
             ))}
           </div>
@@ -272,7 +272,7 @@ function OrderDrawer({ id, onClose, onMove, moving }: { id: string | null; onClo
             <div className="space-y-2">
               {o.items.map((i) => (
                 <div key={i.id} className="flex items-center gap-3 rounded-2xl border border-line/10 bg-bg2/60 p-3">
-                  <span className="grid h-11 w-11 place-items-center rounded-xl bg-panel2 text-2xl">{i.emoji ?? "❓"}</span>
+                  <ProductGlyph name={i.name ?? "?"} size={40} />
                   <div className="min-w-0 flex-1">
                     <div className="truncate text-sm font-medium">{i.name ?? "Not mapped to a product"}{i.size ? ` · ${i.size}` : ""}</div>
                     <code className="text-xs text-muted">{i.sku ?? i.channelSku}</code>
@@ -342,10 +342,10 @@ function ImportDrawer({ open, onClose }: { open: boolean; onClose: () => void })
           onDragOver={(e) => { e.preventDefault(); setHover(true); }}
           onDragLeave={() => setHover(false)}
           onDrop={(e) => { e.preventDefault(); setHover(false); setFile(e.dataTransfer.files[0] ?? null); setResult(null); }}
-          className={cn("flex cursor-pointer flex-col items-center justify-center gap-3 rounded-3xl border-2 border-dashed px-6 py-12 text-center transition", hover ? "border-gold bg-gold/10" : "border-line/20 bg-panel/40 hover:border-gold/50")}
+          className={cn("flex cursor-pointer flex-col items-center justify-center gap-3 rounded-xl2 border-2 border-dashed px-6 py-12 text-center transition", hover ? "border-gold bg-gold/10" : "border-line/20 bg-panel/40 hover:border-gold/50")}
         >
-          <motion.div animate={hover ? { y: -6, scale: 1.1 } : { y: 0, scale: 1 }} className="grid h-16 w-16 place-items-center rounded-2xl bg-gradient-to-br from-sindoor/30 to-gold/20 text-gold"><Upload className="h-7 w-7" /></motion.div>
-          <div className="font-display text-lg">{file ? file.name : "Drop the .csv or .xlsx report"}</div>
+          <motion.div animate={hover ? { y: -6, scale: 1.1 } : { y: 0, scale: 1 }} className="grid h-16 w-16 place-items-center rounded-2xl border border-line/10 bg-line/[0.04] text-sindoor"><Upload className="h-7 w-7" /></motion.div>
+          <div className="text-[15px] font-semibold">{file ? file.name : "Drop the .csv or .xlsx report"}</div>
           <div className="text-sm text-muted">{file ? `${(file.size / 1024).toFixed(1)} KB · ready` : "or click to choose a file"}</div>
           <input type="file" accept=".csv,.xlsx" className="hidden" onChange={(e) => { setFile(e.target.files?.[0] ?? null); setResult(null); }} />
         </label>
@@ -376,7 +376,7 @@ function ImportDrawer({ open, onClose }: { open: boolean; onClose: () => void })
   );
 }
 const Tile = ({ n, label, tone }: { n: number; label: string; tone: string }) => (
-  <div className="rounded-2xl border border-line/10 bg-panel/50 p-4 text-center"><div className={cn("font-display text-3xl font-semibold", tone)}>{n}</div><div className="mt-1 text-xs text-muted">{label}</div></div>
+  <div className="rounded-2xl border border-line/10 bg-panel/50 p-4 text-center"><div className={cn("text-[22px] font-semibold tracking-tight", tone)}>{n}</div><div className="mt-1 text-xs text-muted">{label}</div></div>
 );
 
 export default function OrdersPage() {

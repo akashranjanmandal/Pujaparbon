@@ -1,4 +1,5 @@
 "use client";
+import { ProductGlyph } from "@/components/ui/ProductGlyph";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import Link from "next/link";
@@ -26,7 +27,7 @@ export default function ProductsPage() {
 
   return (
     <div>
-      <PageHeader bn="পণ্য তালিকা" title="Products & SKUs" subtitle="Your catalogue, with every marketplace listing mapped to one internal SKU."
+      <PageHeader title="Products & SKUs" subtitle="Your catalogue, with every marketplace listing mapped to one internal SKU."
         actions={
           <>
             <Button icon={<Barcode className="h-4 w-4" />} onClick={() => data && openFile("/products/labels", { variantIds: data.items.flatMap((p) => p.variants.map((v) => v.id)), copies: 1 })}>Print all labels</Button>
@@ -50,13 +51,13 @@ export default function ProductsPage() {
           <motion.div key={p.id} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(i * 0.04, 0.5) }} whileHover={{ y: -4 }}>
             <Link href={`/products/${p.id}`} className="paar-card group block h-full p-5 transition-shadow hover:shadow-glow">
               <div className="flex items-start justify-between">
-                <div className="relative grid h-16 w-16 place-items-center rounded-2xl bg-gradient-to-br from-sindoor/25 via-panel2 to-gold/15 text-4xl">
-                  <span className="transition-transform duration-500 group-hover:scale-110 group-hover:rotate-6">{p.emoji}</span>
+                <div className="relative">
+                  <ProductGlyph name={p.name} size={34} />
                 </div>
                 {p.lowStock ? <Badge tone="gold" dot>Low stock</Badge> : <Badge tone="green" dot>In stock</Badge>}
               </div>
-              <div className="mt-4 text-xs font-medium uppercase tracking-[0.12em] text-gold/80">{p.category}</div>
-              <div className="mt-1 font-display text-lg font-semibold leading-snug">{p.name}</div>
+              <div className="mt-4 text-xs font-medium uppercase tracking-[0.12em] text-muted">{p.category}</div>
+              <div className="mt-1 text-[15px] font-semibold leading-snug">{p.name}</div>
               <div className="mt-2 flex items-baseline gap-2">
                 <span className="text-lg font-semibold num">{formatINR(p.minPricePaise, { decimals: false })}</span>
                 {p.maxPricePaise !== p.minPricePaise && <span className="text-sm text-muted">– {formatINR(p.maxPricePaise, { decimals: false })}</span>}

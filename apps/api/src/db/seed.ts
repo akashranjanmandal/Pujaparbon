@@ -1,6 +1,7 @@
 /**
  * Demo data for Puja Parbon. Deterministic (seeded random), safe to re-run: it wipes and rebuilds the demo tenant.
- * Festival dates below are illustrative for the demo and can be edited in the Holidays screen.
+ * Neutral multi-category demo catalogue; in real use the owner creates categories and products in the app.
+ * Holiday dates are illustrative and editable in the Leave screen.
  */
 import { CHANNELS, calcInvoice, computePayslip, istDateKey, workingDaysInMonth } from "@pp/shared";
 import { db, libsql } from "./client";
@@ -44,23 +45,23 @@ async function chunked<T>(table: Parameters<typeof db.insert>[0], rows: T[], siz
 
 /* ---------- catalogue ---------- */
 type V = { code: string; size?: string; color?: string };
-const CATALOGUE: { name: string; category: string; hsn: string; gst: number; emoji: string; mrp: number; price: number; cost: number; desc: string; popularity: number; variants: V[] }[] = [
-  { name: "Laal Paar Garad Silk Saree", category: "Sarees", hsn: "5007", gst: 5, emoji: "🥻", mrp: 4999, price: 3499, cost: 1950, popularity: 9, desc: "Classic red-bordered white garad for Ashtami anjali.", variants: [{ code: "GARAD-RW", color: "Red-White" }, { code: "GARAD-MW", color: "Maroon-White" }] },
-  { name: "Shantipur Tant Saree", category: "Sarees", hsn: "5208", gst: 5, emoji: "🥻", mrp: 1899, price: 1299, cost: 640, popularity: 10, desc: "Handwoven cotton tant from Shantipur weavers.", variants: [{ code: "TANT-RED", color: "Sindoor Red" }, { code: "TANT-MUS", color: "Mustard" }, { code: "TANT-TEAL", color: "Teal" }] },
-  { name: "Bishnupur Baluchari Silk", category: "Sarees", hsn: "5007", gst: 5, emoji: "🥻", mrp: 8999, price: 6499, cost: 3800, popularity: 4, desc: "Mythological motifs woven into the pallu.", variants: [{ code: "BALU-PNK", color: "Rani Pink" }, { code: "BALU-BLU", color: "Peacock Blue" }] },
-  { name: "Phulia Jamdani Saree", category: "Sarees", hsn: "5208", gst: 5, emoji: "🥻", mrp: 5999, price: 4299, cost: 2400, popularity: 5, desc: "Fine count jamdani with floral buti.", variants: [{ code: "JAM-WHT", color: "Off-White" }, { code: "JAM-GRN", color: "Bottle Green" }] },
-  { name: "Kantha Stitch Dupatta", category: "Women's Wear", hsn: "6214", gst: 5, emoji: "🧣", mrp: 1699, price: 1199, cost: 600, popularity: 6, desc: "Hand-embroidered kantha on soft silk.", variants: [{ code: "KANTHA-YLW", color: "Marigold" }, { code: "KANTHA-BLK", color: "Black" }] },
-  { name: "Men's Cotton Panjabi", category: "Men's Wear", hsn: "6205", gst: 5, emoji: "👘", mrp: 1299, price: 899, cost: 420, popularity: 9, desc: "Festive cotton panjabi with wooden buttons.", variants: [{ code: "PANJ-M", size: "M" }, { code: "PANJ-L", size: "L" }, { code: "PANJ-XL", size: "XL" }] },
-  { name: "Silk Dhoti", category: "Men's Wear", hsn: "5007", gst: 5, emoji: "👘", mrp: 999, price: 699, cost: 330, popularity: 5, desc: "Ready-to-wear silk dhoti with gold border.", variants: [{ code: "DHOTI-STD", size: "Free" }] },
-  { name: "Brass Pradip Set of 5", category: "Puja Essentials", hsn: "7418", gst: 12, emoji: "🪔", mrp: 799, price: 549, cost: 240, popularity: 8, desc: "Hand-polished brass diyas.", variants: [{ code: "PRADIP-5" }] },
-  { name: "Natural Shankha (Conch)", category: "Puja Essentials", hsn: "9601", gst: 12, emoji: "🐚", mrp: 1199, price: 799, cost: 380, popularity: 6, desc: "Blowable conch, cleaned and polished.", variants: [{ code: "SHANKHA-M", size: "Medium" }, { code: "SHANKHA-L", size: "Large" }] },
-  { name: "Brass Puja Thali Set", category: "Puja Essentials", hsn: "7418", gst: 12, emoji: "🪷", mrp: 1699, price: 1199, cost: 560, popularity: 7, desc: "Seven-piece thali with ghanta and kosha-kushi.", variants: [{ code: "THALI-7" }] },
-  { name: "Clay Dhunuchi", category: "Puja Essentials", hsn: "6912", gst: 12, emoji: "🏺", mrp: 399, price: 249, cost: 90, popularity: 8, desc: "For the dhunuchi naach at aarti.", variants: [{ code: "DHUNUCHI-STD" }] },
-  { name: "Sindoor Kouto", category: "Puja Essentials", hsn: "4420", gst: 12, emoji: "🔴", mrp: 499, price: 349, cost: 140, popularity: 6, desc: "Hand-painted wooden sindoor box.", variants: [{ code: "KOUTO-RED", color: "Red" }] },
-  { name: "Terracotta Durga Murti", category: "Idols & Decor", hsn: "6913", gst: 12, emoji: "🙏", mrp: 2199, price: 1499, cost: 700, popularity: 5, desc: "Krishnanagar clay, hand-finished. 12 inch.", variants: [{ code: "MURTI-12" }] },
-  { name: "Shola Pith Mukut", category: "Idols & Decor", hsn: "4602", gst: 12, emoji: "👑", mrp: 1299, price: 899, cost: 400, popularity: 4, desc: "Traditional shola crown from Bonkati artisans.", variants: [{ code: "MUKUT-STD" }] },
-  { name: "Kash Phool Decor Bunch", category: "Idols & Decor", hsn: "0604", gst: 5, emoji: "🌾", mrp: 449, price: 299, cost: 110, popularity: 5, desc: "Dried kash grass — the sign that Pujo is near.", variants: [{ code: "KASH-12" }] },
-  { name: "Alpana Stencil Kit", category: "Idols & Decor", hsn: "4823", gst: 18, emoji: "🎨", mrp: 299, price: 199, cost: 60, popularity: 6, desc: "Six reusable alpana stencils with rice-paste guide.", variants: [{ code: "ALPANA-6" }] },
+const CATALOGUE: { name: string; category: string; hsn: string; gst: number; mrp: number; price: number; cost: number; desc: string; popularity: number; variants: V[] }[] = [
+  { name: "Cotton Crew Neck T-Shirt", category: "Apparel", hsn: "6109", gst: 5, mrp: 799, price: 449, cost: 190, popularity: 10, desc: "180 GSM combed cotton, regular fit.", variants: [{ code: "TEE-BLK-M", size: "M", color: "Black" }, { code: "TEE-BLK-L", size: "L", color: "Black" }, { code: "TEE-WHT-M", size: "M", color: "White" }] },
+  { name: "Slim Fit Stretch Jeans", category: "Apparel", hsn: "6203", gst: 12, mrp: 1999, price: 1199, cost: 560, popularity: 7, desc: "Mid-rise, 2% elastane, indigo wash.", variants: [{ code: "JEAN-30", size: "30" }, { code: "JEAN-32", size: "32" }, { code: "JEAN-34", size: "34" }] },
+  { name: "Printed Cotton Kurta", category: "Apparel", hsn: "6211", gst: 5, mrp: 1499, price: 899, cost: 380, popularity: 8, desc: "Straight cut, hand-block print.", variants: [{ code: "KURTA-S", size: "S" }, { code: "KURTA-M", size: "M" }, { code: "KURTA-L", size: "L" }] },
+  { name: "Handloom Cotton Saree", category: "Apparel", hsn: "5208", gst: 5, mrp: 2499, price: 1599, cost: 780, popularity: 6, desc: "Six yards with blouse piece.", variants: [{ code: "SAREE-RED", color: "Red" }, { code: "SAREE-TEAL", color: "Teal" }] },
+  { name: "Everyday Running Shoes", category: "Footwear", hsn: "6404", gst: 12, mrp: 2999, price: 1699, cost: 820, popularity: 7, desc: "Breathable mesh, cushioned sole.", variants: [{ code: "RUN-8", size: "UK 8" }, { code: "RUN-9", size: "UK 9" }, { code: "RUN-10", size: "UK 10" }] },
+  { name: "Leather Slip-on Sandals", category: "Footwear", hsn: "6403", gst: 12, mrp: 1299, price: 749, cost: 330, popularity: 5, desc: "Genuine leather upper.", variants: [{ code: "SANDAL-8", size: "UK 8" }, { code: "SANDAL-9", size: "UK 9" }] },
+  { name: "Stainless Steel Water Bottle 1L", category: "Home & Kitchen", hsn: "7323", gst: 18, mrp: 899, price: 499, cost: 210, popularity: 9, desc: "Double-wall insulated, leak-proof cap.", variants: [{ code: "BOTTLE-SLV", color: "Silver" }, { code: "BOTTLE-BLK", color: "Black" }] },
+  { name: "Non-stick Fry Pan 24cm", category: "Home & Kitchen", hsn: "7615", gst: 12, mrp: 1499, price: 849, cost: 400, popularity: 6, desc: "Induction base, 3-layer coating.", variants: [{ code: "PAN-24" }] },
+  { name: "Ceramic Coffee Mug Set of 4", category: "Home & Kitchen", hsn: "6912", gst: 12, mrp: 999, price: 599, cost: 240, popularity: 6, desc: "Microwave and dishwasher safe.", variants: [{ code: "MUG-4" }] },
+  { name: "Cotton Double Bedsheet", category: "Home & Kitchen", hsn: "6302", gst: 5, mrp: 1799, price: 999, cost: 450, popularity: 5, desc: "With two pillow covers, 144 TC.", variants: [{ code: "SHEET-BLU", color: "Blue" }, { code: "SHEET-GRY", color: "Grey" }] },
+  { name: "Wireless Earbuds", category: "Electronics", hsn: "8518", gst: 18, mrp: 2999, price: 1299, cost: 650, popularity: 9, desc: "30h battery, low-latency mode.", variants: [{ code: "BUDS-BLK", color: "Black" }, { code: "BUDS-WHT", color: "White" }] },
+  { name: "USB-C Fast Charger 25W", category: "Electronics", hsn: "8504", gst: 18, mrp: 1199, price: 599, cost: 260, popularity: 8, desc: "PD 3.0, BIS certified.", variants: [{ code: "CHG-25W" }] },
+  { name: "Silicone Phone Case", category: "Electronics", hsn: "3926", gst: 18, mrp: 499, price: 249, cost: 70, popularity: 7, desc: "Shock-absorbing, soft-touch finish.", variants: [{ code: "CASE-A15", size: "Galaxy A15" }, { code: "CASE-IP15", size: "iPhone 15" }] },
+  { name: "Vitamin C Face Serum 30ml", category: "Beauty", hsn: "3304", gst: 18, mrp: 699, price: 449, cost: 150, popularity: 7, desc: "10% vitamin C with hyaluronic acid.", variants: [{ code: "SERUM-30" }] },
+  { name: "Herbal Hair Oil 200ml", category: "Beauty", hsn: "3305", gst: 18, mrp: 399, price: 249, cost: 85, popularity: 6, desc: "Cold-pressed, no mineral oil.", variants: [{ code: "HAIROIL-200" }] },
+  { name: "Laptop Backpack 30L", category: "Bags", hsn: "4202", gst: 18, mrp: 2499, price: 1299, cost: 610, popularity: 5, desc: "Water-resistant, fits 15.6\" laptops.", variants: [{ code: "BAG-30L" }] },
 ];
 
 const CHANNEL_WEIGHTS: [string, number][] = [["FLIPKART", 34], ["AMAZON", 26], ["MEESHO", 18], ["MYNTRA", 12], ["AJIO", 5], ["OWN_STORE", 5]];
@@ -83,7 +84,7 @@ const PLACES: [string, string, number][] = [
   ["Chennai", "Tamil Nadu", 3], ["Lucknow", "Uttar Pradesh", 2], ["Ahmedabad", "Gujarat", 2],
 ];
 
-/** Festive demand curve: Mahalaya → Dashami peak, a second bump for Kali Puja / Diwali. */
+/** Festive-sale demand curve: marketplace big-sale season in Oct, second bump around Diwali. */
 function demand(dayOffset: number) {
   const d = new Date(NOW.getTime() - dayOffset * DAY);
   const m = d.getMonth() + 1, day = d.getDate();
@@ -145,26 +146,27 @@ async function main() {
 
   /* catalogue */
   const binRows = [
-    ...["A-01", "A-02", "A-03", "A-04", "A-05", "A-06"].map((code) => ({ code, zone: "Sarees" })),
-    ...["B-01", "B-02", "B-03"].map((code) => ({ code, zone: "Apparel" })),
-    ...["C-01", "C-02", "C-03", "C-04", "C-05"].map((code) => ({ code, zone: "Puja Essentials" })),
-    ...["D-01", "D-02", "D-03"].map((code) => ({ code, zone: "Idols & Decor" })),
+    ...["A-01", "A-02", "A-03", "A-04", "A-05", "A-06"].map((code) => ({ code, zone: "A · Apparel" })),
+    ...["B-01", "B-02", "B-03", "B-04", "B-05", "B-06"].map((code) => ({ code, zone: "B · Footwear & Bags" })),
+    ...["C-01", "C-02", "C-03", "C-04", "C-05", "C-06"].map((code) => ({ code, zone: "C · Home" })),
+    ...["D-01", "D-02", "D-03", "D-04", "D-05", "D-06"].map((code) => ({ code, zone: "D · Electronics & Beauty" })),
   ].map((b) => ({ ...b, id: uuid(), tenantId }));
   await db.insert(s.bins).values(binRows);
-  const binFor = (category: string) => pick(binRows.filter((b) => b.zone === (category === "Sarees" ? "Sarees" : category.includes("Wear") ? "Apparel" : category)));
+  const ZONE: Record<string, string> = { Apparel: "A · Apparel", Footwear: "B · Footwear & Bags", Bags: "B · Footwear & Bags", "Home & Kitchen": "C · Home", Electronics: "D · Electronics & Beauty", Beauty: "D · Electronics & Beauty" };
+  const binFor = (category: string) => pick(binRows.filter((b) => b.zone === (ZONE[category] ?? "C · Home")));
 
   type VarRow = typeof s.variants.$inferInsert & { id: string; popularity: number; gst: number; hsn: string; productName: string; binId: string };
   const allVariants: VarRow[] = [];
   const listingRows: (typeof s.channelListings.$inferInsert)[] = [];
   for (const p of CATALOGUE) {
     const productId = uuid();
-    await db.insert(s.products).values({ id: productId, tenantId, name: p.name, category: p.category, description: p.desc, hsnCode: p.hsn, gstRate: p.gst, emoji: p.emoji, createdAt: new Date(NOW.getTime() - 200 * DAY) });
+    await db.insert(s.products).values({ id: productId, tenantId, name: p.name, category: p.category, description: p.desc, hsnCode: p.hsn, gstRate: p.gst, emoji: null, createdAt: new Date(NOW.getTime() - 200 * DAY) });
     for (const v of p.variants) {
       const id = uuid();
       const sku = `PP-${v.code}`;
-      allVariants.push({ id, tenantId, productId, sku, size: v.size ?? null, color: v.color ?? null, mrpPaise: rupees(p.mrp), pricePaise: rupees(p.price), costPaise: rupees(p.cost), reorderLevel: p.price > 3000 ? 3 : 8, popularity: p.popularity, gst: p.gst, hsn: p.hsn, productName: p.name, binId: binFor(p.category).id });
+      allVariants.push({ id, tenantId, productId, sku, size: v.size ?? null, color: v.color ?? null, mrpPaise: rupees(p.mrp), pricePaise: rupees(p.price), costPaise: rupees(p.cost), reorderLevel: p.price > 1500 ? 4 : 8, popularity: p.popularity, gst: p.gst, hsn: p.hsn, productName: p.name, binId: binFor(p.category).id });
       for (const ch of ["FLIPKART", "AMAZON", "MEESHO", "MYNTRA", "AJIO"]) {
-        if (ch === "MYNTRA" && !["Sarees", "Women's Wear", "Men's Wear"].includes(p.category)) continue;
+        if (ch === "MYNTRA" && !["Apparel", "Footwear", "Beauty", "Bags"].includes(p.category)) continue;
         if (ch === "AJIO" && rnd() < 0.5) continue;
         listingRows.push({ tenantId, variantId: id, channelId: chanIds[ch], channelSku: `${PREFIX[ch]}-${v.code}`, listingId: ch === "FLIPKART" ? `SRE${int(1e9, 9e9)}` : ch === "AMAZON" ? `B0${int(1e7, 9e7)}X` : null });
       }
@@ -175,12 +177,12 @@ async function main() {
 
   /* suppliers */
   const supplierRows = [
-    ["Shantipur Tant Weavers Co-op", "Haripada Basak", "Shantipur", "Sarees"], ["Bishnupur Baluchari House", "Gopal Dutta", "Bishnupur", "Sarees"],
-    ["Phulia Jamdani Collective", "Nemai Pramanik", "Phulia", "Sarees"], ["Barabazar Brass Emporium", "Ramesh Agarwal", "Kolkata", "Puja Essentials"],
-    ["Kumartuli Artisans Guild", "Kartik Pal", "Kolkata", "Idols & Decor"], ["Burrabazar Apparel Traders", "Imran Sheikh", "Kolkata", "Wear"],
+    ["Metro Garments Pvt Ltd", "Imran Sheikh", "Kolkata", "Apparel"], ["Stride Footwear Co.", "Rahul Jain", "Agra", "Footwear"],
+    ["HomeCraft Distributors", "Ramesh Agarwal", "Kolkata", "Home & Kitchen"], ["Volt Electronics Traders", "Sanjay Gupta", "Delhi", "Electronics"],
+    ["Glow Naturals LLP", "Priya Shah", "Ahmedabad", "Beauty"], ["Carryall Bags", "Gopal Dutta", "Kolkata", "Bags"],
   ].map(([name, contactName, city, focus]) => ({ id: uuid(), tenantId, name, contactName, city, phone: `9${int(100000000, 999999999)}`, gstin: `19${String.fromCharCode(65 + int(0, 25))}BCDE${int(1000, 9999)}F1Z${int(1, 9)}`, focus }));
   await db.insert(s.suppliers).values(supplierRows.map(({ focus: _f, ...r }) => ({ ...r, createdAt: new Date(NOW.getTime() - 220 * DAY) })));
-  const supplierFor = (cat: string) => supplierRows.find((x) => cat.includes(x.focus) || x.focus.includes(cat)) ?? supplierRows[3];
+  const supplierFor = (cat: string) => supplierRows.find((x) => x.focus === cat) ?? supplierRows[2];
 
   /* ---------- simulate 180 days ---------- */
   const onHand = new Map<string, number>();
@@ -220,7 +222,7 @@ async function main() {
   for (let dayOffset = 179; dayOffset >= 0; dayOffset--) {
     // Restock anything low, the way a manager would, about twice a month.
     if (dayOffset % 15 === 7 || dayOffset === 40) {
-      const low = allVariants.filter((v) => (onHand.get(v.id) ?? 0) < v.popularity * 4 && !(dayOffset < 10 && v.sku === "PP-BALU-BLU"));
+      const low = allVariants.filter((v) => (onHand.get(v.id) ?? 0) < v.popularity * 4 && !(dayOffset < 10 && v.sku === "PP-BUDS-WHT"));
       if (low.length) purchase(dayOffset, low, (v) => v.popularity * int(5, 9) * (dayOffset > 40 && dayOffset < 75 ? 2 : 1));
     }
     const count = Math.round((int(3, 7) + rnd() * 3) * demand(dayOffset) * (dayOffset === 0 ? 1.4 : 1));
@@ -264,7 +266,7 @@ async function main() {
       for (const i of items) {
         itemRows.push({ orderId: id, variantId: i.v.id, channelSku: channel === "OWN_STORE" ? i.v.sku : `${PREFIX[channel]}-${i.v.sku.slice(3)}`, qty: i.qty, pricePaise: i.price });
         if (ships) {
-          moves.push({ tenantId, variantId: i.v.id, qty: -i.qty, type: "SALE", reason: `Dispatched order`, refType: "order", refId: id, createdAt: dispatchedAt! < NOW ? dispatchedAt! : NOW });
+          moves.push({ tenantId, variantId: i.v.id, binId: i.v.binId, qty: -i.qty, type: "SALE", reason: `Dispatched order`, refType: "order", refId: id, createdAt: dispatchedAt! < NOW ? dispatchedAt! : NOW });
           onHand.set(i.v.id, (onHand.get(i.v.id) ?? 0) - i.qty);
         }
       }
@@ -273,7 +275,7 @@ async function main() {
         const good = rnd() < 0.7;
         const rid = uuid();
         const at = new Date(orderedAt.getTime() + int(5, 12) * DAY);
-        returnRows.push({ id: rid, tenantId, orderId: id, variantId: i.v.id, qty: i.qty, type: rnd() < 0.35 ? "RTO" : "CUSTOMER", condition: good ? "GOOD" : "DAMAGED", status: good ? "RESTOCKED" : "WRITTEN_OFF", reason: pick(["Size/fit issue", "Colour different from photo", "Damaged in transit", "Customer not available", "Changed mind"]), createdAt: at < NOW ? at : NOW });
+        returnRows.push({ id: rid, tenantId, orderId: id, variantId: i.v.id, qty: i.qty, type: rnd() < 0.35 ? "RTO" : "CUSTOMER", condition: good ? "GOOD" : "DAMAGED", status: good ? "RESTOCKED" : "WRITTEN_OFF", reason: pick(["Size/fit issue", "Different from listing photo", "Damaged in transit", "Customer not available", "Changed mind"]), createdAt: at < NOW ? at : NOW });
         if (good) {
           moves.push({ tenantId, variantId: i.v.id, binId: i.v.binId, qty: i.qty, type: "RETURN", reason: "Customer return", refType: "return", refId: rid, createdAt: at < NOW ? at : NOW });
           onHand.set(i.v.id, (onHand.get(i.v.id) ?? 0) + i.qty);
@@ -285,7 +287,7 @@ async function main() {
   // A few incoming marketplace SKUs nobody has mapped yet — the alert shows the manager what to fix.
   const unmappedOrder = uuid();
   orderRows.push({ id: unmappedOrder, tenantId, channelId: chanIds.MEESHO, channelOrderId: ORDER_ID.MEESHO(), customerName: "Debolina Saha", city: "Kolkata", state: "West Bengal", status: "NEW", orderedAt: ist(0, 9, 12), dispatchBy: new Date(NOW.getTime() + DAY), totalPaise: rupees(1099), createdAt: ist(0, 9, 12) });
-  itemRows.push({ orderId: unmappedOrder, variantId: null, channelSku: "MSH-TANT-ORANGE", qty: 1, pricePaise: rupees(1099) });
+  itemRows.push({ orderId: unmappedOrder, variantId: null, channelSku: "MSH-TEE-ORANGE-XL", qty: 1, pricePaise: rupees(1099) });
   // Two overdue orders to show dispatch alerts.
   for (const o of orderRows.filter((x) => x.status === "NEW").slice(0, 2)) o.dispatchBy = new Date(NOW.getTime() - 3 * 3600_000);
 
@@ -329,7 +331,7 @@ async function main() {
     if (status === "APPROVED") for (let d = 0; d < len; d++) leaveDays.add(`${e.id}|${istDateKey(new Date(NOW.getTime() - (fromOff - d) * DAY))}`);
   };
   addLeave(emps[3], 34, 2, "SICK", "APPROVED", "Viral fever");
-  addLeave(emps[6], 22, 3, "CASUAL", "APPROVED", "Going to the village for Lakshmi Puja");
+  addLeave(emps[6], 22, 3, "CASUAL", "APPROVED", "Family function in the village");
   addLeave(emps[8], 12, 1, "CASUAL", "APPROVED", "Bank work");
   addLeave(emps[5], 1, 1, "SICK", "APPROVED", "Doctor appointment");
   addLeave(emps[2], -3, 2, "CASUAL", "PENDING", "Cousin's wedding in Bardhaman");
@@ -372,10 +374,10 @@ async function main() {
   await chunked(s.attendance, attRows);
 
   const taskTitles: [string, "LOW" | "MEDIUM" | "HIGH"][] = [
-    ["Pick & pack today's Flipkart orders", "HIGH"], ["Cycle count bin A-03 (tant sarees)", "MEDIUM"], ["Receive Shantipur weavers consignment", "HIGH"],
-    ["Print barcode labels for new Kantha stock", "MEDIUM"], ["Arrange RTO parcels for quality check", "MEDIUM"], ["Restock dhunuchi shelf C-04", "LOW"],
-    ["Pack Meesho bulk order for Guwahati", "HIGH"], ["Clean and relabel zone D", "LOW"], ["Hand over manifest to Ekart pickup", "HIGH"],
-    ["Photograph new Baluchari for listings", "MEDIUM"], ["Check damaged returns for repair", "LOW"], ["Update rack signage", "LOW"],
+    ["Pick & pack today's Flipkart orders", "HIGH"], ["Cycle count bin A-03 (t-shirts)", "MEDIUM"], ["Receive Metro Garments consignment", "HIGH"],
+    ["Print barcode labels for new earbuds stock", "MEDIUM"], ["Inspect RTO parcels", "MEDIUM"], ["Restock bottles shelf C-04", "LOW"],
+    ["Pack Meesho bulk order for Guwahati", "HIGH"], ["Relabel zone D bins", "LOW"], ["Hand over manifest to Ekart pickup", "HIGH"],
+    ["Photograph new footwear for listings", "MEDIUM"], ["Check damaged returns for repair", "LOW"], ["Update rack signage", "LOW"],
   ];
   await db.insert(s.tasks).values(taskTitles.map(([title, priority], i) => {
     const status = i < 4 ? "DONE" : i < 7 ? "IN_PROGRESS" : "TODO";
@@ -384,7 +386,7 @@ async function main() {
 
   // Payroll for the last two complete months; the older one is paid.
   const cur = new Date(Date.UTC(NOW.getUTCFullYear(), NOW.getUTCMonth(), 1));
-  for (const back of [2, 1]) {
+  for (const back of [6, 5, 4, 3, 2, 1]) {
     const month = new Date(Date.UTC(cur.getUTCFullYear(), cur.getUTCMonth() - back, 1)).toISOString().slice(0, 7);
     const hols = holidayRows.filter((h) => h.date.startsWith(month)).map((h) => h.date);
     const wd = workingDaysInMonth(month, hols);
@@ -395,19 +397,19 @@ async function main() {
       const late = mine.filter((a) => a.status === "LATE").length;
       const advance = e.code === "PP-E007" ? rupees(2000) : 0;
       const p = computePayslip({ monthlySalaryPaise: e.monthlySalaryPaise, workingDays: wd, presentDays: present || wd - 2, paidLeaveDays: leave, lateCount: late, advancePaise: advance });
-      return { tenantId, employeeId: e.id, month, workingDays: wd, presentDays: present || wd - 2, paidLeaveDays: leave, lateCount: late, payableDays: p.payableDays, basePaise: e.monthlySalaryPaise, grossPaise: p.grossPaise, advancePaise: advance, netPaise: p.netPaise, status: back === 2 ? "PAID" as const : "DRAFT" as const };
+      return { tenantId, employeeId: e.id, month, workingDays: wd, presentDays: present || wd - 2, paidLeaveDays: leave, lateCount: late, payableDays: p.payableDays, basePaise: e.monthlySalaryPaise, grossPaise: p.grossPaise, advancePaise: advance, netPaise: p.netPaise, status: back >= 2 ? "PAID" as const : "DRAFT" as const };
     }));
   }
 
   /* ---------- offline invoices and expenses ---------- */
   const invRows: (typeof s.invoices.$inferInsert)[] = [];
   const invItemRows: (typeof s.invoiceItems.$inferInsert)[] = [];
-  const buyers: [string, string | null, string][] = [["Mitra Bastralaya", "19AAKFM4521K1ZQ", "West Bengal"], ["Sarbojanin Durgotsab Committee, Behala", null, "West Bengal"], ["Odisha Handloom Mart", "21AABCO7712L1Z3", "Odisha"], ["Walk-in customer", null, "West Bengal"], ["Guwahati Puja Bhandar", "18AAGPG1203M1Z8", "Assam"]];
+  const buyers: [string, string | null, string][] = [["Mitra Retail", "19AAKFM4521K1ZQ", "West Bengal"], ["Corporate gifting — Salt Lake office", null, "West Bengal"], ["Odisha Lifestyle Mart", "21AABCO7712L1Z3", "Odisha"], ["Walk-in customer", null, "West Bengal"], ["Guwahati Trade Centre", "18AAGPG1203M1Z8", "Assam"]];
   let invN = 0;
   for (let off = 70; off >= 1; off -= int(2, 5)) {
     const [customerName, gstin, pos] = pick(buyers);
     const vs = [pick(allVariants), pick(allVariants)].filter((v, i, a) => a.indexOf(v) === i);
-    const lines = vs.map((v) => ({ v, qty: int(1, customerName.includes("Committee") ? 12 : 3) }));
+    const lines = vs.map((v) => ({ v, qty: int(1, customerName.includes("Corporate") ? 12 : 3) }));
     if (lines.some((l) => (onHand.get(l.v.id) ?? 0) < l.qty)) continue;
     const totals = calcInvoice(lines.map((l) => ({ ratePaise: l.v.pricePaise!, qty: l.qty, gstRate: l.v.gst, inclusive: true })), { sellerState: "West Bengal", placeOfSupply: pos });
     const id = uuid();
@@ -418,16 +420,16 @@ async function main() {
       invItemRows.push({ invoiceId: id, variantId: l.v.id, description: l.v.productName + (l.v.color ? ` — ${l.v.color}` : l.v.size ? ` — ${l.v.size}` : ""), hsn: l.v.hsn, qty: l.qty, ratePaise: l.v.pricePaise!, gstRate: l.v.gst, taxablePaise: totals.lines[i].taxablePaise, taxPaise: totals.lines[i].taxPaise });
       onHand.set(l.v.id, (onHand.get(l.v.id) ?? 0) - l.qty);
     });
-    await db.insert(s.stockMovements).values(lines.map((l) => ({ tenantId, variantId: l.v.id, qty: -l.qty, type: "SALE" as const, reason: `Invoice ${invRows.at(-1)!.number}`, refType: "invoice", refId: id, createdAt: at })));
+    await db.insert(s.stockMovements).values(lines.map((l) => ({ tenantId, variantId: l.v.id, binId: l.v.binId, qty: -l.qty, type: "SALE" as const, reason: `Invoice ${invRows.at(-1)!.number}`, refType: "invoice", refId: id, createdAt: at })));
   }
   await chunked(s.invoices, invRows);
   await chunked(s.invoiceItems, invItemRows);
 
   // Make the low-stock widget interesting (runs after invoices so the ledger never dips below zero).
-  const baluBlu = allVariants.find((v) => v.sku === "PP-BALU-BLU")!;
+  const baluBlu = allVariants.find((v) => v.sku === "PP-BUDS-WHT")!;
   const left = onHand.get(baluBlu.id) ?? 0;
   if (left > 2) {
-    await db.insert(s.stockMovements).values({ tenantId, variantId: baluBlu.id, binId: baluBlu.binId, qty: -(left - 2), type: "OUTWARD", reason: "Sent to Kolkata exhibition stall", createdAt: ist(1, 12, 0) });
+    await db.insert(s.stockMovements).values({ tenantId, variantId: baluBlu.id, binId: baluBlu.binId, qty: -(left - 2), type: "OUTWARD", reason: "Sent for brand photoshoot", createdAt: ist(1, 12, 0) });
     onHand.set(baluBlu.id, 2);
   }
 
@@ -441,7 +443,7 @@ async function main() {
       { tenantId, date: `${m}-12`, category: "Packaging", amountPaise: rupees(festive ? int(14000, 19000) : int(5000, 8000)), note: "Boxes, tape, poly mailers" },
       { tenantId, date: `${m}-18`, category: "Transport", amountPaise: rupees(festive ? int(9000, 13000) : int(3500, 6000)), note: "Supplier pickups" },
     );
-    if (festive) expRows.push({ tenantId, date: `${m}-05`, category: "Marketing", amountPaise: rupees(int(8000, 15000)), note: "Marketplace ads for Pujo sale" });
+    if (festive) expRows.push({ tenantId, date: `${m}-05`, category: "Marketing", amountPaise: rupees(int(8000, 15000)), note: "Marketplace ads for festive sale" });
   }
   await db.insert(s.expenses).values(expRows.filter((e) => e.date <= istDateKey()));
 

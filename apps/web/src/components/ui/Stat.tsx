@@ -1,11 +1,10 @@
 "use client";
 import { animate, motion, useMotionValue, useTransform } from "framer-motion";
 import { useEffect, type ReactNode } from "react";
-import { ArrowDownRight, ArrowUpRight } from "lucide-react";
 import { cn } from "@/lib/cn";
 
-/** Rolls up to its value like a temple-bell counter. */
-export function Counter({ value, format = (n) => Math.round(n).toLocaleString("en-IN"), duration = 1.4 }: { value: number; format?: (n: number) => string; duration?: number }) {
+/** Ticks up to its value; tabular mono digits so nothing jitters. */
+export function Counter({ value, format = (n) => Math.round(n).toLocaleString("en-IN"), duration = 1.1 }: { value: number; format?: (n: number) => string; duration?: number }) {
   const mv = useMotionValue(0);
   const text = useTransform(mv, (v) => format(v));
   useEffect(() => {
@@ -15,37 +14,45 @@ export function Counter({ value, format = (n) => Math.round(n).toLocaleString("e
   return <motion.span className="num">{text}</motion.span>;
 }
 
-export function Stat({ label, value, format, icon, change, hint, tone = "gold", delay = 0, onClick }: {
-  label: string; value: number; format?: (n: number) => string; icon: ReactNode; change?: number; hint?: ReactNode; tone?: "gold" | "red" | "green" | "blue"; delay?: number; onClick?: () => void;
+/** Inline sparkline from a numeric series. */
+export function Spark({ data, className, tone = "sindoor" }: { data: number[]; className?: string; tone?: "sindoor" | "leaf" | "sky" | "marigold" }) {
+  if (data.length < 2) return null;
+  const w = 100, h = 28, max = Math.max(...data), min = Math.min(...data), span = max - min || 1;
+  const pts = data.map((v, i) => `${(i / (data.length - 1)) * w},${h - ((v - min) / span) * (h - 4) - 2}`).join(" ");
+  return (
+    <svg viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" className={cn("h-7 w-full", className)} aria-hidden>
+      <defs><linearGradient id={`sp-${tone}`} x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor={`rgb(var(--${tone}))`} stopOpacity="0.25" /><stop offset="1" stopColor={`rgb(var(--${tone}))`} stopOpacity="0" /></linearGradient></defs>
+      <polygon points={`0,${h} ${pts} ${w},${h}`} fill={`url(#sp-${tone})`} />
+      <motion.polyline points={pts} fill="none" stroke={`rgb(var(--${tone}))`} strokeWidth="1.4" vectorEffect="non-scaling-stroke" initial={{ pathLength: 0 }} animate={{ pathLength: 1 }} transition={{ duration: 1.2 }} />
+    </svg>
+  );
+}
+
+export function Stat({ label, value, format, icon, change, hint, tone = "gold", delay = 0, onClick, spark }: {
+  label: string; value: number; format?: (n: number) => string; icon?: ReactNode; change?: number; hint?: ReactNode; tone?: "gold" | "red" | "green" | "blue"; delay?: number; onClick?: () => void; spark?: number[];
 }) {
-  const ring = { gold: "from-gold/30 to-marigold/5 text-gold", red: "from-sindoor/35 to-sindoor/5 text-sindoor", green: "from-leaf/30 to-leaf/5 text-leaf", blue: "from-sky/30 to-sky/5 text-sky" }[tone];
+  const led = { gold: "bg-text/60", red: "bg-sindoor", green: "bg-leaf", blue: "bg-sky" }[tone];
   return (
     <motion.button
       type="button"
       onClick={onClick}
-      initial={{ opacity: 0, y: 18, rotateX: -12 }}
-      animate={{ opacity: 1, y: 0, rotateX: 0 }}
-      transition={{ duration: 0.7, delay, ease: [0.2, 0.8, 0.2, 1] }}
-      whileHover={{ y: -3 }}
-      className={cn("paar-card group w-full p-5 text-left transition-shadow hover:shadow-glow", !onClick && "cursor-default")}
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, delay }}
+      className={cn("paar-card group w-full p-4 text-left hover:border-line/15", !onClick && "cursor-default")}
     >
-      <div className="flex items-start justify-between">
-        <div className={cn("grid h-11 w-11 place-items-center rounded-2xl bg-gradient-to-br ring-1 ring-inset ring-current/20", ring)}>
-          <span className="drop-shadow-[0_0_8px_currentColor]">{icon}</span>
-        </div>
+      <div className="flex items-center justify-between">
+        <span className="flex items-center gap-2"><span className={cn("h-1.5 w-1.5 rounded-full", led)} /><span className="label">{label}</span></span>
+        <span className="text-muted/60 [&_svg]:h-3.5 [&_svg]:w-3.5">{icon}</span>
+      </div>
+      <div className="mt-3 flex items-end gap-2">
+        <span className="font-mono text-[26px] font-medium leading-none tracking-tight"><Counter value={value} format={format} /></span>
         {change !== undefined && (
-          <span className={cn("inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-[11px] font-semibold", change >= 0 ? "bg-leaf/12 text-leaf" : "bg-sindoor/12 text-sindoor")}>
-            {change >= 0 ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
-            {Math.abs(change)}%
-          </span>
+          <span className={cn("mb-0.5 font-mono text-[11px]", change >= 0 ? "text-leaf" : "text-sindoor")}>{change >= 0 ? "▲" : "▼"} {Math.abs(change)}%</span>
         )}
       </div>
-      <div className="mt-4 font-display text-[28px] font-semibold leading-none tracking-tight">
-        <Counter value={value} format={format} />
-      </div>
-      <div className="mt-2 text-[13px] font-medium text-muted">{label}</div>
-      {hint && <div className="mt-1 text-xs text-muted/70">{hint}</div>}
-      <div className="pointer-events-none absolute -bottom-10 -right-10 h-28 w-28 rounded-full bg-gradient-to-br from-gold/10 to-transparent opacity-0 blur-2xl transition-opacity duration-500 group-hover:opacity-100" />
+      {hint && <div className="mt-1.5 text-[12px] text-muted">{hint}</div>}
+      {spark && <Spark data={spark} className="mt-2" tone={tone === "red" ? "sindoor" : tone === "green" ? "leaf" : tone === "blue" ? "sky" : "sindoor"} />}
     </motion.button>
   );
 }

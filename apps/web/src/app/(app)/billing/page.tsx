@@ -26,7 +26,7 @@ function BillingInner() {
   const s = data?.summary;
   return (
     <div>
-      <PageHeader bn="জিএসটি বিল" title="GST Billing" subtitle="Tax invoices for counter sales, bulk buyers and puja committees. CGST + SGST inside West Bengal, IGST outside — worked out for you."
+      <PageHeader title="GST Billing" subtitle="Tax invoices for counter sales, bulk buyers and puja committees. CGST + SGST inside West Bengal, IGST outside — worked out for you."
         actions={<Button variant="primary" icon={<FilePlus2 className="h-4 w-4" />} onClick={() => setCreating(true)}>New invoice</Button>} />
       {s && (
         <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -92,7 +92,7 @@ function InvoiceDrawer({ onClose }: { onClose: () => void }) {
               <Field label="Item" className="col-span-12 sm:col-span-5">
                 <Select value={l.variantId} onChange={(e) => pick(i, e.target.value)}>
                   <option value="">Choose from stock…</option>
-                  {skus?.map((s) => <option key={s.variantId} value={s.variantId} disabled={s.onHand <= 0}>{s.emoji} {s.name} · {s.sku} ({s.onHand})</option>)}
+                  {skus?.map((s) => <option key={s.variantId} value={s.variantId} disabled={s.onHand <= 0}>{s.name} · {s.sku} ({s.onHand})</option>)}
                 </Select>
               </Field>
               <Field label="HSN" className="col-span-3 sm:col-span-2"><Input value={l.hsn} onChange={(e) => setLines((ls) => ls.map((x, j) => (j === i ? { ...x, hsn: e.target.value } : x)))} /></Field>
@@ -108,7 +108,7 @@ function InvoiceDrawer({ onClose }: { onClose: () => void }) {
         <motion.div layout className="ml-auto max-w-sm space-y-2 rounded-2xl border border-gold/25 bg-gold/[0.06] p-5 text-sm">
           <Row k="Taxable value" v={totals.subtotalPaise} />
           {totals.interState ? <Row k="IGST" v={totals.igstPaise} /> : <><Row k="CGST" v={totals.cgstPaise} /><Row k="SGST" v={totals.sgstPaise} /></>}
-          <div className="flex justify-between border-t border-gold/20 pt-2 font-display text-xl"><span>Total</span><span className="gold-text num">{formatINR(totals.totalPaise)}</span></div>
+          <div className="flex justify-between border-t border-gold/20 pt-2 text-[15px] font-semibold"><span>Total</span><span className="gold-text num">{formatINR(totals.totalPaise)}</span></div>
           <div className="text-xs text-muted">{totals.interState ? `Inter-state supply to ${pos}: IGST applies.` : "Intra-state supply: CGST and SGST split equally."}</div>
         </motion.div>
       </div>

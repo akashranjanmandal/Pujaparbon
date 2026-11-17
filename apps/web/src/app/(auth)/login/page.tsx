@@ -1,21 +1,18 @@
 "use client";
 import { motion } from "framer-motion";
-import { ArrowRight, Eye, EyeOff, ShieldCheck } from "lucide-react";
+import { ArrowRight, Eye, EyeOff, Lock } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Alpana } from "@/components/brand/Alpana";
-import { Diya } from "@/components/brand/Diya";
 import { Logo } from "@/components/brand/Logo";
-import { Shiuli } from "@/components/brand/Shiuli";
+import { Network } from "@/components/brand/Network";
 import { Button, Input } from "@/components/ui/primitives";
 import { homeFor, useAuth } from "@/lib/auth";
-import { greeting } from "@/lib/format";
 
 const DEMO = [
-  { role: "Owner", email: "owner@pujaparbon.in", bn: "মালিক" },
-  { role: "Manager", email: "manager@pujaparbon.in", bn: "ম্যানেজার" },
-  { role: "Staff", email: "staff@pujaparbon.in", bn: "কর্মী" },
+  { role: "Owner", email: "owner@pujaparbon.in", desc: "Everything" },
+  { role: "Manager", email: "manager@pujaparbon.in", desc: "Operations" },
+  { role: "Staff", email: "staff@pujaparbon.in", desc: "Shift & tasks" },
 ];
 
 function LoginInner() {
@@ -27,14 +24,9 @@ function LoginInner() {
   const [show, setShow] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const g = greeting();
 
-  useEffect(() => {
-    if (ready && user) router.replace(homeFor(user));
-  }, [ready, user, router]);
-  useEffect(() => {
-    if (params.get("expired")) toast.info("Your session ended. Please sign in again.");
-  }, [params]);
+  useEffect(() => { if (ready && user) router.replace(homeFor(user)); }, [ready, user, router]);
+  useEffect(() => { if (params.get("expired")) toast.info("Session ended. Please sign in again."); }, [params]);
 
   const submit = async (e?: React.FormEvent) => {
     e?.preventDefault();
@@ -42,7 +34,6 @@ function LoginInner() {
     setError("");
     try {
       const u = await login(email, password);
-      toast.success(`${g.bn}, ${u.name.split(" ")[0]}!`, { description: "Welcome back to Puja Parbon." });
       router.replace(homeFor(u));
     } catch (err) {
       setError((err as Error).message);
@@ -52,72 +43,55 @@ function LoginInner() {
   };
 
   return (
-    <main className="relative grid min-h-screen overflow-hidden lg:grid-cols-[1.15fr_1fr]">
-      {/* Cinematic side */}
-      <section className="relative hidden overflow-hidden border-r hairline lg:block">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgb(var(--sindoor-deep)/0.55),transparent_65%)]" />
-        <Shiuli density={34} />
-        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 opacity-90">
-          <Alpana size={720} spin strokeWidth={0.9} />
-        </div>
-        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
-          <Alpana size={300} tone="shiuli" strokeWidth={1.1} delay={0.8} spin />
-        </div>
-        <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-bg via-bg/70 to-transparent" />
-        <div className="absolute left-12 top-10"><Logo /></div>
-        <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 1.2, duration: 1 }} className="absolute bottom-14 left-12 right-12">
-          <div className="font-bangla text-2xl text-gold">ঢাকের তালে, ব্যবসার হালে</div>
-          <h2 className="mt-2 max-w-xl font-display text-[44px] font-semibold leading-[1.05] tracking-tight">
-            Every saree, every order, every <span className="gold-text italic">diya</span> — in one place.
-          </h2>
-          <p className="mt-4 max-w-lg text-[15px] text-muted">Flipkart, Amazon, Myntra, Meesho and your own counter, one stock number, one team, one truth.</p>
+    <main className="grid min-h-screen lg:grid-cols-[1.2fr_1fr]">
+      <section className="relative hidden flex-col justify-between overflow-hidden border-r hairline p-10 lg:flex">
+        <Logo />
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 1 }} className="absolute inset-x-0 top-1/2 -translate-y-1/2 px-6">
+          <Network className="mx-auto h-auto w-full max-w-[640px]" />
         </motion.div>
+        <div className="relative">
+          <h2 className="max-w-lg text-[34px] font-semibold leading-[1.1] tracking-[-0.03em]">
+            Every marketplace. One warehouse. <span className="text-sindoor">Zero paperwork.</span>
+          </h2>
+          <div className="mt-5 flex flex-wrap gap-x-6 gap-y-2 font-mono text-[11px] uppercase tracking-[0.14em] text-muted">
+            <span className="flex items-center gap-2"><span className="h-1.5 w-1.5 rounded-full bg-leaf shadow-[0_0_6px_rgb(var(--leaf))]" />All systems normal</span>
+            <span>5 channels connected</span>
+            <span>Region ap-south-1</span>
+          </div>
+        </div>
       </section>
 
-      {/* Form side */}
-      <section className="relative flex items-center justify-center px-6 py-16">
-        <div className="pointer-events-none absolute -right-40 -top-40 opacity-30 lg:hidden"><Alpana size={420} spin /></div>
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8 }} className="relative w-full max-w-[400px]">
-          <div className="mb-10 lg:hidden"><Logo /></div>
-          <div className="flex items-center gap-3">
-            <Diya size={40} />
-            <div>
-              <div className="font-bangla text-lg text-gold">{g.bn}</div>
-              <div className="text-xs uppercase tracking-[0.2em] text-muted">{g.en}</div>
-            </div>
-          </div>
-          <h1 className="mt-6 font-display text-4xl font-semibold tracking-tight">Sign in to your warehouse</h1>
-          <p className="mt-2 text-sm text-muted">Owners, managers and staff each see only what their role needs.</p>
+      <section className="flex items-center justify-center px-6 py-16">
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} className="w-full max-w-[380px]">
+          <div className="mb-12 lg:hidden"><Logo /></div>
+          <div className="label">Seller OS · Sign in</div>
+          <h1 className="mt-3 text-[28px] font-semibold tracking-[-0.02em]">Welcome back</h1>
+          <p className="mt-1.5 text-[13px] text-muted">Each role sees only what it needs.</p>
 
-          <form onSubmit={submit} className="mt-8 space-y-4">
-            <Input type="email" autoComplete="username" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} required className="h-12" />
+          <form onSubmit={submit} className="mt-8 space-y-3">
+            <Input type="email" autoComplete="username" placeholder="name@company.com" value={email} onChange={(e) => setEmail(e.target.value)} required className="h-11" />
             <div className="relative">
-              <Input type={show ? "text" : "password"} autoComplete="current-password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} required className="h-12 pr-11" />
+              <Input type={show ? "text" : "password"} autoComplete="current-password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} required className="h-11 pr-10" />
               <button type="button" onClick={() => setShow((s) => !s)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted hover:text-text" aria-label="Show password">
                 {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
               </button>
             </div>
-            {error && <motion.p initial={{ opacity: 0, x: -6 }} animate={{ opacity: 1, x: [0, -6, 6, -3, 0] }} className="text-sm text-sindoor">{error}</motion.p>}
-            <Button type="submit" variant="primary" size="lg" loading={busy} className="w-full">
-              Enter <ArrowRight className="h-4 w-4" />
-            </Button>
+            {error && <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1, x: [0, -4, 4, 0] }} className="text-[13px] text-sindoor">{error}</motion.p>}
+            <Button type="submit" variant="primary" size="lg" loading={busy} className="w-full">Continue <ArrowRight className="h-4 w-4" /></Button>
           </form>
 
-          <div className="mt-8 rounded-2xl border border-dashed border-line/20 p-4">
-            <div className="mb-3 flex items-center justify-between text-xs text-muted">
-              <span className="uppercase tracking-[0.14em]">Demo logins</span>
-              <span>password <code className="text-gold">PujaParbon@2026</code></span>
-            </div>
+          <div className="mt-8">
+            <div className="label mb-2 flex justify-between"><span>Demo access</span><span className="normal-case tracking-normal">PujaParbon@2026</span></div>
             <div className="grid grid-cols-3 gap-2">
               {DEMO.map((d) => (
-                <button key={d.role} type="button" onClick={() => { setEmail(d.email); setPassword("PujaParbon@2026"); }} className="rounded-xl border border-line/15 bg-panel/50 px-2 py-2.5 text-center transition hover:border-gold/50 hover:bg-panel2">
-                  <div className="font-bangla text-xs text-gold">{d.bn}</div>
-                  <div className="text-sm font-semibold">{d.role}</div>
+                <button key={d.role} type="button" onClick={() => { setEmail(d.email); setPassword("PujaParbon@2026"); }} className="rounded-lg border border-line/10 bg-line/[0.02] px-3 py-2.5 text-left transition hover:border-line/25">
+                  <div className="text-[13px] font-medium">{d.role}</div>
+                  <div className="text-[11px] text-muted">{d.desc}</div>
                 </button>
               ))}
             </div>
           </div>
-          <p className="mt-6 flex items-center gap-2 text-xs text-muted/70"><ShieldCheck className="h-3.5 w-3.5 text-leaf" /> Argon2id passwords · rotating sessions · role-based access</p>
+          <p className="mt-8 flex items-center gap-2 font-mono text-[10.5px] uppercase tracking-[0.12em] text-muted/70"><Lock className="h-3 w-3" /> Argon2id · rotating sessions · RBAC</p>
         </motion.div>
       </section>
     </main>
@@ -125,9 +99,5 @@ function LoginInner() {
 }
 
 export default function LoginPage() {
-  return (
-    <Suspense>
-      <LoginInner />
-    </Suspense>
-  );
+  return <Suspense><LoginInner /></Suspense>;
 }

@@ -1,35 +1,25 @@
 import { cn } from "@/lib/cn";
 
-/** Monogram: a lotus-in-alpana mark with the Bengali wordmark. */
-export function LogoMark({ size = 36, className }: { size?: number; className?: string }) {
+/** Geometric "PP" monogram: two stacked chevrons inside a rounded square — reads as a parcel and a forward arrow. */
+export function LogoMark({ size = 30, className }: { size?: number; className?: string }) {
   return (
-    <svg viewBox="0 0 48 48" width={size} height={size} className={className} aria-hidden>
-      <defs>
-        <linearGradient id="lm" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="rgb(var(--sindoor))" />
-          <stop offset="100%" stopColor="rgb(var(--sindoor-deep))" />
-        </linearGradient>
-      </defs>
-      <circle cx="24" cy="24" r="23" fill="url(#lm)" />
-      <circle cx="24" cy="24" r="19.5" fill="none" stroke="rgb(var(--gold))" strokeWidth="0.8" strokeDasharray="1 2.2" />
-      {Array.from({ length: 8 }, (_, i) => (
-        <path key={i} d="M24 10 C 27 15, 27 19, 24 22 C 21 19, 21 15, 24 10 Z" fill="rgb(var(--shiuli))" opacity={i % 2 ? 0.55 : 0.95} transform={`rotate(${i * 45} 24 24)`} />
-      ))}
-      <circle cx="24" cy="24" r="3.6" fill="rgb(var(--marigold))" />
+    <svg viewBox="0 0 32 32" width={size} height={size} className={className} aria-hidden>
+      <rect x="0.5" y="0.5" width="31" height="31" rx="8" fill="rgb(var(--sindoor))" />
+      <path d="M9 10.5 L16 7 L23 10.5 L16 14 Z" fill="white" fillOpacity="0.95" />
+      <path d="M9 15.5 L16 19 L23 15.5" stroke="white" strokeWidth="2" fill="none" strokeLinejoin="round" strokeOpacity="0.8" />
+      <path d="M9 20.5 L16 24 L23 20.5" stroke="white" strokeWidth="2" fill="none" strokeLinejoin="round" strokeOpacity="0.55" />
     </svg>
   );
 }
 
 export function Logo({ compact = false, className }: { compact?: boolean; className?: string }) {
   return (
-    <div className={cn("flex items-center gap-3", className)}>
+    <div className={cn("flex items-center gap-2.5", className)}>
       <LogoMark />
       {!compact && (
         <div className="leading-none">
-          <div className="font-display text-[19px] font-semibold tracking-tight">
-            Puja <span className="gold-text">Parbon</span>
-          </div>
-          <div className="mt-1 font-bangla text-[11px] tracking-wide text-muted">পূজা পার্বণ · Seller OS</div>
+          <div className="text-[14px] font-semibold tracking-tight">Puja Parbon</div>
+          <div className="mt-1 font-mono text-[10px] uppercase tracking-[0.16em] text-muted">Seller OS</div>
         </div>
       )}
     </div>

@@ -7,7 +7,7 @@ import { channelListings, channels, importBatches, orderItems, orders, products,
 import { badRequest, conflict, notFound } from "../../lib/errors";
 import { audit } from "../../lib/audit";
 import type { AuthContext } from "../../lib/http";
-import { recordMovement } from "../stock/service";
+import { pickBin, recordMovement } from "../stock/service";
 import type { ParsedOrder, ParseIssue } from "./importer";
 
 type Ctx = Pick<AuthContext, "tenantId" | "userId">;
@@ -94,7 +94,7 @@ async function transition(tx: Tx, c: Ctx, id: string, status: OrderStatus, awb?:
     const unmapped = items.filter((i) => !i.variantId);
     if (unmapped.length) throw conflict(`Map SKU ${unmapped[0].channelSku} to a product before dispatching ${o.channelOrderId}`);
     for (const i of items) {
-      await recordMovement(tx, c, { variantId: i.variantId!, qty: -i.qty, type: "SALE", reason: `Dispatched ${o.channelOrderId}`, refType: "order", refId: o.id });
+      await recordMovement(tx, c, { variantId: i.variantId!, binId: await pickBin(tx, c.tenantId, i.variantId!, i.qty), qty: -i.qty, type: "SALE", reason: `Dispatched ${o.channelOrderId}`, refType: "order", refId: o.id });
     }
   }
   const [updated] = await tx

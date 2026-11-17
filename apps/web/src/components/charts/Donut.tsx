@@ -30,7 +30,7 @@ export function Donut({ data, size = 200, label, sub }: { data: { name: string; 
         <circle cx="100" cy="100" r="52" fill="none" stroke="rgb(var(--gold) / 0.35)" strokeDasharray="1 5" />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-        <div className="font-display text-2xl font-semibold">{label}</div>
+        <div className="text-[22px] font-semibold tracking-tight">{label}</div>
         <div className="text-[11px] uppercase tracking-[0.14em] text-muted">{sub}</div>
       </div>
     </div>

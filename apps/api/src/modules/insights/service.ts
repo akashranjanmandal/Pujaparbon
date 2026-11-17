@@ -54,7 +54,7 @@ export async function dashboard(tenantId: string, now = new Date()) {
       .where(eq(channels.tenantId, tenantId))
       .groupBy(channels.id),
     db
-      .select({ sku: variants.sku, name: products.name, emoji: products.emoji, units: sql<number>`sum(${orderItems.qty})`, paise: sql<number>`sum(${orderItems.qty} * ${orderItems.pricePaise})` })
+      .select({ sku: variants.sku, name: products.name, size: variants.size, color: variants.color, units: sql<number>`sum(${orderItems.qty})`, paise: sql<number>`sum(${orderItems.qty} * ${orderItems.pricePaise})` })
       .from(orderItems)
       .innerJoin(orders, eq(orders.id, orderItems.orderId))
       .innerJoin(variants, eq(variants.id, orderItems.variantId))

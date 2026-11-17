@@ -22,7 +22,7 @@ export default function ReconciliationPage() {
   const s = data?.summary;
   return (
     <div>
-      <PageHeader bn="পাওনা মেলানো" title="Settlements" subtitle="Did each marketplace pay what it owed? Upload the payout report and short payments light up."
+      <PageHeader title="Settlements" subtitle="Did each marketplace pay what it owed? Upload the payout report and short payments light up."
         actions={<Button variant="primary" icon={<Upload className="h-4 w-4" />} onClick={() => setUpload(true)}>Upload settlement file</Button>} />
       {s && (
         <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">

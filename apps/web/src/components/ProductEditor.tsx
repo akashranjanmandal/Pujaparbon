@@ -14,15 +14,13 @@ export interface ProductRow {
 }
 
 interface VForm { id?: string; sku: string; size: string; color: string; mrp: string; price: string; cost: string; reorderLevel: string; listings: { channel: string; channelSku: string; listingId: string }[] }
-const EMOJIS = ["🥻", "👘", "🧣", "🪔", "🐚", "🪷", "🏺", "🔴", "🙏", "👑", "🌾", "🎨", "🛍️", "📿"];
 const blankV = (): VForm => ({ sku: "", size: "", color: "", mrp: "", price: "", cost: "", reorderLevel: "5", listings: [] });
 
 export function ProductEditor({ product, open, onClose, categories }: { product?: ProductRow | null; open: boolean; onClose: () => void; categories: string[] }) {
   const [name, setName] = useState(product?.name ?? "");
-  const [category, setCategory] = useState(product?.category ?? "Sarees");
+  const [category, setCategory] = useState(product?.category ?? "");
   const [hsn, setHsn] = useState(product?.hsnCode ?? "");
   const [gst, setGst] = useState(String(product?.gstRate ?? 5));
-  const [emoji, setEmoji] = useState(product?.emoji ?? "🥻");
   const [desc, setDesc] = useState(product?.description ?? "");
   const [vars, setVars] = useState<VForm[]>(
     product?.variants.map((v) => ({
@@ -35,7 +33,7 @@ export function ProductEditor({ product, open, onClose, categories }: { product?
   const save = useAction(
     () => {
       const body = {
-        name, category, hsnCode: hsn, gstRate: Number(gst), emoji, description: desc,
+        name, category, hsnCode: hsn, gstRate: Number(gst), description: desc,
         variants: vars.map((v) => ({
           id: v.id, sku: v.sku, size: v.size, color: v.color, mrpPaise: toPaise(v.mrp || 0), pricePaise: toPaise(v.price || 0), costPaise: toPaise(v.cost || 0),
           reorderLevel: Number(v.reorderLevel || 0), listings: v.listings.filter((l) => l.channelSku).map((l) => ({ ...l, listingId: l.listingId || undefined })),
@@ -50,13 +48,10 @@ export function ProductEditor({ product, open, onClose, categories }: { product?
     <Drawer open={open} onClose={onClose} wide title={product ? "Edit product" : "New product"} subtitle="One product, many variants. Each variant can be listed on every marketplace under its own SKU."
       footer={<><Button variant="ghost" onClick={onClose}>Cancel</Button><Button variant="primary" loading={save.isPending} onClick={() => save.mutate(undefined)}>Save product</Button></>}>
       <div className="space-y-6">
-        <div className="flex flex-wrap gap-1.5">
-          {EMOJIS.map((e) => <button key={e} onClick={() => setEmoji(e)} className={`grid h-10 w-10 place-items-center rounded-xl text-xl transition ${emoji === e ? "bg-gold/20 ring-2 ring-gold" : "bg-panel2 hover:bg-panel"}`}>{e}</button>)}
-        </div>
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Product name" className="sm:col-span-2"><Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Shantipur Tant Saree" /></Field>
-          <Field label="Category">
-            <Input list="cats" value={category} onChange={(e) => setCategory(e.target.value)} />
+          <Field label="Product name" className="sm:col-span-2"><Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Cotton Crew T-Shirt" /></Field>
+          <Field label="Category" hint="Pick an existing one or type a new category — it is created automatically">
+            <Input list="cats" placeholder="e.g. Apparel" value={category} onChange={(e) => setCategory(e.target.value)} />
             <datalist id="cats">{categories.map((c) => <option key={c} value={c} />)}</datalist>
           </Field>
           <div className="grid grid-cols-2 gap-3">
@@ -68,13 +63,13 @@ export function ProductEditor({ product, open, onClose, categories }: { product?
 
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <div className="font-display text-lg">Variants</div>
+            <div className="text-[14px] font-semibold">Variants</div>
             <Button size="sm" icon={<Plus className="h-3.5 w-3.5" />} onClick={() => setVars((v) => [...v, blankV()])}>Add variant</Button>
           </div>
           {vars.map((v, i) => (
             <div key={i} className="space-y-3 rounded-2xl border border-line/10 bg-bg2/60 p-4">
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                <Field label="Our SKU"><Input value={v.sku} onChange={(e) => setV(i, { sku: e.target.value.toUpperCase() })} placeholder="PP-TANT-RED" /></Field>
+                <Field label="Our SKU"><Input value={v.sku} onChange={(e) => setV(i, { sku: e.target.value.toUpperCase() })} placeholder="PP-TSHIRT-BLK-M" /></Field>
                 <Field label="Size"><Input value={v.size} onChange={(e) => setV(i, { size: e.target.value })} /></Field>
                 <Field label="Colour"><Input value={v.color} onChange={(e) => setV(i, { color: e.target.value })} /></Field>
                 <Field label="Reorder at"><Input type="number" value={v.reorderLevel} onChange={(e) => setV(i, { reorderLevel: e.target.value })} /></Field>

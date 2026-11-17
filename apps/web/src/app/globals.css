@@ -2,92 +2,86 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ── Sandhya (dusk aarti) — default ─────────────────────────────── */
+/* ── Dark: graphite mission control (default) ───────────────────── */
 :root,
-[data-theme="sandhya"] {
-  --bg: 12 6 8;
-  --bg2: 20 9 13;
-  --panel: 29 13 18;
-  --panel2: 41 19 25;
-  --line: 232 176 75;
-  --text: 250 238 223;
-  --muted: 188 166 150;
-  --sindoor: 232 50 66;
-  --sindoor-deep: 150 24 46;
-  --gold: 233 180 82;
-  --marigold: 247 160 28;
-  --shiuli: 255 248 236;
-  --stem: 244 122 48;
-  --leaf: 92 184 128;
-  --sky: 110 168 255;
+[data-theme="dark"] {
+  --bg: 7 7 9;
+  --bg2: 12 12 15;
+  --panel: 16 16 20;
+  --panel2: 23 23 28;
+  --line: 255 255 255;
+  --text: 236 236 240;
+  --muted: 134 134 146;
+  --sindoor: 240 56 70;
+  --sindoor-deep: 170 22 38;
+  --gold: 246 246 248;
+  --marigold: 245 166 35;
+  --shiuli: 255 255 255;
+  --stem: 255 138 61;
+  --leaf: 52 211 145;
+  --sky: 96 160 255;
   color-scheme: dark;
 }
 
-/* ── Prabhat (morning) ──────────────────────────────────────────── */
-[data-theme="prabhat"] {
-  --bg: 251 245 235;
-  --bg2: 245 235 219;
-  --panel: 255 252 246;
-  --panel2: 249 240 226;
-  --line: 178 120 30;
-  --text: 40 18 20;
-  --muted: 118 92 84;
-  --sindoor: 186 22 46;
-  --sindoor-deep: 140 14 34;
-  --gold: 176 118 20;
-  --marigold: 214 120 6;
+/* ── Light ──────────────────────────────────────────────────────── */
+[data-theme="light"] {
+  --bg: 248 248 250;
+  --bg2: 242 242 245;
+  --panel: 255 255 255;
+  --panel2: 245 245 248;
+  --line: 10 10 14;
+  --text: 16 16 20;
+  --muted: 100 100 112;
+  --sindoor: 214 32 48;
+  --sindoor-deep: 160 18 34;
+  --gold: 16 16 20;
+  --marigold: 196 120 6;
   --shiuli: 255 255 255;
   --stem: 214 92 24;
-  --leaf: 30 128 76;
+  --leaf: 16 150 92;
   --sky: 37 99 235;
   color-scheme: light;
 }
 
 @layer base {
-  html { -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
+  html { -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; font-feature-settings: "ss01", "cv11"; }
   body {
-    @apply bg-bg font-sans text-text;
+    @apply bg-bg font-sans text-[14px] text-text;
     background-image:
-      radial-gradient(1200px 600px at 85% -10%, rgb(var(--sindoor) / 0.12), transparent 60%),
-      radial-gradient(900px 500px at -10% 110%, rgb(var(--gold) / 0.08), transparent 60%);
+      radial-gradient(900px 420px at 50% -120px, rgb(var(--sindoor) / 0.10), transparent 70%),
+      linear-gradient(rgb(var(--line) / 0.035) 1px, transparent 1px),
+      linear-gradient(90deg, rgb(var(--line) / 0.035) 1px, transparent 1px);
+    background-size: 100% 100%, 48px 48px, 48px 48px;
     background-attachment: fixed;
   }
   ::selection { background: rgb(var(--sindoor) / 0.35); }
-  * { scrollbar-width: thin; scrollbar-color: rgb(var(--gold) / 0.25) transparent; }
-  :focus-visible { outline: 2px solid rgb(var(--gold) / 0.8); outline-offset: 2px; border-radius: 8px; }
-  input[type="number"]::-webkit-inner-spin-button { opacity: 0.4; }
+  * { scrollbar-width: thin; scrollbar-color: rgb(var(--line) / 0.15) transparent; }
+  :focus-visible { outline: 2px solid rgb(var(--sindoor) / 0.7); outline-offset: 2px; border-radius: 6px; }
+  code, kbd { @apply font-mono; }
 }
 
 @layer components {
-  /* Glass panel with the laal-paar saree border along its top edge. */
+  /* Panel with a glass top edge. (Class name kept for compatibility.) */
   .paar-card {
-    @apply relative overflow-hidden rounded-xl2 border border-line/10 bg-panel/70 backdrop-blur-xl;
-    box-shadow: 0 1px 0 rgb(var(--gold) / 0.06) inset, 0 20px 50px -30px rgb(0 0 0 / 0.6);
+    @apply relative overflow-hidden rounded-xl2 border border-line/[0.07] bg-panel/80 backdrop-blur-xl transition-colors;
+    box-shadow: 0 1px 0 rgb(var(--line) / 0.04) inset, 0 16px 40px -28px rgb(0 0 0 / 0.7);
   }
   .paar-card::before {
     content: "";
-    @apply pointer-events-none absolute inset-x-0 top-0 h-[5px];
-    background:
-      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='5'%3E%3Cpath d='M0 5 L6 0 L12 5Z' fill='%23E9B452' fill-opacity='.85'/%3E%3C/svg%3E") repeat-x 0 0 / 12px 5px,
-      linear-gradient(90deg, rgb(var(--sindoor-deep)), rgb(var(--sindoor)), rgb(var(--sindoor-deep)));
-    opacity: 0.9;
+    @apply pointer-events-none absolute inset-x-0 top-0 h-px;
+    background: linear-gradient(90deg, transparent, rgb(var(--line) / 0.16), transparent);
   }
-  .paar-card.plain::before { display: none; }
-  .gold-text {
-    background: linear-gradient(100deg, rgb(var(--gold)) 0%, rgb(var(--shiuli)) 45%, rgb(var(--marigold)) 100%);
-    -webkit-background-clip: text; background-clip: text; color: transparent;
-  }
-  .hairline { @apply border-line/10; }
+  .paar-card.plain::before { opacity: 0.6; }
+  .gold-text { color: rgb(var(--text)); }
+  .accent-text { color: rgb(var(--sindoor)); }
+  .hairline { @apply border-line/[0.07]; }
+  .label { @apply font-mono text-[10.5px] font-medium uppercase tracking-[0.14em] text-muted; }
   .skeleton {
-    background: linear-gradient(90deg, rgb(var(--panel2)) 0%, rgb(var(--line) / 0.12) 50%, rgb(var(--panel2)) 100%);
+    background: linear-gradient(90deg, rgb(var(--panel2)) 0%, rgb(var(--line) / 0.06) 50%, rgb(var(--panel2)) 100%);
     background-size: 200% 100%;
-    @apply animate-shimmer rounded-lg;
+    @apply animate-shimmer rounded-md;
   }
-  .alpana-dots {
-    background-image: radial-gradient(rgb(var(--gold) / 0.5) 1px, transparent 1.5px);
-    background-size: 10px 10px;
-  }
-  .num { font-variant-numeric: tabular-nums; }
+  .num { font-variant-numeric: tabular-nums; font-feature-settings: "tnum"; }
 }
 
 @media (prefers-reduced-motion: reduce) {

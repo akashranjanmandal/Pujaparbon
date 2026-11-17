@@ -105,7 +105,7 @@ export async function create(c: Ctx, input: ProductInput) {
   const id = await db.transaction(async (tx) => {
     const [p] = await tx
       .insert(products)
-      .values({ tenantId: c.tenantId, name: input.name, category: input.category, description: input.description ?? null, hsnCode: input.hsnCode, gstRate: input.gstRate, emoji: input.emoji ?? "🛍️" })
+      .values({ tenantId: c.tenantId, name: input.name, category: input.category, description: input.description ?? null, hsnCode: input.hsnCode, gstRate: input.gstRate, emoji: input.emoji ?? null })
       .returning({ id: products.id });
     await writeVariants(tx, c, p.id, input);
     await audit(tx, c, "product.create", "product", p.id, { name: input.name });
@@ -120,7 +120,7 @@ export async function update(c: Ctx, id: string, input: ProductInput) {
     if (!p) throw notFound("Product");
     await tx
       .update(products)
-      .set({ name: input.name, category: input.category, description: input.description ?? null, hsnCode: input.hsnCode, gstRate: input.gstRate, emoji: input.emoji ?? "🛍️" })
+      .set({ name: input.name, category: input.category, description: input.description ?? null, hsnCode: input.hsnCode, gstRate: input.gstRate, emoji: input.emoji ?? null })
       .where(eq(products.id, id));
     await writeVariants(tx, c, id, input);
     await audit(tx, c, "product.update", "product", id);
