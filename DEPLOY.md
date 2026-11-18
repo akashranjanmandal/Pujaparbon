@@ -1,4 +1,4 @@
-# Deploying Puja Parbon Seller OS on Render (free)
+# Deploying Pujo Parbon Seller OS on Render (free)
 
 One free Render web service runs both the website and the API in a single Node process
 (`npm run start:render` → `apps/api/src/combined.ts`). The database stays on Turso.

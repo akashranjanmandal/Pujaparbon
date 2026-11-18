@@ -2,7 +2,7 @@
   "name": "pujo-parbon-seller-os",
   "private": true,
   "version": "0.1.0",
-  "description": "Puja Parbon Seller OS \u2014 warehouse, multi-channel orders, HR and billing. Built by GOBT.",
+  "description": "Pujo Parbon Seller OS \u2014 warehouse, multi-channel orders, HR and billing. Built by GOBT.",
   "workspaces": [
     "apps/*",
     "packages/*"

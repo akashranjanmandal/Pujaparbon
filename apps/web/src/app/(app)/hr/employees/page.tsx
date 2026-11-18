@@ -22,7 +22,7 @@ export default function TeamPage() {
   const depts = [...new Set(data?.map((e) => e.department) ?? [])];
   return (
     <div>
-      <PageHeader title="Team" subtitle="The people who keep Puja Parbon moving." actions={can("employees.manage") && <Button variant="primary" icon={<UserPlus className="h-4 w-4" />} onClick={() => setAdding(true)}>Add employee</Button>} />
+      <PageHeader title="Team" subtitle="The people who keep Pujo Parbon moving." actions={can("employees.manage") && <Button variant="primary" icon={<UserPlus className="h-4 w-4" />} onClick={() => setAdding(true)}>Add employee</Button>} />
       {depts.map((d) => (
         <div key={d} className="mb-8">
           <div className="mb-3 flex items-center gap-3 text-[14px] font-semibold text-muted"><span className="h-px w-6 bg-primary/40" />{d}</div>

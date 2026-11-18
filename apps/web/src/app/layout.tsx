@@ -8,8 +8,8 @@ const sans = Lexend({ subsets: ["latin"], variable: "--font-sans", display: "swa
 const mono = Geist_Mono({ subsets: ["latin"], variable: "--font-mono", display: "swap" });
 
 export const metadata: Metadata = {
-  title: { default: "Puja Parbon — Fulfilment for online sellers", template: "%s · Puja Parbon" },
-  description: "Puja Parbon stores, packs and ships orders for sellers on Flipkart, Amazon, Myntra, Meesho and Ajio — with a live dashboard for every seller.",
+  title: { default: "Pujo Parbon — Fulfilment for online sellers", template: "%s · Pujo Parbon" },
+  description: "Pujo Parbon stores, packs and ships orders for sellers on Flipkart, Amazon, Myntra, Meesho and Ajio — with a live dashboard for every seller.",
 };
 export const viewport: Viewport = { themeColor: "#FAF7F2", width: "device-width", initialScale: 1 };
 

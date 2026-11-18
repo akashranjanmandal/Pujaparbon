@@ -1,6 +1,6 @@
-# Puja Parbon · Seller OS
+# Pujo Parbon · Seller OS
 
-Warehouse, multi-marketplace orders, GST billing and team management for **Puja Parbon** (Sarisha, West Bengal).
+Warehouse, multi-marketplace orders, GST billing and team management for **Pujo Parbon** (Sarisha, West Bengal).
 Built by **GOBT — Group of Blooming Technicians**.
 
 ## Stack

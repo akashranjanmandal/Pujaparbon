@@ -3,7 +3,7 @@ import type { Config } from "tailwindcss";
 const c = (v: string) => `rgb(var(--${v}) / <alpha-value>)`;
 
 /**
- * Puja Parbon design tokens — warm paper, powder blue (primary), soft lavender (secondary), sunset peach (accent).
+ * Pujo Parbon design tokens — warm paper, powder blue (primary), soft lavender (secondary), sunset peach (accent).
  * Legacy aliases stay so every screen re-themes from here:
  *   sindoor = alert red · gold = ink (high-contrast) · marigold = warning · leaf = success · sky = primary · stem = peach
  */

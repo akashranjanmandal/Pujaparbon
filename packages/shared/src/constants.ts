@@ -5,7 +5,7 @@ export const CHANNELS = [
   { code: "MEESHO", name: "Meesho", color: "#9F2089", listingLabel: "Catalog ID" },
   { code: "AJIO", name: "Ajio", color: "#2C4152", listingLabel: "Product code" },
   { code: "OFFLINE", name: "Offline / Shop", color: "#C8102E", listingLabel: "—" },
-  { code: "OWN_STORE", name: "Puja Parbon Store", color: "#E8B04B", listingLabel: "—" },
+  { code: "OWN_STORE", name: "Pujo Parbon Store", color: "#E8B04B", listingLabel: "—" },
 ] as const;
 export type ChannelCode = (typeof CHANNELS)[number]["code"];
 export const CHANNEL_CODES = CHANNELS.map((c) => c.code) as [ChannelCode, ...ChannelCode[]];

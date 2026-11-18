@@ -21,7 +21,7 @@ export async function labelSheetPdf(labels: Label[], copies: number): Promise<Bu
     const y = top0 + Math.floor(slot / cols) * h;
     const l = all[i];
     const png = await bwipjs.toBuffer({ bcid: "code128", text: l.sku, scale: 2, height: 9, includetext: false });
-    doc.font("Helvetica-Bold").fontSize(7.5).fillColor("#7A0F1F").text("PUJA PARBON", x + 6, y + 5, { width: w - 12 });
+    doc.font("Helvetica-Bold").fontSize(7.5).fillColor("#7A0F1F").text("PUJO PARBON", x + 6, y + 5, { width: w - 12 });
     doc.font("Helvetica").fontSize(7).fillColor("#222").text(l.name, x + 6, y + 14, { width: w - 12, height: 9, ellipsis: true });
     doc.image(png, x + 6, y + 25, { width: w - 12, height: mm(11) });
     doc.font("Helvetica-Bold").fontSize(7).fillColor("#000").text(l.sku, x + 6, y + 25 + mm(11) + 2, { width: (w - 12) / 2 });

@@ -179,7 +179,7 @@ const display = (rep: Report, row: Record<string, string | number>) =>
 
 export async function toXlsx(rep: Report, business: string, range?: Range) {
   const wb = new ExcelJS.Workbook();
-  wb.creator = "Puja Parbon Seller OS";
+  wb.creator = "Pujo Parbon Seller OS";
   const ws = wb.addWorksheet(rep.title.slice(0, 30));
   ws.mergeCells(1, 1, 1, rep.columns.length);
   ws.getCell(1, 1).value = `${business} — ${rep.title}${range ? ` (${range.from} to ${range.to})` : ""}`;

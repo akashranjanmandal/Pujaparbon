@@ -4,5 +4,5 @@ import { runMigrations } from "./db/migrate";
 
 await runMigrations();
 createApp().listen(env.port, () => {
-  console.log(`Puja Parbon API on http://localhost:${env.port} (db: ${env.db.mode})`);
+  console.log(`Pujo Parbon API on http://localhost:${env.port} (db: ${env.db.mode})`);
 });

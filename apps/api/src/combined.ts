@@ -23,4 +23,4 @@ http
     if (req.url?.startsWith("/api/v1")) return api(req, res);
     return handleWeb(req, res);
   })
-  .listen(port, () => console.log(`Puja Parbon (web + api) on :${port} · db ${env.db.mode}`));
+  .listen(port, () => console.log(`Pujo Parbon (web + api) on :${port} · db ${env.db.mode}`));

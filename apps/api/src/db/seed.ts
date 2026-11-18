@@ -1,5 +1,5 @@
 /**
- * Demo data for Puja Parbon. Deterministic (seeded random), safe to re-run: it wipes and rebuilds the demo tenant.
+ * Demo data for Pujo Parbon. Deterministic (seeded random), safe to re-run: it wipes and rebuilds the demo tenant.
  * Neutral multi-category demo catalogue; in real use the owner creates categories and products in the app.
  * Holiday dates are illustrative and editable in the Leave screen.
  */
@@ -115,7 +115,7 @@ async function main() {
   /* tenant */
   const tenantId = uuid();
   await db.insert(s.tenants).values({
-    id: tenantId, name: "Puja Parbon", slug: "puja-parbon", gstin: "19ABCDE1234F1Z5", address: "Sarisha, South 24 Parganas, West Bengal 743368",
+    id: tenantId, name: "Pujo Parbon", slug: "puja-parbon", gstin: "19ABCDE1234F1Z5", address: "Sarisha, South 24 Parganas, West Bengal 743368",
     state: "West Bengal", geofenceLat: 22.2701, geofenceLng: 88.2052, geofenceRadiusM: 150, shiftStart: "10:00", shiftEnd: "19:00", lateGraceMin: 10, selfieRetentionDays: 90,
   });
   const chanIds: Record<string, string> = {};
@@ -456,7 +456,7 @@ async function main() {
     { tenantId, userId: owner.id, action: "payroll.run", entity: "payroll", createdAt: ist(2, 18, 0) },
   ]);
 
-  console.log(`[seed] Puja Parbon ready: ${allVariants.length} SKUs, ${orderRows.length} orders, ${returnRows.length} returns, ${purchaseRows.length} purchases, ${attRows.length} attendance rows, ${invRows.length} invoices.`);
+  console.log(`[seed] Pujo Parbon ready: ${allVariants.length} SKUs, ${orderRows.length} orders, ${returnRows.length} returns, ${purchaseRows.length} purchases, ${attRows.length} attendance rows, ${invRows.length} invoices.`);
   console.log("[seed] Logins (password PujaParbon@2026): owner@pujaparbon.in · manager@pujaparbon.in · staff@pujaparbon.in");
   libsql.close();
 }

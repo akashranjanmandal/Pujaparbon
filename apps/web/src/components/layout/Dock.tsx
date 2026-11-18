@@ -30,21 +30,24 @@ export function Dock() {
       <div className="relative">
         <AnimatePresence>
           {open && (
+            // Positioning lives on a plain wrapper; the animation lives inside it, so its transform never overrides centring.
+            <div className="fixed inset-x-3 bottom-[88px] z-50 sm:absolute sm:inset-x-auto sm:bottom-full sm:left-1/2 sm:mb-3 sm:w-[600px] sm:-translate-x-1/2">
             <motion.div
               initial={{ opacity: 0, y: 10, scale: 0.98 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 8, scale: 0.98 }}
               transition={{ duration: 0.18 }}
-              className="paar-card absolute bottom-full left-1/2 mb-3 grid w-[min(92vw,600px)] -translate-x-1/2 grid-cols-2 gap-1 p-2 shadow-lift sm:grid-cols-3"
+              className="paar-card grid max-h-[60vh] grid-cols-2 gap-1 overflow-y-auto p-2 shadow-lift sm:grid-cols-3"
             >
               {open.items.map((i) => (
-                <Link key={i.href} href={i.href} className={cn("group rounded-xl p-3.5 transition hover:bg-primary-tint", path.startsWith(i.href) && "bg-primary-tint")}>
+                <Link key={i.href} href={i.href} className={cn("group min-w-0 rounded-xl p-3 transition hover:bg-primary-tint sm:p-3.5", path.startsWith(i.href) && "bg-primary-tint")}>
                   <i.icon className="h-5 w-5 text-primary" />
-                  <div className="mt-2.5 text-[16px] font-semibold">{i.label}</div>
-                  <div className="text-[14px] text-muted">{i.hint}</div>
+                  <div className="mt-2 truncate text-[15px] font-semibold sm:mt-2.5 sm:text-[16px]">{i.label}</div>
+                  <div className="line-clamp-2 text-[13px] text-muted sm:text-[14px]">{i.hint}</div>
                 </Link>
               ))}
             </motion.div>
+            </div>
           )}
         </AnimatePresence>
         <motion.nav

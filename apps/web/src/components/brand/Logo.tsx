@@ -19,7 +19,7 @@ export function Logo({ compact = false, className }: { compact?: boolean; classN
       <LogoMark />
       {!compact && (
         <div className="leading-none">
-          <div className="text-[17px] font-semibold tracking-tight">Puja Parbon</div>
+          <div className="text-[17px] font-semibold tracking-tight">Pujo Parbon</div>
           <div className="mt-1 text-[13px] font-medium text-muted">Seller OS</div>
         </div>
       )}

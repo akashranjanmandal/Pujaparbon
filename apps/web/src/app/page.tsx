@@ -5,7 +5,7 @@ import { useState } from "react";
 import { ArrowRight, Boxes, CheckCircle2, ChevronDown, LineChart, MapPin, PackageCheck, Phone, Receipt, RotateCcw, ScanBarcode, Truck } from "lucide-react";
 import { LogoMark } from "@/components/brand/Logo";
 
-/** Public site for people who have never heard of Puja Parbon. Contact details are for the client to fill in. */
+/** Public site for people who have never heard of Pujo Parbon. Contact details are for the client to fill in. */
 const CONTACT = { area: "Sarisha, South 24 Parganas, West Bengal", phone: "", email: "" };
 const MARKETS = ["Flipkart", "Amazon", "Myntra", "Meesho", "Ajio", "Your own website"];
 
@@ -26,7 +26,7 @@ const BENEFITS = [
 ];
 
 const FAQ = [
-  { q: "What exactly is Puja Parbon?", a: "We are a warehousing and order-fulfilment company. Online sellers keep their products with us; when an order comes in on any marketplace, we pack and ship it for them." },
+  { q: "What exactly is Pujo Parbon?", a: "We are a warehousing and order-fulfilment company. Online sellers keep their products with us; when an order comes in on any marketplace, we pack and ship it for them." },
   { q: "Do I need to stop selling on my current marketplaces?", a: "No. You keep your own seller accounts on Flipkart, Amazon, Myntra, Meesho and others. We simply handle the physical side — storage, packing, dispatch and returns." },
   { q: "How will I know what is happening with my stock?", a: "You get a login to our Seller OS dashboard. It shows live stock, every order and its status, returns, and marketplace payments — on your phone or computer." },
   { q: "What kind of products can you handle?", a: "Most non-perishable goods sold online: clothing, footwear, home and kitchen, electronics accessories, beauty and more. Talk to us about anything unusual." },
@@ -91,7 +91,7 @@ export default function Landing() {
     <main className="overflow-hidden">
       <nav className="sticky top-0 z-30 border-b hairline bg-bg/85 backdrop-blur-xl">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-5">
-          <Link href="/" className="flex items-center gap-2.5"><LogoMark /><span className="text-[17px] font-semibold tracking-tight">Puja Parbon</span></Link>
+          <Link href="/" className="flex items-center gap-2.5"><LogoMark /><span className="text-[17px] font-semibold tracking-tight">Pujo Parbon</span></Link>
           <div className="hidden items-center gap-7 text-[16px] text-muted md:flex">
             <a href="#what" className="hover:text-text">What we do</a><a href="#how" className="hover:text-text">How it works</a><a href="#faq" className="hover:text-text">Questions</a>
           </div>
@@ -110,10 +110,10 @@ export default function Landing() {
             You sell online.<br /><em className="text-primary">We handle everything</em> after the order.
           </motion.h1>
           <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.25 }} className="mt-6 max-w-lg text-[18px] leading-relaxed text-text/75">
-            Puja Parbon stores your products, packs every order and ships it on time — for Flipkart, Amazon, Myntra, Meesho and more. You focus on selling; we take care of the warehouse.
+            Pujo Parbon stores your products, packs every order and ships it on time — for Flipkart, Amazon, Myntra, Meesho and more. You focus on selling; we take care of the warehouse.
           </motion.p>
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }} className="mt-8 flex flex-wrap gap-3">
-            <a href="#contact" className="inline-flex h-12 items-center gap-2 rounded-xl bg-primary px-6 text-[16px] font-semibold text-white shadow-accent">Start with Puja Parbon <ArrowRight className="h-4 w-4" /></a>
+            <a href="#contact" className="inline-flex h-12 items-center gap-2 rounded-xl bg-primary px-6 text-[16px] font-semibold text-white shadow-accent">Start with Pujo Parbon <ArrowRight className="h-4 w-4" /></a>
             <a href="#how" className="inline-flex h-12 items-center rounded-xl border border-line/15 bg-panel px-6 text-[16px] font-semibold">See how it works</a>
           </motion.div>
         </div>
@@ -131,12 +131,12 @@ export default function Landing() {
       <section id="what" className="mx-auto max-w-6xl px-5 py-24">
         <div className="grid gap-10 lg:grid-cols-[1fr_1.1fr]">
           <div>
-            <div className="eyebrow">What is Puja Parbon?</div>
+            <div className="eyebrow">What is Pujo Parbon?</div>
             <h2 className="display mt-3 text-[34px] leading-[1.12] sm:text-[40px]">Your warehouse, packing team and shipping desk — <em className="text-peach">without building one.</em></h2>
           </div>
           <div className="space-y-5 text-[17px] leading-relaxed text-text/75 lg:pt-10">
             <p>Selling online is the easy part. Keeping stock organised, packing dozens of parcels a day, meeting each marketplace&apos;s dispatch deadline and chasing returns is what eats a seller&apos;s time.</p>
-            <p>Puja Parbon does that work for you from our warehouse in Sarisha, near Kolkata. Your products sit on our barcoded racks, our trained team packs and ships every order, and you see all of it live from your phone.</p>
+            <p>Pujo Parbon does that work for you from our warehouse in Sarisha, near Kolkata. Your products sit on our barcoded racks, our trained team packs and ships every order, and you see all of it live from your phone.</p>
           </div>
         </div>
       </section>
@@ -248,8 +248,8 @@ export default function Landing() {
 
       <footer className="border-t hairline">
         <div className="mx-auto flex max-w-6xl flex-col gap-4 px-5 py-10 text-[15.5px] text-muted sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-2.5"><LogoMark size={28} /><span className="font-semibold text-text">Puja Parbon</span> · {CONTACT.area}</div>
-          <div>© {new Date().getFullYear()} Puja Parbon · Website by GOBT</div>
+          <div className="flex items-center gap-2.5"><LogoMark size={28} /><span className="font-semibold text-text">Pujo Parbon</span> · {CONTACT.area}</div>
+          <div>© {new Date().getFullYear()} Pujo Parbon · Website by GOBT</div>
         </div>
       </footer>
     </main>

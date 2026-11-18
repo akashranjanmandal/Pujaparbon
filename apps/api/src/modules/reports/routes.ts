@@ -29,7 +29,7 @@ reportRoutes.get("/:type", handler(async (req, res) => {
   if (format === "xlsx") {
     const [t] = await db.select({ name: tenants.name }).from(tenants).where(eq(tenants.id, c.tenantId));
     res.type("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet").setHeader("Content-Disposition", `attachment; filename="${name}.xlsx"`);
-    return void res.send(await toXlsx(rep, t?.name ?? "Puja Parbon", def.ranged ? range : undefined));
+    return void res.send(await toXlsx(rep, t?.name ?? "Pujo Parbon", def.ranged ? range : undefined));
   }
   if (format === "pdf") {
     res.type("application/pdf").setHeader("Content-Disposition", `attachment; filename="${name}.pdf"`);
