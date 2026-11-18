@@ -1,7 +1,7 @@
 "use client";
 import { useQuery } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "framer-motion";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Camera, CheckCircle2, LocateFixed, LogIn, LogOut, MapPin, RefreshCcw, ShieldAlert, Sparkles } from "lucide-react";
 import { LEAVE_TYPES } from "@pp/shared";
 import { Loader } from "@/components/ui/Loader";
@@ -77,29 +77,35 @@ function PresenceCard({ me, state, onDone }: { me: Me; state: "OUT" | "IN" | "DO
     }
   };
   useEffect(() => { locate(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [simulate]);
-  useEffect(() => () => stop.current?.(), []);
+  useEffect(() => () => stopCamera(), []);
 
   const off = fix ? offsetMeters(fence, fix) : null;
   const inside = !!off && off.d <= fence.radiusM && fix!.accuracyM <= fence.radiusM;
 
-  const startCamera = async () => {
+  const startCamera = () => {
     setError("");
     setShot(null);
     setStep("camera");
-    try {
-      await new Promise((r) => setTimeout(r, 50));
-      stop.current = await openCamera(video.current!);
-    } catch (e) {
-      setError((e as Error).message);
-      setStep("idle");
-    }
   };
+  /** The <video> mounts only after the radar's exit animation, so the camera starts when the element actually appears. */
+  const attachVideo = useCallback((node: HTMLVideoElement | null) => {
+    video.current = node;
+    if (!node) return; // unmounted while the captured photo is shown; the stream stops on submit
+    const live = node.srcObject instanceof MediaStream && node.srcObject.active;
+    if (live) return;
+    stop.current?.();
+    stop.current = null;
+    openCamera(node)
+      .then((s) => { stop.current = s; })
+      .catch((e) => { setError((e as Error).message); setStep("idle"); });
+  }, []);
+  const stopCamera = () => { stop.current?.(); stop.current = null; };
   const submit = async () => {
     if (!shot || !fix) return;
     setStep("sending");
     try {
       await api.post(`/attendance/${state === "OUT" ? "check-in" : "check-out"}`, { ...fix, deviceId: deviceId(), selfie: shot });
-      stop.current?.();
+      stopCamera();
       setStep("success");
       setTimeout(() => { setStep("idle"); onDone(); }, 3200);
     } catch (e) {
@@ -122,7 +128,7 @@ function PresenceCard({ me, state, onDone }: { me: Me; state: "OUT" | "IN" | "DO
               <motion.div key="cam" initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} className="relative h-[300px] w-[300px]">
                 <Viewfinder />
                 <div className="absolute inset-[22px] overflow-hidden rounded-2xl bg-black">
-                  {shot ? <img src={shot} alt="Your selfie" className="h-full w-full object-cover" /> : <video ref={video} playsInline muted className="h-full w-full -scale-x-100 object-cover" />}
+                  {shot ? <img src={shot} alt="Your selfie" className="h-full w-full object-cover" /> : <video ref={attachVideo} playsInline muted className="h-full w-full -scale-x-100 object-cover" />}
                 </div>
                 {step === "sending" && <div className="absolute inset-[22px] grid place-items-center rounded-2xl bg-black/60"><RefreshCcw className="h-7 w-7 animate-spin text-text" /></div>}
                 {!shot && step === "camera" && <div className="pointer-events-none absolute inset-x-[22px] top-[22px] h-1/2 animate-scan bg-gradient-to-b from-transparent to-primary-soft/40" />}

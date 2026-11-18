@@ -18,7 +18,8 @@ export async function openCamera(video: HTMLVideoElement) {
   if (!navigator.mediaDevices?.getUserMedia) throw new Error("Camera needs HTTPS (or localhost) and a supported browser.");
   const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user", width: { ideal: 720 }, height: { ideal: 720 } }, audio: false });
   video.srcObject = stream;
-  await video.play();
+  // A newer attach can interrupt play(); that is not a camera failure.
+  await video.play().catch((e: Error) => { if (e.name !== "AbortError") throw e; });
   return () => stream.getTracks().forEach((t) => t.stop());
 }
 
