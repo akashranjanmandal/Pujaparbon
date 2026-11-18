@@ -16,7 +16,14 @@ const cookieOptions: CookieOptions = {
   maxAge: env.jwt.refreshTtlDays * 86_400_000,
 };
 
-const loginLimiter = rateLimit({ windowMs: 15 * 60_000, limit: env.isTest ? 1000 : 20, standardHeaders: true, legacyHeaders: false });
+/** Keyed by account, so many users behind one office or proxy IP don't block each other. */
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60_000,
+  limit: env.isTest ? 1000 : 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => String(req.body?.email ?? "anonymous").toLowerCase(),
+});
 
 export const authRoutes = Router();
 

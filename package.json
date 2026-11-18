@@ -2,8 +2,11 @@
   "name": "pujo-parbon-seller-os",
   "private": true,
   "version": "0.1.0",
-  "description": "Puja Parbon Seller OS — warehouse, multi-channel orders, HR and billing. Built by GOBT.",
-  "workspaces": ["apps/*", "packages/*"],
+  "description": "Puja Parbon Seller OS \u2014 warehouse, multi-channel orders, HR and billing. Built by GOBT.",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "scripts": {
     "dev": "npm run dev --workspace apps/api & npm run dev --workspace apps/web",
     "dev:api": "npm run dev --workspace apps/api",
@@ -11,7 +14,10 @@
     "db:setup": "npm run db:setup --workspace apps/api",
     "test": "npm run test --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
-    "build": "npm run build --workspace apps/web"
+    "build": "npm run build --workspace apps/web",
+    "start:render": "tsx apps/api/src/combined.ts"
   },
-  "engines": { "node": ">=20" }
+  "engines": {
+    "node": ">=20"
+  }
 }
