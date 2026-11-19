@@ -1,5 +1,5 @@
 import type { ErrorRequestHandler } from "express";
-import { AppError } from "../lib/errors";
+import { AppError, isUniqueViolation } from "../lib/errors";
 import { env } from "../config/env";
 
 export const errorHandler: ErrorRequestHandler = (err, _req, res, _next) => {
@@ -7,8 +7,7 @@ export const errorHandler: ErrorRequestHandler = (err, _req, res, _next) => {
     res.status(err.status).json({ error: { code: err.code, message: err.message, details: err.details } });
     return;
   }
-  const msg = String(err?.message ?? "");
-  if (/UNIQUE constraint failed/i.test(msg)) {
+  if (isUniqueViolation(err)) {
     res.status(409).json({ error: { code: "CONFLICT", message: "A record with these details already exists" } });
     return;
   }

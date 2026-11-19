@@ -3,20 +3,13 @@ import { can, ROLE_PERMISSIONS } from "./permissions";
 
 describe("role-based access", () => {
   it("gives the owner every permission", () => {
-    const all = new Set(Object.values(ROLE_PERMISSIONS).flat());
-    for (const p of all) expect(can("OWNER", p)).toBe(true);
+    for (const p of new Set(Object.values(ROLE_PERMISSIONS).flat())) expect(can("OWNER", p)).toBe(true);
   });
-  it("lets managers run operations but not payroll or user admin", () => {
-    expect(can("MANAGER", "stock.adjust")).toBe(true);
-    expect(can("MANAGER", "orders.import")).toBe(true);
-    expect(can("MANAGER", "payroll.manage")).toBe(false);
-    expect(can("MANAGER", "users.manage")).toBe(false);
-  });
-  it("limits staff to their own attendance, tasks and stock entry", () => {
+  it("limits employees to their own attendance and QR look-ups", () => {
     expect(can("STAFF", "attendance.self")).toBe(true);
-    expect(can("STAFF", "stock.move")).toBe(true);
-    expect(can("STAFF", "stock.adjust")).toBe(false);
-    expect(can("STAFF", "reports.view")).toBe(false);
-    expect(can("STAFF", "billing.manage")).toBe(false);
+    expect(can("STAFF", "lookup.scan")).toBe(true);
+    for (const p of ["buy.manage", "stock.count", "analytics.view", "reports.view", "investments.manage", "users.manage", "platforms.manage"] as const) {
+      expect(can("STAFF", p)).toBe(false);
+    }
   });
 });

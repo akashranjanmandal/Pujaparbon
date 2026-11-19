@@ -10,18 +10,13 @@ import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { navFor } from "@/lib/nav";
 
-interface Results {
-  products: { id: string; name: string; sku: string }[];
-  orders: { id: string; channelOrderId: string; customerName: string; status: string }[];
-  employees: { id: string; name: string; designation: string }[];
-  suppliers: { id: string; name: string; city: string | null }[];
-}
+interface Results { items: { id: string; name: string; code: string; category: string }[] }
 
 export function CommandPalette({ open, setOpen }: { open: boolean; setOpen: (v: boolean) => void }) {
   const router = useRouter();
   const { user } = useAuth();
   const [q, setQ] = useState("");
-  const { data } = useQuery({ queryKey: ["search", q], queryFn: () => api.get<Results>(`/insights/search?q=${encodeURIComponent(q)}`), enabled: open && q.length >= 2 });
+  const { data } = useQuery({ queryKey: ["search", q], queryFn: () => api.get<Results>(`/products?search=${encodeURIComponent(q)}`), enabled: open && q.length >= 2 && !!user && user.role === "OWNER" });
 
   useEffect(() => {
     let g = false;
@@ -52,7 +47,7 @@ export function CommandPalette({ open, setOpen }: { open: boolean; setOpen: (v: 
             <Command shouldFilter={q.length < 2} label="Command menu">
               <div className="flex items-center gap-3 border-b hairline px-4">
                 <Search className="h-4 w-4 text-muted" />
-                <Command.Input autoFocus value={q} onValueChange={setQ} placeholder="Search SKUs, orders, people — or jump to a page" className="h-14 flex-1 bg-transparent text-[16px] outline-none placeholder:text-muted/60" />
+                <Command.Input autoFocus value={q} onValueChange={setQ} placeholder="Search your items, or jump to a page" className="h-14 flex-1 bg-transparent text-[16px] outline-none placeholder:text-muted/60" />
                 <kbd className="rounded border border-line/10 px-1.5 text-[10px] text-muted">ESC</kbd>
               </div>
               <Command.List className="max-h-[52vh] overflow-y-auto p-1.5">
@@ -67,24 +62,9 @@ export function CommandPalette({ open, setOpen }: { open: boolean; setOpen: (v: 
                     ))}
                   </Command.Group>
                 ))}
-                {!!data?.products.length && (
-                  <Command.Group heading="Products" className={group}>
-                    {data.products.map((p) => <Command.Item key={p.sku} value={p.sku} onSelect={() => go(`/products/${p.id}`)} className={item}><ProductGlyph name={p.name} size={22} /> {p.name} <code className="ml-auto text-[11px]">{p.sku}</code></Command.Item>)}
-                  </Command.Group>
-                )}
-                {!!data?.orders.length && (
-                  <Command.Group heading="Orders" className={group}>
-                    {data.orders.map((o) => <Command.Item key={o.id} value={o.id} onSelect={() => go(`/orders?open=${o.id}`)} className={item}><code className="text-[13px] text-text">{o.channelOrderId}</code> {o.customerName} <span className="ml-auto font-mono text-[10px] uppercase">{o.status}</span></Command.Item>)}
-                  </Command.Group>
-                )}
-                {!!data?.employees.length && (
-                  <Command.Group heading="People" className={group}>
-                    {data.employees.map((e) => <Command.Item key={e.id} value={e.id} onSelect={() => go(`/hr/employees/${e.id}`)} className={item}>{e.name} <span className="ml-auto text-[13px]">{e.designation}</span></Command.Item>)}
-                  </Command.Group>
-                )}
-                {!!data?.suppliers.length && (
-                  <Command.Group heading="Suppliers" className={group}>
-                    {data.suppliers.map((s) => <Command.Item key={s.id} value={s.id} onSelect={() => go(`/purchases?supplier=${s.id}`)} className={item}>{s.name} <span className="ml-auto text-[13px]">{s.city}</span></Command.Item>)}
+                {!!data?.items.length && (
+                  <Command.Group heading="Items" className={group}>
+                    {data.items.slice(0, 8).map((p) => <Command.Item key={p.id} value={p.code + p.name} onSelect={() => go(`/products/${p.id}`)} className={item}><ProductGlyph name={p.name} size={26} /> {p.name} <span className="ml-auto text-[13px] text-muted">{p.category}</span></Command.Item>)}
                   </Command.Group>
                 )}
               </Command.List>

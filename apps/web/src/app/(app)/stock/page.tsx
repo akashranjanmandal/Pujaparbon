@@ -1,233 +1,168 @@
 "use client";
-import { ProductGlyph } from "@/components/ui/ProductGlyph";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
-import { useSearchParams } from "next/navigation";
-import { Suspense, useState } from "react";
-import { ArrowDownToLine, ArrowUpFromLine, Boxes, Grid3x3, History, Plus, Scale, Search, SlidersHorizontal } from "lucide-react";
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useMemo, useState } from "react";
+import { Boxes, ClipboardCheck, Minus, Plus, Printer, Search } from "lucide-react";
+import { formatINR } from "@pp/shared";
 import { Drawer } from "@/components/ui/Drawer";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { Stat } from "@/components/ui/Stat";
 import { Table } from "@/components/ui/Table";
-import { Badge, Button, Card, Empty, Field, Input, Segmented, Select, StatusBadge } from "@/components/ui/primitives";
-import { api } from "@/lib/api";
-import { useAuth } from "@/lib/auth";
+import { Badge, Button, Card, Empty, Field, Input, ProductGlyphRow } from "@/components/ui/primitives";
+import { api, openFile } from "@/lib/api";
 import { cn } from "@/lib/cn";
-import { compactINR, fmtDateTime, fmtNum } from "@/lib/format";
+import { compactINR, timeAgo } from "@/lib/format";
 import { useAction } from "@/lib/hooks";
+import { paise } from "@/lib/money";
+import { ProductGlyph } from "@/components/ui/ProductGlyph";
+import type { Product } from "@/lib/summary";
 
-export interface StockItem {
-  variantId: string; sku: string; size: string | null; color: string | null; name: string; category: string; emoji: string | null; reorderLevel: number;
-  costPaise: number; pricePaise: number; onHand: number; committed: number; available: number; bins: { code: string; qty: number }[]; state: "OK" | "LOW" | "OUT";
-}
-interface StockList { items: StockItem[]; totals: { skus: number; units: number; valueAtCostPaise: number; low: number; out: number } }
-interface Bin { id: string; code: string; zone: string; units: number; skus: number }
-interface Move { id: string; qty: number; type: string; reason: string | null; createdAt: string; sku: string; name: string; emoji: string | null; bin: string | null; by: string | null }
+interface Res { items: Product[]; categories: { name: string; products: number; units: number; valuePaise: number }[]; totals: { products: number; units: number; valuePaise: number; potentialPaise: number; lastCountAt: number | null } }
 
 function StockInner() {
   const params = useSearchParams();
-  const { can } = useAuth();
-  const [tab, setTab] = useState<"stock" | "ledger" | "bins">("stock");
-  const [search, setSearch] = useState(params.get("search") ?? "");
-  const [filter, setFilter] = useState(params.get("filter") ?? "");
-  const [moveFor, setMoveFor] = useState<StockItem | null | "pick">(params.get("move") ? "pick" : null);
+  const router = useRouter();
+  const [search, setSearch] = useState("");
+  const [category, setCategory] = useState("");
+  const [counting, setCounting] = useState(params.get("count") === "1");
+  const [adding, setAdding] = useState(false);
   const qs = new URLSearchParams();
   if (search) qs.set("search", search);
-  if (filter) qs.set("filter", filter);
-  const { data, isLoading } = useQuery({ queryKey: ["stock", qs.toString()], queryFn: () => api.get<StockList>(`/stock?${qs}`) });
+  if (category) qs.set("category", category);
+  const { data, isLoading } = useQuery({ queryKey: ["products", qs.toString()], queryFn: () => api.get<Res>(`/products?${qs}`) });
   const t = data?.totals;
 
   return (
     <div>
-      <PageHeader title="Stock" subtitle="On hand is what is on the shelf. Committed is promised to open orders. Available is what you can still sell."
-        actions={<Button variant="primary" icon={<Plus className="h-4 w-4" />} onClick={() => setMoveFor("pick")}>Record stock movement</Button>} />
+      <PageHeader title="Stock" subtitle="Everything you have, what it cost you, and what it is worth. Update your counts every day or two and the numbers stay true."
+        actions={
+          <>
+            <Button icon={<Printer className="h-4 w-4" />} onClick={() => data && openFile("/products/labels", { productIds: data.items.map((i) => i.id), baseUrl: window.location.origin })}>Print QR labels</Button>
+            <Button icon={<Plus className="h-4 w-4" />} onClick={() => setAdding(true)}>Add item</Button>
+            <Button variant="primary" icon={<ClipboardCheck className="h-4 w-4" />} onClick={() => setCounting(true)}>Update counts</Button>
+          </>
+        } />
 
       {t && (
         <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
-          <Stat label="Stock value at cost" value={t.valueAtCostPaise} format={compactINR} icon={<Boxes className="h-5 w-5" />} />
-          <Stat label="Units on the shelves" value={t.units} icon={<Grid3x3 className="h-5 w-5" />} tone="blue" hint={`${t.skus} SKUs`} delay={0.05} />
-          <Stat label="Running low" value={t.low} icon={<Scale className="h-5 w-5" />} tone="gold" delay={0.1} onClick={() => { setFilter("low"); setTab("stock"); }} />
-          <Stat label="Out of stock" value={t.out} icon={<ArrowUpFromLine className="h-5 w-5" />} tone="red" delay={0.15} onClick={() => { setFilter("out"); setTab("stock"); }} />
+          <Tile label="Stock at what it cost you" value={compactINR(t.valuePaise)} tone="bg-primary-soft text-primary" />
+          <Tile label="Worth at your prices" value={compactINR(t.potentialPaise)} sub={t.valuePaise ? `${Math.round(((t.potentialPaise - t.valuePaise) / t.valuePaise) * 100)}% above cost` : undefined} tone="bg-lav-soft text-lav" />
+          <Tile label="Pieces on the shelf" value={t.units.toLocaleString("en-IN")} sub={`${t.products} items`} tone="bg-panel text-text" />
+          <Tile label="Last counted" value={t.lastCountAt ? timeAgo(t.lastCountAt) : "Never"} sub={t.lastCountAt ? undefined : "Press Update counts"} tone="bg-peach-soft text-peach" />
         </div>
       )}
 
       <div className="mb-5 flex flex-wrap items-center gap-3">
-        <Segmented value={tab} onChange={setTab} options={[
-          { value: "stock", label: <span className="flex items-center gap-1.5"><Boxes className="h-3.5 w-3.5" />Stock</span> },
-          { value: "ledger", label: <span className="flex items-center gap-1.5"><History className="h-3.5 w-3.5" />Ledger</span> },
-          { value: "bins", label: <span className="flex items-center gap-1.5"><Grid3x3 className="h-3.5 w-3.5" />Racks & bins</span> },
-        ]} />
-        {tab === "stock" && (
-          <>
-            <div className="relative min-w-[200px] flex-1 sm:max-w-xs">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
-              <Input placeholder="Name, SKU or category" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
-            </div>
-            <Select value={filter} onChange={(e) => setFilter(e.target.value)} className="w-40">
-              <option value="">Everything</option>
-              <option value="low">Low or out</option>
-              <option value="out">Out of stock</option>
-            </Select>
-          </>
-        )}
-      </div>
-
-      {tab === "stock" && (
-        <Card plain className="overflow-hidden">
-          <Table rows={data?.items} loading={isLoading} rowKey={(r) => r.variantId} onRowClick={(r) => setMoveFor(r)}
-            empty={<Empty icon={<Boxes />} title="Nothing here" body="No SKUs match this filter." />}
-            columns={[
-              { key: "item", header: "Item", cell: (s) => <div className="flex items-center gap-3"><ProductGlyph name={s.name} size={34} /><div><div className="font-medium">{s.name}</div><code className="text-[14px] text-muted">{s.sku}{s.size ? ` · ${s.size}` : ""}{s.color ? ` · ${s.color}` : ""}</code></div></div> },
-              { key: "bin", header: "Bin", cell: (s) => <div className="flex flex-wrap gap-1">{s.bins.slice(0, 2).map((b) => <Badge key={b.code} tone="gold">{b.code} · {b.qty}</Badge>)}{!s.bins.length && <span className="text-[14px] text-muted">—</span>}</div> },
-              { key: "level", header: "Level", cell: (s) => <Level s={s} /> },
-              { key: "onhand", header: "On hand", align: "right", cell: (s) => <b className="num">{fmtNum(s.onHand)}</b> },
-              { key: "committed", header: "Committed", align: "right", cell: (s) => <span className="text-muted num">{s.committed}</span> },
-              { key: "available", header: "Available", align: "right", cell: (s) => <b className={cn("num", s.available <= 0 ? "text-sindoor" : s.available <= s.reorderLevel ? "text-marigold" : "text-leaf")}>{s.available}</b> },
-              { key: "state", header: "", cell: (s) => <StatusBadge status={s.state} /> },
-            ]} />
-        </Card>
-      )}
-      {tab === "ledger" && <Ledger />}
-      {tab === "bins" && <Bins canAdd={can("stock.adjust")} />}
-      <MoveDrawer target={moveFor} onClose={() => setMoveFor(null)} items={data?.items ?? []} canAdjust={can("stock.adjust")} />
-    </div>
-  );
-}
-
-/** A small "lamp oil" bar: how full the shelf is compared with three times the reorder level. */
-function Level({ s }: { s: StockItem }) {
-  const pct = Math.min(100, (s.onHand / Math.max(1, s.reorderLevel * 3)) * 100);
-  return (
-    <div className="h-2 w-28 overflow-hidden rounded-full bg-line/10">
-      <motion.div initial={{ width: 0 }} animate={{ width: `${pct}%` }} transition={{ duration: 1 }} className={cn("h-full rounded-full", s.state === "OK" ? "bg-leaf" : s.state === "LOW" ? "bg-marigold" : "bg-primary")} />
-    </div>
-  );
-}
-
-function Ledger() {
-  const [type, setType] = useState("");
-  const { data, isLoading } = useQuery({ queryKey: ["stock", "ledger", type], queryFn: () => api.get<Move[]>(`/stock/ledger?limit=200${type ? `&type=${type}` : ""}`) });
-  return (
-    <Card plain className="overflow-hidden" title="Stock ledger" subtitle="Every unit that entered or left, with who did it and why. Entries are never edited — corrections are new entries." action={
-      <Select value={type} onChange={(e) => setType(e.target.value)} className="w-40">
-        <option value="">All types</option>
-        {["PURCHASE", "INWARD", "SALE", "OUTWARD", "RETURN", "ADJUSTMENT"].map((t) => <option key={t} value={t}>{t.charAt(0) + t.slice(1).toLowerCase()}</option>)}
-      </Select>
-    }>
-      <Table rows={data} loading={isLoading} columns={[
-        { key: "when", header: "When", cell: (m) => <span className="text-muted">{fmtDateTime(m.createdAt)}</span> },
-        { key: "item", header: "Item", cell: (m) => <div className="flex items-center gap-2"><ProductGlyph name={m.name} size={26} /><div><div className="max-w-[240px] truncate">{m.name}</div><code className="text-[14px] text-muted">{m.sku}</code></div></div> },
-        { key: "type", header: "Type", cell: (m) => <Badge tone={m.type === "SALE" ? "blue" : m.type === "ADJUSTMENT" ? "gold" : m.qty > 0 ? "green" : "red"}>{m.type.toLowerCase()}</Badge> },
-        { key: "qty", header: "Qty", align: "right", cell: (m) => <b className={cn("num", m.qty > 0 ? "text-leaf" : "text-sindoor")}>{m.qty > 0 ? `+${m.qty}` : m.qty}</b> },
-        { key: "bin", header: "Bin", cell: (m) => <span className="text-muted">{m.bin ?? "—"}</span> },
-        { key: "reason", header: "Reason", cell: (m) => <span className="text-muted">{m.reason}</span> },
-        { key: "by", header: "By", cell: (m) => <span className="text-muted">{m.by ?? "System"}</span> },
-      ]} />
-    </Card>
-  );
-}
-
-function Bins({ canAdd }: { canAdd: boolean }) {
-  const { data } = useQuery({ queryKey: ["stock", "bins"], queryFn: () => api.get<Bin[]>("/stock/bins") });
-  const [code, setCode] = useState("");
-  const [zone, setZone] = useState("");
-  const add = useAction(() => api.post("/stock/bins", { code, zone }), { success: "Bin added", invalidate: ["stock"], onSuccess: () => { setCode(""); setZone(""); } });
-  const zones = [...new Set(data?.map((b) => b.zone) ?? [])];
-  const max = Math.max(1, ...(data?.map((b) => b.units) ?? [1]));
-  return (
-    <div className="space-y-6">
-      {zones.map((z, zi) => (
-        <Card key={z} title={z} subtitle={`${data!.filter((b) => b.zone === z).length} bins`} delay={zi * 0.05}>
-          <div className="grid grid-cols-2 gap-3 p-5 sm:grid-cols-3 lg:grid-cols-6">
-            {data!.filter((b) => b.zone === z).map((b, i) => (
-              <motion.div key={b.id} initial={{ opacity: 0, rotateY: -60 }} animate={{ opacity: 1, rotateY: 0 }} transition={{ delay: zi * 0.05 + i * 0.05 }} className="relative overflow-hidden rounded-2xl border border-line/15 bg-bg2/70 p-4">
-                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-primary-soft to-transparent" style={{ height: `${(b.units / max) * 100}%` }} />
-                <div className="relative">
-                  <code className="text-[16px] font-semibold">{b.code}</code>
-                  <div className="mt-3 text-2xl font-semibold num">{b.units}</div>
-                  <div className="text-[14px] text-muted">units · {b.skus} SKUs</div>
-                </div>
-              </motion.div>
-            ))}
-          </div>
-        </Card>
-      ))}
-      {canAdd && (
-        <Card title="Add a bin" subtitle="Name racks the way your team already does, e.g. A-07">
-          <div className="flex flex-wrap items-end gap-3 p-5">
-            <Field label="Bin code"><Input value={code} onChange={(e) => setCode(e.target.value)} placeholder="A-07" /></Field>
-            <Field label="Zone"><Input value={zone} onChange={(e) => setZone(e.target.value)} placeholder="Sarees" list="zones" /><datalist id="zones">{zones.map((z) => <option key={z} value={z} />)}</datalist></Field>
-            <Button variant="gold" loading={add.isPending} onClick={() => add.mutate(undefined)}>Add bin</Button>
-          </div>
-        </Card>
-      )}
-    </div>
-  );
-}
-
-function MoveDrawer({ target, onClose, items, canAdjust }: { target: StockItem | null | "pick"; onClose: () => void; items: StockItem[]; canAdjust: boolean }) {
-  const [variantId, setVariantId] = useState("");
-  const [type, setType] = useState<"INWARD" | "OUTWARD" | "ADJUSTMENT">("INWARD");
-  const [qty, setQty] = useState("1");
-  const [reason, setReason] = useState("");
-  const [binId, setBinId] = useState("");
-  const { data: bins } = useQuery({ queryKey: ["stock", "bins"], queryFn: () => api.get<Bin[]>("/stock/bins"), enabled: !!target });
-  const item = target && target !== "pick" ? target : items.find((i) => i.variantId === variantId);
-  const save = useAction(() => api.post("/stock/moves", { variantId: item!.variantId, type, qty: Number(qty), reason, binId: binId || undefined }), {
-    success: "Stock updated", invalidate: ["stock", "products"], onSuccess: () => { setQty("1"); setReason(""); onClose(); },
-  });
-  const delta = type === "OUTWARD" ? -Math.abs(Number(qty)) : type === "INWARD" ? Math.abs(Number(qty)) : Number(qty);
-  const types = [
-    { v: "INWARD" as const, l: "Stock in", icon: ArrowDownToLine, c: "text-leaf" },
-    { v: "OUTWARD" as const, l: "Stock out", icon: ArrowUpFromLine, c: "text-sindoor" },
-    ...(canAdjust ? [{ v: "ADJUSTMENT" as const, l: "Correct count", icon: SlidersHorizontal, c: "text-primary" }] : []),
-  ];
-
-  return (
-    <Drawer open={!!target} onClose={onClose} title="Record stock movement" subtitle="Purchases and dispatches update stock on their own — use this for everything else."
-      footer={<><Button variant="ghost" onClick={onClose}>Cancel</Button><Button variant="primary" disabled={!item || !reason || !Number(qty)} loading={save.isPending} onClick={() => save.mutate(undefined)}>Save movement</Button></>}>
-      <div className="space-y-5">
-        {target === "pick" ? (
-          <Field label="Item">
-            <Select value={variantId} onChange={(e) => setVariantId(e.target.value)}>
-              <option value="">Choose a SKU…</option>
-              {items.map((i) => <option key={i.variantId} value={i.variantId}>{i.sku} — {i.name}</option>)}
-            </Select>
-          </Field>
-        ) : null}
-        {item && (
-          <div className="flex items-center gap-4 rounded-2xl border border-line/10 bg-panel/50 p-4">
-            <ProductGlyph name={item.name} size={34} />
-            <div className="flex-1"><div className="font-medium">{item.name}</div><code className="text-[14px] text-muted">{item.sku}</code></div>
-            <div className="text-right">
-              <div className="text-[14px] text-muted">On hand</div>
-              <div className="text-[22px] font-semibold tracking-tight">{item.onHand} <span className={cn("text-base", delta >= 0 ? "text-leaf" : "text-sindoor")}>→ {item.onHand + (Number.isFinite(delta) ? delta : 0)}</span></div>
-            </div>
-          </div>
-        )}
-        <div className="grid grid-cols-3 gap-2">
-          {types.map((t) => (
-            <button key={t.v} onClick={() => setType(t.v)} className={cn("flex flex-col items-center gap-2 rounded-2xl border p-4 text-[15.5px] font-semibold transition", type === t.v ? "border-primary bg-primary-tint" : "border-line/10 text-muted hover:text-text")}>
-              <t.icon className={cn("h-5 w-5", t.c)} /> {t.l}
-            </button>
+        <div className="relative min-w-[220px] flex-1 sm:max-w-sm">
+          <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
+          <Input placeholder="Search by name or code" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-10" />
+        </div>
+        <div className="flex flex-wrap gap-1.5">
+          {[{ name: "", label: "All" }, ...(data?.categories.map((c) => ({ name: c.name, label: `${c.name} · ${c.products}` })) ?? [])].map((c) => (
+            <button key={c.name} onClick={() => setCategory(c.name)} className={cn("rounded-full border px-4 py-2 text-[14.5px] font-semibold transition", category === c.name ? "border-primary bg-primary text-white" : "border-line/15 bg-panel text-text/75 hover:border-primary hover:text-primary")}>{c.label}</button>
           ))}
         </div>
-        <div className="grid grid-cols-2 gap-4">
-          <Field label={type === "ADJUSTMENT" ? "Change (+ or −)" : "Quantity"}><Input type="number" value={qty} onChange={(e) => setQty(e.target.value)} /></Field>
-          <Field label="Bin"><Select value={binId} onChange={(e) => setBinId(e.target.value)}><option value="">Not specified</option>{bins?.map((b) => <option key={b.id} value={b.id}>{b.code} · {b.zone}</option>)}</Select></Field>
+      </div>
+
+      <Card plain className="overflow-hidden">
+        <Table rows={data?.items} loading={isLoading} onRowClick={(p) => router.push(`/products/${p.id}`)}
+          empty={<Empty icon={<Boxes />} title="No items yet" body="Record your first buy, or add an item you already have." action={<Link href="/buy/new"><Button variant="primary">New buy</Button></Link>} />}
+          columns={[
+            { key: "item", header: "Item", cell: (p) => <ProductGlyphRow name={p.name} sub={p.category} /> },
+            { key: "stock", header: "In stock", align: "right", cell: (p) => <span className={cn("text-[17px] font-semibold", p.onHand <= 0 && "text-sindoor")}>{p.onHand.toLocaleString("en-IN")}</span> },
+            { key: "cost", header: "Cost each", align: "right", cell: (p) => (p.avgCostPaise ? formatINR(p.avgCostPaise) : "—") },
+            { key: "price", header: "Your price", align: "right", cell: (p) => (p.sellingPricePaise ? <span>{formatINR(p.sellingPricePaise)} {p.avgCostPaise > 0 && <Badge tone={p.marginPct >= 0 ? "green" : "orange"}>{p.marginPct >= 0 ? "+" : ""}{p.marginPct}%</Badge>}</span> : <span className="text-muted">Not set</span>) },
+            { key: "value", header: "Value at cost", align: "right", cell: (p) => formatINR(p.valuePaise, { decimals: false }) },
+            { key: "counted", header: "Last counted", cell: (p) => <span className="text-muted">{p.lastCountAt ? timeAgo(p.lastCountAt) : "Never"}</span> },
+          ]} />
+      </Card>
+
+      {counting && data && <CountSheet items={data.items} onClose={() => setCounting(false)} />}
+      <AddItem open={adding} onClose={() => setAdding(false)} categories={data?.categories.map((c) => c.name) ?? []} />
+    </div>
+  );
+}
+
+const Tile = ({ label, value, sub, tone }: { label: string; value: string; sub?: string; tone: string }) => (
+  <div className={`rounded-2xl p-5 ${tone}`}><div className="text-[14px] font-semibold">{label}</div><div className="display mt-1 text-[30px] leading-none text-text">{value}</div>{sub && <div className="mt-2 text-[13.5px] text-text/60">{sub}</div>}</div>
+);
+
+/** His routine: type what is really on the shelf. Everything starts at what the app thinks, so he only touches what is different. */
+function CountSheet({ items, onClose }: { items: Product[]; onClose: () => void }) {
+  const [counts, setCounts] = useState<Record<string, string>>(() => Object.fromEntries(items.map((i) => [i.id, String(Math.max(0, i.onHand))])));
+  useEffect(() => { document.body.style.overflow = "hidden"; return () => { document.body.style.overflow = ""; }; }, []);
+  const rows = useMemo(() => items.map((i) => { const c = counts[i.id]; const n = c === "" ? i.onHand : Math.max(0, Math.floor(Number(c) || 0)); return { ...i, counted: n, diff: n - Math.max(0, i.onHand) }; }), [items, counts]);
+  const changed = rows.filter((r) => r.diff !== 0);
+  const down = changed.filter((r) => r.diff < 0), up = changed.filter((r) => r.diff > 0);
+  const save = useAction(() => api.post<{ changed: number; unitsDown: number; unitsUp: number; valueDownPaise: number }>("/stock/counts", { counts: rows.map((r) => ({ productId: r.id, counted: r.counted })) }), {
+    success: (r) => (r.changed ? `Counts saved. ${r.unitsDown} pieces fewer, worth ${formatINR(r.valueDownPaise, { decimals: false })}.` : "Counts saved. Everything matched."),
+    invalidate: ["products"], onSuccess: onClose,
+  });
+  const set = (id: string, v: string) => setCounts((c) => ({ ...c, [id]: v.replace(/\D/g, "") }));
+  const step = (id: string, d: number, cur: number) => setCounts((c) => ({ ...c, [id]: String(Math.max(0, cur + d)) }));
+
+  return (
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-bg">
+      <div className="mx-auto max-w-3xl px-4 pb-48 pt-6 sm:px-6">
+        <div className="mb-6 flex items-start justify-between gap-4">
+          <div><div className="eyebrow">Update counts</div><h1 className="display mt-1 text-[34px] leading-tight">What is on the shelf today?</h1><p className="mt-1 text-[15.5px] text-muted">Change only what is different. Untouched items are marked as checked.</p></div>
+          <Button onClick={onClose}>Cancel</Button>
         </div>
-        <Field label="Reason" hint="Shows up in the ledger forever — be specific.">
-          <Input value={reason} onChange={(e) => setReason(e.target.value)} placeholder={type === "INWARD" ? "Found 4 pieces in godown" : type === "OUTWARD" ? "Sent to exhibition stall" : "Cycle count found 2 damaged"} />
-        </Field>
+        <div className="space-y-3">
+          {rows.map((r) => (
+            <motion.div key={r.id} layout className={cn("flex items-center gap-3 rounded-2xl border bg-panel p-4 shadow-soft", r.diff !== 0 ? "border-peach/50 bg-peach-tint/40" : "border-line/[0.08]")}>
+              <ProductGlyph name={r.name} size={44} />
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-[16px] font-semibold">{r.name}</div>
+                <div className="text-[13.5px] text-muted">{r.category} · app says {Math.max(0, r.onHand)}{r.diff !== 0 && <b className={cn("ml-2", r.diff < 0 ? "text-peach" : "text-leaf")}>{r.diff > 0 ? "+" : "−"}{Math.abs(r.diff)}</b>}</div>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <button onClick={() => step(r.id, -1, r.counted)} className="grid h-11 w-11 place-items-center rounded-xl border border-line/15 bg-panel text-text active:scale-95" aria-label="One less"><Minus className="h-4 w-4" /></button>
+                <input inputMode="numeric" value={counts[r.id]} onChange={(e) => set(r.id, e.target.value)} onFocus={(e) => e.currentTarget.select()} className="h-11 w-[72px] rounded-xl border border-line/20 bg-panel text-center text-[18px] font-semibold focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary-soft/50" aria-label={`Count for ${r.name}`} />
+                <button onClick={() => step(r.id, 1, r.counted)} className="grid h-11 w-11 place-items-center rounded-xl border border-line/15 bg-panel text-text active:scale-95" aria-label="One more"><Plus className="h-4 w-4" /></button>
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      </div>
+      <div className="fixed inset-x-0 bottom-0 z-10 border-t border-line/10 bg-panel/95 p-4 shadow-lift backdrop-blur-xl">
+        <div className="mx-auto flex max-w-3xl flex-wrap items-center justify-between gap-3">
+          <div className="text-[15px]">
+            {changed.length === 0 ? <span className="text-muted">Nothing changed so far</span> : (
+              <span><b className="font-semibold">{changed.length} {changed.length === 1 ? "item" : "items"} changed.</b>{" "}
+                {down.length > 0 && <span className="text-peach">{down.reduce((s, r) => s - r.diff, 0)} pieces fewer (≈ {formatINR(down.reduce((s, r) => s + -r.diff * r.avgCostPaise, 0), { decimals: false })}). </span>}
+                {up.length > 0 && <span className="text-leaf">{up.reduce((s, r) => s + r.diff, 0)} more.</span>}</span>
+            )}
+          </div>
+          <Button variant="primary" size="lg" loading={save.isPending} onClick={() => save.mutate(undefined)}>Save counts</Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AddItem({ open, onClose, categories }: { open: boolean; onClose: () => void; categories: string[] }) {
+  const [f, setF] = useState({ name: "", category: "", unit: "pcs", price: "", qty: "", cost: "" });
+  const save = useAction(() => api.post("/products", { name: f.name, category: f.category, unit: f.unit || "pcs", sellingPricePaise: paise(f.price), openingQty: Number(f.qty) || 0, openingUnitCostPaise: paise(f.cost) }), {
+    success: "Item added", invalidate: ["products"], onSuccess: () => { setF({ name: "", category: "", unit: "pcs", price: "", qty: "", cost: "" }); onClose(); },
+  });
+  const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement>) => setF({ ...f, [k]: e.target.value });
+  return (
+    <Drawer open={open} onClose={onClose} title="Add an item" subtitle="For something you already have. Items from a market trip are added automatically when you record the buy."
+      footer={<><Button variant="ghost" onClick={onClose}>Cancel</Button><Button variant="primary" loading={save.isPending} disabled={f.name.length < 2 || !f.category} onClick={() => save.mutate(undefined)}>Add item</Button></>}>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field label="Item name" className="sm:col-span-2"><Input value={f.name} onChange={set("name")} placeholder="e.g. Steel bottle 1L" /></Field>
+        <Field label="Category" hint="Type any name. A new one is created for you."><Input list="cats" value={f.category} onChange={set("category")} placeholder="e.g. Bottles" /><datalist id="cats">{categories.map((c) => <option key={c} value={c} />)}</datalist></Field>
+        <Field label="Unit"><Input value={f.unit} onChange={set("unit")} /></Field>
+        <Field label="How many do you have now?"><Input inputMode="numeric" value={f.qty} onChange={set("qty")} placeholder="0" /></Field>
+        <Field label="Cost of each (₹)"><Input inputMode="decimal" value={f.cost} onChange={set("cost")} placeholder="0" /></Field>
+        <Field label="Selling price (₹)" className="sm:col-span-2"><Input inputMode="decimal" value={f.price} onChange={set("price")} placeholder="Optional" /></Field>
       </div>
     </Drawer>
   );
 }
 
 export default function StockPage() {
-  return (
-    <Suspense>
-      <StockInner />
-    </Suspense>
-  );
+  return <Suspense><StockInner /></Suspense>;
 }

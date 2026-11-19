@@ -1,9 +1,10 @@
 import { sql } from "drizzle-orm";
-import { index, integer, real, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { blob, index, integer, real, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
 /**
  * Seller OS schema (libSQL / Turso).
- * Rules: every business row carries tenantId; money is integer paise; stock is a ledger (stock_movements).
+ * Rules: every business row carries tenantId; money is integer paise; dates are IST "YYYY-MM-DD" text;
+ * stock is a ledger (stock_movements) with a paise value on every row, so stock value is always SUM(value).
  */
 
 const pk = () => text("id").primaryKey().$defaultFn(() => crypto.randomUUID());
@@ -14,9 +15,7 @@ export const tenants = sqliteTable("tenants", {
   id: pk(),
   name: text("name").notNull(),
   slug: text("slug").notNull().unique(),
-  gstin: text("gstin"),
   address: text("address"),
-  state: text("state").notNull().default("West Bengal"),
   geofenceLat: real("geofence_lat").notNull(),
   geofenceLng: real("geofence_lng").notNull(),
   geofenceRadiusM: integer("geofence_radius_m").notNull().default(100),
@@ -35,7 +34,7 @@ export const users = sqliteTable(
     name: text("name").notNull(),
     email: text("email").notNull(),
     passwordHash: text("password_hash").notNull(),
-    role: text("role", { enum: ["OWNER", "MANAGER", "STAFF"] }).notNull(),
+    role: text("role", { enum: ["OWNER", "STAFF"] }).notNull(),
     employeeId: text("employee_id"),
     deviceId: text("device_id"),
     active: integer("active", { mode: "boolean" }).notNull().default(true),
@@ -56,213 +55,188 @@ export const refreshTokens = sqliteTable("refresh_tokens", {
   createdAt: createdAt(),
 });
 
-export const channels = sqliteTable(
-  "channels",
-  {
-    id: pk(),
-    tenantId: tenant(),
-    code: text("code").notNull(),
-    name: text("name").notNull(),
-    color: text("color").notNull(),
-    active: integer("active", { mode: "boolean" }).notNull().default(true),
-  },
-  (t) => [uniqueIndex("channels_code_uq").on(t.tenantId, t.code)],
-);
-
+/** A thing he sells. Category is free text: he creates categories simply by typing them. */
 export const products = sqliteTable(
   "products",
   {
     id: pk(),
     tenantId: tenant(),
+    /** Short code printed in the QR, e.g. P7K2MX. */
+    code: text("code").notNull(),
     name: text("name").notNull(),
     category: text("category").notNull(),
-    description: text("description"),
-    hsnCode: text("hsn_code").notNull(),
-    gstRate: integer("gst_rate").notNull(),
-    emoji: text("emoji"),
-    deletedAt: integer("deleted_at", { mode: "timestamp_ms" }),
+    unit: text("unit").notNull().default("pcs"),
+    sellingPricePaise: integer("selling_price_paise").notNull().default(0),
+    notes: text("notes"),
+    archivedAt: integer("archived_at", { mode: "timestamp_ms" }),
     createdAt: createdAt(),
   },
-  (t) => [index("products_tenant_idx").on(t.tenantId)],
+  (t) => [uniqueIndex("products_code_uq").on(t.tenantId, t.code), index("products_tenant_idx").on(t.tenantId, t.category)],
 );
 
-export const variants = sqliteTable(
-  "variants",
-  {
-    id: pk(),
-    tenantId: tenant(),
-    productId: text("product_id").notNull().references(() => products.id),
-    sku: text("sku").notNull(),
-    size: text("size"),
-    color: text("color"),
-    mrpPaise: integer("mrp_paise").notNull(),
-    pricePaise: integer("price_paise").notNull(),
-    costPaise: integer("cost_paise").notNull(),
-    reorderLevel: integer("reorder_level").notNull().default(5),
-    deletedAt: integer("deleted_at", { mode: "timestamp_ms" }),
-  },
-  (t) => [uniqueIndex("variants_sku_uq").on(t.tenantId, t.sku), index("variants_product_idx").on(t.productId)],
-);
-
-export const channelListings = sqliteTable(
-  "channel_listings",
-  {
-    id: pk(),
-    tenantId: tenant(),
-    variantId: text("variant_id").notNull().references(() => variants.id),
-    channelId: text("channel_id").notNull().references(() => channels.id),
-    channelSku: text("channel_sku").notNull(),
-    listingId: text("listing_id"),
-  },
-  (t) => [uniqueIndex("listing_channel_sku_uq").on(t.tenantId, t.channelId, t.channelSku)],
-);
-
-export const bins = sqliteTable(
-  "bins",
-  {
-    id: pk(),
-    tenantId: tenant(),
-    code: text("code").notNull(),
-    zone: text("zone").notNull(),
-  },
-  (t) => [uniqueIndex("bins_code_uq").on(t.tenantId, t.code)],
-);
-
-/** Immutable ledger. Current stock = SUM(qty) per variant (and per bin). */
+/** Every unit in and out. valuePaise is signed like qty, so SUM(valuePaise) is the stock value at cost. */
 export const stockMovements = sqliteTable(
   "stock_movements",
   {
     id: pk(),
     tenantId: tenant(),
-    variantId: text("variant_id").notNull().references(() => variants.id),
-    binId: text("bin_id").references(() => bins.id),
+    productId: text("product_id").notNull().references(() => products.id),
     qty: integer("qty").notNull(),
-    type: text("type", {
-      enum: ["PURCHASE", "INWARD", "SALE", "OUTWARD", "RETURN", "ADJUSTMENT", "TRANSFER"],
-    }).notNull(),
-    reason: text("reason"),
+    valuePaise: integer("value_paise").notNull(),
+    type: text("type", { enum: ["OPENING", "BUY", "COUNT"] }).notNull(),
     refType: text("ref_type"),
     refId: text("ref_id"),
+    note: text("note"),
     userId: text("user_id"),
     createdAt: createdAt(),
   },
-  (t) => [index("moves_variant_idx").on(t.tenantId, t.variantId), index("moves_created_idx").on(t.tenantId, t.createdAt)],
+  (t) => [index("moves_product_idx").on(t.tenantId, t.productId), index("moves_ref_idx").on(t.refType, t.refId)],
 );
 
-export const suppliers = sqliteTable("suppliers", {
-  id: pk(),
-  tenantId: tenant(),
-  name: text("name").notNull(),
-  contactName: text("contact_name"),
-  phone: text("phone"),
-  email: text("email"),
-  gstin: text("gstin"),
-  city: text("city"),
-  createdAt: createdAt(),
-});
-
-export const purchases = sqliteTable("purchases", {
-  id: pk(),
-  tenantId: tenant(),
-  supplierId: text("supplier_id").notNull().references(() => suppliers.id),
-  number: text("number").notNull(),
-  invoiceNo: text("invoice_no").notNull(),
-  date: text("date").notNull(),
-  totalPaise: integer("total_paise").notNull(),
-  notes: text("notes"),
-  createdById: text("created_by_id"),
-  createdAt: createdAt(),
-});
-
-export const purchaseItems = sqliteTable("purchase_items", {
-  id: pk(),
-  purchaseId: text("purchase_id").notNull().references(() => purchases.id),
-  variantId: text("variant_id").notNull().references(() => variants.id),
-  qty: integer("qty").notNull(),
-  costPaise: integer("cost_paise").notNull(),
-  binId: text("bin_id"),
-});
-
-export const customers = sqliteTable("customers", {
-  id: pk(),
-  tenantId: tenant(),
-  name: text("name").notNull(),
-  phone: text("phone"),
-  email: text("email"),
-  city: text("city"),
-  state: text("state"),
-  pincode: text("pincode"),
-  createdAt: createdAt(),
-});
-
-export const importBatches = sqliteTable("import_batches", {
-  id: pk(),
-  tenantId: tenant(),
-  channelId: text("channel_id").notNull().references(() => channels.id),
-  kind: text("kind", { enum: ["ORDERS", "SETTLEMENTS"] }).notNull(),
-  fileName: text("file_name").notNull(),
-  rowsTotal: integer("rows_total").notNull(),
-  rowsImported: integer("rows_imported").notNull(),
-  rowsSkipped: integer("rows_skipped").notNull(),
-  errors: text("errors", { mode: "json" }).$type<{ row: number; message: string }[]>().notNull(),
-  createdById: text("created_by_id"),
-  createdAt: createdAt(),
-});
-
-export const orders = sqliteTable(
-  "orders",
+/** One trip to the market: items bought plus everything it cost to bring them home. */
+export const trips = sqliteTable(
+  "trips",
   {
     id: pk(),
     tenantId: tenant(),
-    channelId: text("channel_id").notNull().references(() => channels.id),
-    channelOrderId: text("channel_order_id").notNull(),
-    customerId: text("customer_id"),
-    customerName: text("customer_name").notNull(),
-    city: text("city"),
-    state: text("state"),
-    status: text("status", {
-      enum: ["NEW", "PICKED", "PACKED", "DISPATCHED", "DELIVERED", "CANCELLED", "RETURNED"],
-    }).notNull(),
-    orderedAt: integer("ordered_at", { mode: "timestamp_ms" }).notNull(),
-    dispatchBy: integer("dispatch_by", { mode: "timestamp_ms" }),
-    dispatchedAt: integer("dispatched_at", { mode: "timestamp_ms" }),
-    awb: text("awb"),
+    /** QR code for the whole lot, e.g. L9QX3T. */
+    code: text("code").notNull(),
+    date: text("date").notNull(),
+    title: text("title"),
+    place: text("place"),
+    notes: text("notes"),
+    basis: text("basis", { enum: ["VALUE", "QTY"] }).notNull().default("VALUE"),
+    itemsPaise: integer("items_paise").notNull(),
+    costsPaise: integer("costs_paise").notNull(),
     totalPaise: integer("total_paise").notNull(),
-    feesPaise: integer("fees_paise").notNull().default(0),
-    settledPaise: integer("settled_paise"),
-    settledAt: integer("settled_at", { mode: "timestamp_ms" }),
-    importBatchId: text("import_batch_id"),
+    createdById: text("created_by_id"),
     createdAt: createdAt(),
   },
+  (t) => [uniqueIndex("trips_code_uq").on(t.tenantId, t.code), index("trips_date_idx").on(t.tenantId, t.date)],
+);
+
+export const tripItems = sqliteTable("trip_items", {
+  id: pk(),
+  tripId: text("trip_id").notNull().references(() => trips.id),
+  productId: text("product_id").notNull().references(() => products.id),
+  qty: integer("qty").notNull(),
+  /** What he paid at the market for this line. */
+  linePaise: integer("line_paise").notNull(),
+  /** Share of the trip costs given to this line. */
+  extraPaise: integer("extra_paise").notNull(),
+  landedPaise: integer("landed_paise").notNull(),
+  unitCostPaise: integer("unit_cost_paise").notNull(),
+  unitPricePaise: integer("unit_price_paise").notNull(),
+});
+
+export const tripCosts = sqliteTable("trip_costs", {
+  id: pk(),
+  tripId: text("trip_id").notNull().references(() => trips.id),
+  kind: text("kind").notNull(),
+  label: text("label"),
+  amountPaise: integer("amount_paise").notNull(),
+  paidBy: text("paid_by"),
+});
+
+/** Money put in outside a buying trip: a weighing scale, packing material, rent... */
+export const investments = sqliteTable(
+  "investments",
+  {
+    id: pk(),
+    tenantId: tenant(),
+    date: text("date").notNull(),
+    label: text("label").notNull(),
+    category: text("category").notNull(),
+    amountPaise: integer("amount_paise").notNull(),
+    note: text("note"),
+    createdById: text("created_by_id"),
+    createdAt: createdAt(),
+  },
+  (t) => [index("investments_date_idx").on(t.tenantId, t.date)],
+);
+
+/** A marketplace he sells on. columnMap remembers how its report columns match our fields. */
+export const platforms = sqliteTable(
+  "platforms",
+  {
+    id: pk(),
+    tenantId: tenant(),
+    name: text("name").notNull(),
+    color: text("color").notNull(),
+    columnMap: text("column_map", { mode: "json" }).$type<Record<string, string>>(),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex("platforms_name_uq").on(t.tenantId, t.name)],
+);
+
+/** An uploaded monthly sales report or invoice. The original file is kept so it can be downloaded again. */
+export const platformReports = sqliteTable(
+  "platform_reports",
+  {
+    id: pk(),
+    tenantId: tenant(),
+    platformId: text("platform_id").notNull().references(() => platforms.id),
+    kind: text("kind", { enum: ["SALES", "INVOICE"] }).notNull(),
+    month: text("month").notNull(),
+    fileName: text("file_name").notNull(),
+    mime: text("mime").notNull(),
+    size: integer("size").notNull(),
+    data: blob("data", { mode: "buffer" }),
+    rowsTotal: integer("rows_total").notNull().default(0),
+    rowsImported: integer("rows_imported").notNull().default(0),
+    rowsSkipped: integer("rows_skipped").notNull().default(0),
+    amountPaise: integer("amount_paise"),
+    note: text("note"),
+    errors: text("errors", { mode: "json" }).$type<{ row: number; message: string }[]>(),
+    createdById: text("created_by_id"),
+    createdAt: createdAt(),
+  },
+  (t) => [index("reports_platform_idx").on(t.platformId, t.month)],
+);
+
+export const platformSales = sqliteTable(
+  "platform_sales",
+  {
+    id: pk(),
+    tenantId: tenant(),
+    platformId: text("platform_id").notNull().references(() => platforms.id),
+    reportId: text("report_id").notNull().references(() => platformReports.id),
+    /** Order id (+ line number) so re-uploading the same report never counts a sale twice. */
+    lineKey: text("line_key").notNull(),
+    orderId: text("order_id"),
+    orderDate: text("order_date").notNull(),
+    productName: text("product_name").notNull(),
+    sku: text("sku"),
+    productId: text("product_id").references(() => products.id),
+    qty: integer("qty").notNull(),
+    grossPaise: integer("gross_paise").notNull(),
+    feesPaise: integer("fees_paise").notNull().default(0),
+    /** What the platform actually paid out for this line. */
+    netPaise: integer("net_paise").notNull(),
+    state: text("state"),
+    status: text("status", { enum: ["DELIVERED", "RETURNED", "CANCELLED"] }).notNull(),
+    /** Estimated cost of the goods sold (average landed cost at import time). */
+    costPaise: integer("cost_paise").notNull().default(0),
+  },
   (t) => [
-    uniqueIndex("orders_channel_uq").on(t.tenantId, t.channelId, t.channelOrderId),
-    index("orders_status_idx").on(t.tenantId, t.status),
-    index("orders_date_idx").on(t.tenantId, t.orderedAt),
+    uniqueIndex("sales_line_uq").on(t.platformId, t.lineKey),
+    index("sales_date_idx").on(t.tenantId, t.orderDate),
+    index("sales_report_idx").on(t.reportId),
   ],
 );
 
-export const orderItems = sqliteTable("order_items", {
-  id: pk(),
-  orderId: text("order_id").notNull().references(() => orders.id),
-  variantId: text("variant_id").references(() => variants.id),
-  channelSku: text("channel_sku").notNull(),
-  qty: integer("qty").notNull(),
-  pricePaise: integer("price_paise").notNull(),
-});
-
-export const returns = sqliteTable("returns", {
-  id: pk(),
-  tenantId: tenant(),
-  orderId: text("order_id").notNull().references(() => orders.id),
-  variantId: text("variant_id").notNull().references(() => variants.id),
-  qty: integer("qty").notNull(),
-  type: text("type", { enum: ["CUSTOMER", "RTO"] }).notNull(),
-  condition: text("condition", { enum: ["GOOD", "DAMAGED"] }).notNull(),
-  status: text("status", { enum: ["RECEIVED", "RESTOCKED", "WRITTEN_OFF"] }).notNull(),
-  reason: text("reason").notNull(),
-  createdById: text("created_by_id"),
-  createdAt: createdAt(),
-});
+/** "This name on Flipkart is that product of mine" — remembered so later reports match by themselves. */
+export const productAliases = sqliteTable(
+  "product_aliases",
+  {
+    id: pk(),
+    tenantId: tenant(),
+    platformId: text("platform_id").notNull().references(() => platforms.id),
+    alias: text("alias").notNull(),
+    productId: text("product_id").notNull().references(() => products.id),
+  },
+  (t) => [uniqueIndex("alias_uq").on(t.platformId, t.alias)],
+);
 
 export const employees = sqliteTable(
   "employees",
@@ -273,9 +247,7 @@ export const employees = sqliteTable(
     name: text("name").notNull(),
     phone: text("phone").notNull(),
     designation: text("designation").notNull(),
-    department: text("department").notNull(),
     joinDate: text("join_date").notNull(),
-    monthlySalaryPaise: integer("monthly_salary_paise").notNull(),
     shiftStart: text("shift_start").notNull().default("10:00"),
     avatarHue: integer("avatar_hue").notNull().default(20),
     active: integer("active", { mode: "boolean" }).notNull().default(true),
@@ -284,21 +256,6 @@ export const employees = sqliteTable(
   (t) => [uniqueIndex("employees_code_uq").on(t.tenantId, t.code)],
 );
 
-export const tasks = sqliteTable("tasks", {
-  id: pk(),
-  tenantId: tenant(),
-  employeeId: text("employee_id").notNull().references(() => employees.id),
-  title: text("title").notNull(),
-  description: text("description"),
-  dueDate: text("due_date").notNull(),
-  priority: text("priority", { enum: ["LOW", "MEDIUM", "HIGH"] }).notNull(),
-  status: text("status", { enum: ["TODO", "IN_PROGRESS", "DONE"] }).notNull().default("TODO"),
-  note: text("note"),
-  createdById: text("created_by_id"),
-  completedAt: integer("completed_at", { mode: "timestamp_ms" }),
-  createdAt: createdAt(),
-});
-
 export const attendance = sqliteTable(
   "attendance",
   {
@@ -306,108 +263,19 @@ export const attendance = sqliteTable(
     tenantId: tenant(),
     employeeId: text("employee_id").notNull().references(() => employees.id),
     date: text("date").notNull(),
-    status: text("status", { enum: ["PRESENT", "LATE", "HALF_DAY", "ABSENT", "LEAVE"] }).notNull(),
+    status: text("status", { enum: ["PRESENT", "LATE", "HALF_DAY", "ABSENT"] }).notNull(),
     checkInAt: integer("check_in_at", { mode: "timestamp_ms" }),
     checkOutAt: integer("check_out_at", { mode: "timestamp_ms" }),
     checkInDistanceM: integer("check_in_distance_m"),
     checkOutDistanceM: integer("check_out_distance_m"),
-    checkInSelfie: text("check_in_selfie"),
-    checkOutSelfie: text("check_out_selfie"),
+    /** Selfies live in the database so they survive restarts on free hosting. */
+    checkInPhoto: blob("check_in_photo", { mode: "buffer" }),
+    checkOutPhoto: blob("check_out_photo", { mode: "buffer" }),
     deviceId: text("device_id"),
     source: text("source", { enum: ["GEOFENCE", "MANUAL"] }).notNull().default("GEOFENCE"),
   },
   (t) => [uniqueIndex("attendance_day_uq").on(t.employeeId, t.date), index("attendance_date_idx").on(t.tenantId, t.date)],
 );
-
-export const leaves = sqliteTable("leaves", {
-  id: pk(),
-  tenantId: tenant(),
-  employeeId: text("employee_id").notNull().references(() => employees.id),
-  type: text("type", { enum: ["CASUAL", "SICK", "EARNED", "UNPAID"] }).notNull(),
-  from: text("from_date").notNull(),
-  to: text("to_date").notNull(),
-  days: integer("days").notNull(),
-  reason: text("reason").notNull(),
-  status: text("status", { enum: ["PENDING", "APPROVED", "REJECTED"] }).notNull().default("PENDING"),
-  decidedById: text("decided_by_id"),
-  createdAt: createdAt(),
-});
-
-export const holidays = sqliteTable("holidays", {
-  id: pk(),
-  tenantId: tenant(),
-  date: text("date").notNull(),
-  name: text("name").notNull(),
-});
-
-export const payslips = sqliteTable(
-  "payslips",
-  {
-    id: pk(),
-    tenantId: tenant(),
-    employeeId: text("employee_id").notNull().references(() => employees.id),
-    month: text("month").notNull(),
-    workingDays: integer("working_days").notNull(),
-    presentDays: real("present_days").notNull(),
-    paidLeaveDays: integer("paid_leave_days").notNull(),
-    lateCount: integer("late_count").notNull(),
-    payableDays: real("payable_days").notNull(),
-    basePaise: integer("base_paise").notNull(),
-    grossPaise: integer("gross_paise").notNull(),
-    advancePaise: integer("advance_paise").notNull(),
-    netPaise: integer("net_paise").notNull(),
-    status: text("status", { enum: ["DRAFT", "PAID"] }).notNull().default("DRAFT"),
-    createdAt: createdAt(),
-  },
-  (t) => [uniqueIndex("payslip_month_uq").on(t.employeeId, t.month)],
-);
-
-export const invoices = sqliteTable(
-  "invoices",
-  {
-    id: pk(),
-    tenantId: tenant(),
-    number: text("number").notNull(),
-    date: text("date").notNull(),
-    channelId: text("channel_id"),
-    customerName: text("customer_name").notNull(),
-    customerGstin: text("customer_gstin"),
-    placeOfSupply: text("place_of_supply").notNull(),
-    subtotalPaise: integer("subtotal_paise").notNull(),
-    cgstPaise: integer("cgst_paise").notNull(),
-    sgstPaise: integer("sgst_paise").notNull(),
-    igstPaise: integer("igst_paise").notNull(),
-    totalPaise: integer("total_paise").notNull(),
-    status: text("status", { enum: ["ISSUED", "CANCELLED"] }).notNull().default("ISSUED"),
-    createdById: text("created_by_id"),
-    createdAt: createdAt(),
-  },
-  (t) => [uniqueIndex("invoice_number_uq").on(t.tenantId, t.number)],
-);
-
-export const invoiceItems = sqliteTable("invoice_items", {
-  id: pk(),
-  invoiceId: text("invoice_id").notNull().references(() => invoices.id),
-  variantId: text("variant_id"),
-  description: text("description").notNull(),
-  hsn: text("hsn").notNull(),
-  qty: integer("qty").notNull(),
-  ratePaise: integer("rate_paise").notNull(),
-  gstRate: integer("gst_rate").notNull(),
-  taxablePaise: integer("taxable_paise").notNull(),
-  taxPaise: integer("tax_paise").notNull(),
-});
-
-export const expenses = sqliteTable("expenses", {
-  id: pk(),
-  tenantId: tenant(),
-  date: text("date").notNull(),
-  category: text("category").notNull(),
-  amountPaise: integer("amount_paise").notNull(),
-  note: text("note"),
-  createdById: text("created_by_id"),
-  createdAt: createdAt(),
-});
 
 export const auditLogs = sqliteTable(
   "audit_logs",

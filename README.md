@@ -1,34 +1,41 @@
 # Pujo Parbon · Seller OS
 
-Warehouse, multi-marketplace orders, GST billing and team management for **Pujo Parbon** (Sarisha, West Bengal).
+A simple back-office for a seller who buys stock at the market and sells on several platforms.
 Built by **GOBT — Group of Blooming Technicians**.
+
+## What it does
+- **Buy**: record a market trip: items, what was paid, and every trip cost (travel, food, toll, van, labour...). The app spreads those costs over the items, shows the **real cost per piece**, and lets him set the selling price by amount, percentage or exact price, with the percentage shown live.
+- **Stock**: categories are created by typing them. Update counts every day or two on one simple screen. Stock value is always in step with the ledger.
+- **QR codes**: a sticker for every item and for every lot (market trip). Scan to see stock and details; employees see only name and count.
+- **Platforms**: add any platform (Flipkart, Amazon, Meesho...). Upload the monthly sales report (Excel/CSV) and invoice. Unfamiliar columns are matched once and remembered; a monthly checklist shows what is missing.
+- **Analytics**: profit, money in and out, platform comparison, best and worst items, categories, customer states, for any week, month or custom dates.
+- **Investments**: market buys plus other investments (equipment, rent, packing...).
+- **Team**: employees check in and out from their phone, inside the shop location, with a selfie; owner sees a live board and month register.
+- **Reports**: Excel and PDF for everything.
+
+Two logins only: **Owner** (everything) and **Employee** (shift and QR look-ups).
 
 ## Stack
 | Layer | Choice |
 | --- | --- |
-| Frontend | Next.js 15 (App Router), Tailwind CSS, Framer Motion, Recharts |
+| Frontend | Next.js 15 (App Router), Tailwind CSS, Framer Motion, Recharts, Lexend font |
 | Backend | Node.js, Express 5, TypeScript |
-| Database | Turso (libSQL) via Drizzle ORM — local libSQL file for offline dev |
-| Shared | `packages/shared`: Zod schemas, roles & permissions, GST / payroll / geofence rules |
-| Security | Argon2id passwords, 15-min JWT access tokens, rotating hashed refresh tokens (httpOnly cookie), RBAC, tenant isolation, rate-limited login with lockout, Helmet, audit log |
-| Tests | Vitest + Supertest (unit + API integration) |
+| Database | Turso (libSQL) via Drizzle ORM; a local libSQL file for offline dev |
+| Shared | `packages/shared`: costing maths, date ranges, Zod schemas, roles |
+| Security | Argon2id passwords, 15-minute JWT access tokens, rotating hashed refresh tokens (httpOnly cookie), role-based access, tenant isolation, login lockout and rate limit, audit log |
+| Tests | Vitest + Supertest (unit and API integration), plus browser tests of the key flows |
 
 ## Run it
 ```bash
 npm install
-cp apps/api/.env.example apps/api/.env   # fill TURSO_DATABASE_URL + TURSO_AUTH_TOKEN, or leave blank for local file
+cp apps/api/.env.example apps/api/.env   # TURSO_DATABASE_URL + TURSO_AUTH_TOKEN, or leave blank for a local file
 npm run db:setup                          # migrations + demo data
 npm run dev                               # API :4000, web :3000
 ```
-Demo logins (password `PujaParbon@2026`): `owner@pujaparbon.in`, `manager@pujaparbon.in`, `staff@pujaparbon.in`.
+Demo logins (password `PujaParbon@2026`): `owner@pujaparbon.in` (Owner tab), `staff@pujaparbon.in` (Employee tab).
+`npm run db:fresh --workspace apps/api` wipes every table and rebuilds the schema and demo data.
 
 ## Tests
 ```bash
 npm test
 ```
-
-## Modules
-Dashboard · Analytics & P&L · Products/SKUs with marketplace mapping & barcode labels · Stock ledger with bins ·
-Suppliers & purchases · Marketplace order import (Flipkart, Amazon, Myntra, Meesho, Ajio) · Dispatch board ·
-Returns · Settlement reconciliation · GST billing · Expenses · Team, tasks, geofenced selfie attendance, leave, payroll ·
-Reports (Excel/PDF) · Settings & users.

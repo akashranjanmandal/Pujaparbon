@@ -3,25 +3,21 @@ import { useQuery } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "framer-motion";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Camera, CheckCircle2, LocateFixed, LogIn, LogOut, MapPin, RefreshCcw, ShieldAlert, Sparkles } from "lucide-react";
-import { LEAVE_TYPES } from "@pp/shared";
 import { Loader } from "@/components/ui/Loader";
-import { Button, Card, Field, Input, Select, StatusBadge } from "@/components/ui/primitives";
+import { Button, Card, StatusBadge } from "@/components/ui/primitives";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { cn } from "@/lib/cn";
 import { deviceId } from "@/lib/device";
-import { fmtDate, fmtTime, todayKey } from "@/lib/format";
-import { useAction } from "@/lib/hooks";
+import { fmtDate, fmtTime } from "@/lib/format";
 import { capture, getPosition, offsetMeters, openCamera, type Fix } from "@/lib/presence";
 
 interface Me {
   employee: { id: string; name: string; designation: string; avatarHue: number } | null;
   record: { status: string; checkInAt: string | null; checkOutAt: string | null; checkInDistanceM: number | null } | null;
   fence: { lat: number; lng: number; radiusM: number; shiftStart: string; shiftEnd: string; graceMin: number; name: string } | null;
-  month?: { present: number; late: number; leave: number };
+  month?: { present: number; late: number; halfDay: number };
 }
-interface Task { id: string; title: string; dueDate: string; priority: string; status: "TODO" | "IN_PROGRESS" | "DONE" }
-interface Leave { id: string; type: string; from: string; to: string; days: number; status: string; reason: string }
 
 const DEMO = process.env.NEXT_PUBLIC_DEMO_MODE === "true";
 
@@ -42,13 +38,11 @@ export default function MyDay() {
       <PresenceCard me={me} state={state} onDone={refetch} />
       {me.month && (
         <div className="grid grid-cols-3 gap-3">
-          {[["Present", me.month.present, "text-leaf"], ["Late", me.month.late, "text-marigold"], ["Leave", me.month.leave, "text-sky"]].map(([l, n, c]) => (
+          {[["Present", me.month.present, "text-leaf"], ["Late", me.month.late, "text-marigold"], ["Half days", me.month.halfDay, "text-lav"]].map(([l, n, c]) => (
             <div key={l as string} className="paar-card p-4"><div className="label">{l as string} · month</div><div className={cn("mt-2 font-mono text-[26px]", c as string)}>{n as number}</div></div>
           ))}
         </div>
       )}
-      <MyTasks />
-      <MyLeave />
     </div>
   );
 }
@@ -187,7 +181,7 @@ function PresenceCard({ me, state, onDone }: { me: Me; state: "OUT" | "IN" | "DO
             {locating ? <LocateFixed className="h-5 w-5 animate-pulse text-muted" /> : locError ? <ShieldAlert className="h-5 w-5 text-sindoor" /> : <MapPin className={cn("h-5 w-5", inside ? "text-leaf" : "text-marigold")} />}
             <div className="flex-1">
               {locating ? "Finding you…" : locError ? locError : fix && off ? (
-                inside ? <><b>Inside the warehouse fence</b> · {Math.round(off.d)} m from centre (±{Math.round(fix.accuracyM)} m)</> :
+                inside ? <><b>Inside the shop location</b> · {Math.round(off.d)} m from centre (±{Math.round(fix.accuracyM)} m)</> :
                   <><b>{Math.round(off.d) > 1000 ? `${(off.d / 1000).toFixed(1)} km` : `${Math.round(off.d)} m`} away</b> · check-in works within {fence.radiusM} m{fix.accuracyM > fence.radiusM ? ` (GPS ±${Math.round(fix.accuracyM)} m is too imprecise)` : ""}</>
               ) : null}
             </div>
@@ -196,7 +190,7 @@ function PresenceCard({ me, state, onDone }: { me: Me; state: "OUT" | "IN" | "DO
           {DEMO && (
             <label className="mt-3 flex items-center gap-2 text-[14px] text-muted">
               <input type="checkbox" checked={simulate} onChange={(e) => setSimulate(e.target.checked)} className="accent-[rgb(var(--primary))]" />
-              <Sparkles className="h-3.5 w-3.5" /> Demo only: simulate being at the warehouse
+              <Sparkles className="h-3.5 w-3.5" /> Demo only: pretend I am at the shop
             </label>
           )}
           {error && <div className="mt-3 rounded-xl bg-sindoor/10 px-3 py-2 text-[15.5px] text-sindoor">{error}</div>}
@@ -217,52 +211,6 @@ function PresenceCard({ me, state, onDone }: { me: Me; state: "OUT" | "IN" | "DO
           </div>
           <p className="mt-4 text-[14px] text-muted/80">Your location is read only when you tap check-in or check-out. Selfies are kept for the period your employer set, then deleted.</p>
         </div>
-      </div>
-    </Card>
-  );
-}
-
-function MyTasks() {
-  const { data } = useQuery({ queryKey: ["tasks", "mine"], queryFn: () => api.get<Task[]>("/tasks?mine=1") });
-  const update = useAction(({ id, status }: { id: string; status: Task["status"] }) => api.patch(`/tasks/${id}/status`, { status }), { success: "Task updated", invalidate: ["tasks"] });
-  return (
-    <Card title="My tasks" subtitle="Tap to move a task along">
-      <div className="space-y-2 p-4">
-        {data?.length === 0 && <div className="py-6 text-center text-[15.5px] text-muted">No tasks today.</div>}
-        {data?.map((t) => (
-          <motion.div layout key={t.id} className={cn("flex items-center gap-3 rounded-2xl border border-line/10 bg-bg2/60 p-4", t.status === "DONE" && "opacity-60")}>
-            <button onClick={() => update.mutate({ id: t.id, status: t.status === "TODO" ? "IN_PROGRESS" : t.status === "IN_PROGRESS" ? "DONE" : "TODO" })} className={cn("grid h-9 w-9 shrink-0 place-items-center rounded-lg border transition", t.status === "DONE" ? "border-leaf bg-leaf/15 text-leaf" : t.status === "IN_PROGRESS" ? "border-marigold text-marigold" : "border-line/20")}>
-              {t.status === "DONE" ? <CheckCircle2 className="h-5 w-5" /> : t.status === "IN_PROGRESS" ? <RefreshCcw className="h-4 w-4" /> : null}
-            </button>
-            <div className="flex-1"><div className={cn("font-medium", t.status === "DONE" && "line-through")}>{t.title}</div><div className="text-[14px] text-muted">Due {fmtDate(t.dueDate)}</div></div>
-            <StatusBadge status={t.priority} />
-          </motion.div>
-        ))}
-      </div>
-    </Card>
-  );
-}
-
-function MyLeave() {
-  const { data } = useQuery({ queryKey: ["leaves"], queryFn: () => api.get<Leave[]>("/leaves") });
-  const [f, setF] = useState({ type: "CASUAL", from: todayKey(), to: todayKey(), reason: "" });
-  const apply = useAction(() => api.post("/leaves", f), { success: "Leave request sent to your manager", invalidate: ["leaves"], onSuccess: () => setF({ ...f, reason: "" }) });
-  return (
-    <Card title="Leave" subtitle="Ask for time off — your manager is notified">
-      <div className="grid gap-3 p-5 sm:grid-cols-4">
-        <Field label="Type"><Select value={f.type} onChange={(e) => setF({ ...f, type: e.target.value })}>{LEAVE_TYPES.map((t) => <option key={t} value={t}>{t.charAt(0) + t.slice(1).toLowerCase()}</option>)}</Select></Field>
-        <Field label="From"><Input type="date" value={f.from} onChange={(e) => setF({ ...f, from: e.target.value })} /></Field>
-        <Field label="To"><Input type="date" value={f.to} onChange={(e) => setF({ ...f, to: e.target.value })} /></Field>
-        <Field label="Reason"><Input value={f.reason} onChange={(e) => setF({ ...f, reason: e.target.value })} placeholder="Family function" /></Field>
-        <div className="sm:col-span-4"><Button variant="gold" loading={apply.isPending} disabled={f.reason.length < 3} onClick={() => apply.mutate(undefined)}>Request leave</Button></div>
-      </div>
-      <div className="space-y-2 px-5 pb-5">
-        {data?.map((l) => (
-          <div key={l.id} className="flex items-center justify-between rounded-xl bg-panel2/50 px-4 py-2.5 text-[15.5px]">
-            <span>{fmtDate(l.from)}{l.to !== l.from ? ` – ${fmtDate(l.to)}` : ""} · {l.days} day{l.days > 1 ? "s" : ""} · <span className="text-muted">{l.reason}</span></span>
-            <StatusBadge status={l.status} />
-          </div>
-        ))}
       </div>
     </Card>
   );

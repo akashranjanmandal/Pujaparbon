@@ -8,9 +8,6 @@ export interface User {
   employeeId: string | null;
   designation: string;
   avatarHue: number;
-  tenant: { name: string; state: string } | null;
+  tenant: { name: string } | null;
   permissions: Permission[];
 }
-
-export interface Channel { code: string; name: string; color: string }
-export interface Paged<T> { items: T[]; total: number; page: number; pageSize: number }

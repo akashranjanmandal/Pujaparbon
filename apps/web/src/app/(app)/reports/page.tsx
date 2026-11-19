@@ -2,45 +2,39 @@
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { useState } from "react";
-import { Boxes, CalendarCheck, FileSpreadsheet, FileText, Landmark, PackageCheck, Receipt, ShoppingBag, Undo2, Wallet } from "lucide-react";
+import { Boxes, CalendarCheck, FileSpreadsheet, FileText, Landmark, PackageCheck, ShoppingBasket, Store, TrendingUp } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { Button, Card, Field, Input } from "@/components/ui/primitives";
-import { download } from "@/lib/api";
-import { api } from "@/lib/api";
-import { todayKey } from "@/lib/format";
+import { RangePicker, rangeFor, type RangeValue } from "@/components/ui/RangePicker";
+import { Button, Card } from "@/components/ui/primitives";
+import { api, download } from "@/lib/api";
 
-const ICON: Record<string, React.ElementType> = { stock: Boxes, movements: PackageCheck, sales: ShoppingBag, dispatch: Receipt, returns: Undo2, attendance: CalendarCheck, gst: Landmark, payroll: Wallet };
-const DESC: Record<string, string> = {
-  stock: "Every SKU with bin, on-hand, committed and value at cost.", movements: "Inward, outward, sales, returns and adjustments.", sales: "Every order across all channels.",
-  dispatch: "Orders that left the warehouse, with AWB.", returns: "Customer returns and RTOs, with condition.", attendance: "Daily check-in, check-out and distance.",
-  gst: "HSN-wise taxable value and tax, B2B split — ready for your CA.", payroll: "Payable days, gross, advances and net pay.",
-};
+const ICON: Record<string, React.ElementType> = { pnl: TrendingUp, buys: ShoppingBasket, stock: Boxes, sales: Store, platforms: PackageCheck, investments: Landmark, attendance: CalendarCheck };
 
 export default function ReportsPage() {
-  const { data } = useQuery({ queryKey: ["reports"], queryFn: () => api.get<{ key: string; title: string; ranged: boolean }[]>("/reports") });
-  const [from, setFrom] = useState(`${todayKey().slice(0, 7)}-01`);
-  const [to, setTo] = useState(todayKey());
+  const { data } = useQuery({ queryKey: ["reports"], queryFn: () => api.get<{ key: string; title: string; ranged: boolean; blurb: string }[]>("/reports") });
+  const [range, setRange] = useState<RangeValue>(rangeFor("month"));
   const [busy, setBusy] = useState("");
   const get = async (key: string, format: "xlsx" | "pdf") => {
     setBusy(key + format);
-    try { await download(`/reports/${key}?format=${format}&from=${from}&to=${to}`, `pujaparbon-${key}-${from}-to-${to}.${format}`); } finally { setBusy(""); }
+    try { await download(`/reports/${key}?format=${format}&from=${range.from}&to=${range.to}`, `${key}-${range.from}-to-${range.to}.${format}`); } finally { setBusy(""); }
   };
   return (
     <div>
-      <PageHeader title="Reports" subtitle="Every register you used to keep on paper, as Excel or a branded PDF." actions={<><Field label="From"><Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} /></Field><Field label="To"><Input type="date" value={to} onChange={(e) => setTo(e.target.value)} /></Field></>} />
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <PageHeader title="Reports" subtitle="Download any of these as Excel or PDF, for any period you choose. Share them with your accountant or keep them for your records." />
+      <RangePicker value={range} onChange={setRange} presets={["week", "month", "lastMonth", "last90", "year"]} className="mb-6" />
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {data?.map((r, i) => {
           const Icon = ICON[r.key] ?? FileText;
           return (
-            <motion.div key={r.key} initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
-              <Card className="flex h-full flex-col p-5">
-                <div className="grid h-12 w-12 place-items-center rounded-2xl border border-line/10 bg-line/[0.04] text-sindoor"><Icon className="h-6 w-6" /></div>
-                <div className="mt-4 text-[16px] font-semibold">{r.title}</div>
-                <p className="mt-1 flex-1 text-[15.5px] text-muted">{DESC[r.key]}</p>
-                {!r.ranged && <p className="mt-1 text-[14px] text-muted">As of today</p>}
-                <div className="mt-4 flex gap-2">
-                  <Button size="sm" variant="gold" icon={<FileSpreadsheet className="h-3.5 w-3.5" />} loading={busy === r.key + "xlsx"} onClick={() => get(r.key, "xlsx")}>Excel</Button>
-                  <Button size="sm" icon={<FileText className="h-3.5 w-3.5" />} loading={busy === r.key + "pdf"} onClick={() => get(r.key, "pdf")}>PDF</Button>
+            <motion.div key={r.key} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
+              <Card className="flex h-full flex-col p-6">
+                <span className="grid h-12 w-12 place-items-center rounded-2xl bg-primary-tint text-primary"><Icon className="h-6 w-6" /></span>
+                <div className="mt-4 text-[19px] font-semibold">{r.title}</div>
+                <p className="mt-1 flex-1 text-[15px] text-muted">{r.blurb}</p>
+                {!r.ranged && <p className="mt-2 text-[13.5px] font-medium text-peach">Always as of today</p>}
+                <div className="mt-5 flex gap-2">
+                  <Button variant="primary" size="sm" icon={<FileSpreadsheet className="h-4 w-4" />} loading={busy === r.key + "xlsx"} onClick={() => get(r.key, "xlsx")}>Excel</Button>
+                  <Button size="sm" icon={<FileText className="h-4 w-4" />} loading={busy === r.key + "pdf"} onClick={() => get(r.key, "pdf")}>PDF</Button>
                 </div>
               </Card>
             </motion.div>

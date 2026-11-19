@@ -1,46 +1,33 @@
-export const CHANNELS = [
-  { code: "FLIPKART", name: "Flipkart", color: "#2874F0", listingLabel: "FSN" },
-  { code: "AMAZON", name: "Amazon", color: "#FF9900", listingLabel: "ASIN" },
-  { code: "MYNTRA", name: "Myntra", color: "#FF3F6C", listingLabel: "Style ID" },
-  { code: "MEESHO", name: "Meesho", color: "#9F2089", listingLabel: "Catalog ID" },
-  { code: "AJIO", name: "Ajio", color: "#2C4152", listingLabel: "Product code" },
-  { code: "OFFLINE", name: "Offline / Shop", color: "#C8102E", listingLabel: "—" },
-  { code: "OWN_STORE", name: "Pujo Parbon Store", color: "#E8B04B", listingLabel: "—" },
+/** Trip cost types offered as quick buttons. The owner can also type any label of his own. */
+export const COST_KINDS = ["Travel", "Food", "Toll", "Transport", "Labour", "Other"] as const;
+
+export const PLATFORM_COLORS = ["#2874F0", "#FF9900", "#9F2089", "#FF3F6C", "#0E7C66", "#6B4EFF", "#D2643E", "#2E688C"] as const;
+export const SUGGESTED_PLATFORMS = [
+  { name: "Flipkart", color: "#2874F0" }, { name: "Amazon", color: "#FF9900" }, { name: "Meesho", color: "#9F2089" },
+  { name: "Myntra", color: "#FF3F6C" }, { name: "Ajio", color: "#2C4152" }, { name: "JioMart", color: "#0E7C66" },
 ] as const;
-export type ChannelCode = (typeof CHANNELS)[number]["code"];
-export const CHANNEL_CODES = CHANNELS.map((c) => c.code) as [ChannelCode, ...ChannelCode[]];
-/** Channels whose orders arrive as Seller Hub / Seller Central report files. */
-export const IMPORTABLE_CHANNELS: ChannelCode[] = ["FLIPKART", "AMAZON", "MYNTRA", "MEESHO", "AJIO"];
 
-export const ORDER_STATUSES = ["NEW", "PICKED", "PACKED", "DISPATCHED", "DELIVERED", "CANCELLED", "RETURNED"] as const;
-export type OrderStatus = (typeof ORDER_STATUSES)[number];
-/** Allowed forward moves on the dispatch board. */
-export const ORDER_FLOW: Record<OrderStatus, OrderStatus[]> = {
-  NEW: ["PICKED", "CANCELLED"],
-  PICKED: ["PACKED", "CANCELLED"],
-  PACKED: ["DISPATCHED", "CANCELLED"],
-  DISPATCHED: ["DELIVERED", "RETURNED"],
-  DELIVERED: ["RETURNED"],
-  CANCELLED: [],
-  RETURNED: [],
-};
-
-export const MOVEMENT_TYPES = ["PURCHASE", "INWARD", "SALE", "OUTWARD", "RETURN", "ADJUSTMENT", "TRANSFER"] as const;
+export const SALE_STATUSES = ["DELIVERED", "RETURNED", "CANCELLED"] as const;
+export type SaleStatus = (typeof SALE_STATUSES)[number];
+export const MOVEMENT_TYPES = ["OPENING", "BUY", "COUNT"] as const;
 export type MovementType = (typeof MOVEMENT_TYPES)[number];
+export const REPORT_KINDS = ["SALES", "INVOICE"] as const;
+export type ReportKind = (typeof REPORT_KINDS)[number];
 
-export const RETURN_TYPES = ["CUSTOMER", "RTO"] as const;
-export const RETURN_CONDITIONS = ["GOOD", "DAMAGED"] as const;
-export const RETURN_STATUSES = ["RECEIVED", "RESTOCKED", "WRITTEN_OFF"] as const;
-
-export const TASK_STATUSES = ["TODO", "IN_PROGRESS", "DONE"] as const;
-export const TASK_PRIORITIES = ["LOW", "MEDIUM", "HIGH"] as const;
-
-export const LEAVE_TYPES = ["CASUAL", "SICK", "EARNED", "UNPAID"] as const;
-export const LEAVE_STATUSES = ["PENDING", "APPROVED", "REJECTED"] as const;
-
-export const EXPENSE_CATEGORIES = ["Rent", "Wages", "Packaging", "Transport", "Electricity", "Marketing", "Other"] as const;
-
-export const GST_RATES = [0, 5, 12, 18, 28] as const;
+/** Fields we look for in a platform's sales report. */
+export const SALES_FIELDS = [
+  { key: "orderId", label: "Order ID", required: false },
+  { key: "date", label: "Order date", required: false },
+  { key: "product", label: "Product name", required: false },
+  { key: "sku", label: "SKU / product code", required: false },
+  { key: "qty", label: "Quantity", required: false },
+  { key: "amount", label: "Sale amount", required: true },
+  { key: "fees", label: "Platform fee / commission", required: false },
+  { key: "settled", label: "Amount received (settlement)", required: false },
+  { key: "state", label: "Customer state", required: false },
+  { key: "status", label: "Order status", required: false },
+] as const;
+export type SalesFieldKey = (typeof SALES_FIELDS)[number]["key"];
 
 export const INDIAN_STATES = [
   "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh", "Delhi", "Goa", "Gujarat", "Haryana",

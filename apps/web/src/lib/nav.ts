@@ -1,67 +1,58 @@
 import type { Permission } from "@pp/shared";
-import {
-  Activity, Boxes, BriefcaseBusiness, CalendarDays, ClipboardList, Cog, Fingerprint, FileSpreadsheet, Gauge, LineChart, Package,
-  PackageOpen, Receipt, Scale, ShoppingCart, Truck, Undo2, Users, Wallet, WalletCards, Warehouse, type LucideIcon,
-} from "lucide-react";
+import { Boxes, Cog, Fingerprint, Home, LineChart, ScanLine, ShoppingBasket, Store, Users, type LucideIcon } from "lucide-react";
 
-export interface NavItem { href: string; label: string; hint: string; icon: LucideIcon; perm: Permission; staffOnly?: boolean; hideForStaff?: boolean; key?: string }
+export interface NavItem { href: string; label: string; hint: string; icon: LucideIcon; perm: Permission; key?: string }
 export interface NavGroup { id: string; title: string; icon: LucideIcon; items: NavItem[] }
 
-/** Navigation is grouped into the dock's sections; each page is a tab inside its section. */
+/** Two kinds of people use the app: the owner (everything) and employees (their shift and QR look-ups). */
 export const NAV: NavGroup[] = [
+  { id: "me", title: "My shift", icon: Fingerprint, items: [{ href: "/me", label: "My shift", hint: "Check in and out", icon: Fingerprint, perm: "attendance.self" }] },
+  { id: "home", title: "Home", icon: Home, items: [{ href: "/dashboard", label: "Home", hint: "Profit, stock and what needs you", icon: Home, perm: "dashboard.view", key: "g h" }] },
   {
-    id: "ops", title: "Ops", icon: Gauge,
+    id: "buy", title: "Buy", icon: ShoppingBasket,
     items: [
-      { href: "/me", label: "My Shift", hint: "Check in, tasks, leave", icon: Fingerprint, perm: "attendance.self", staffOnly: true },
-      { href: "/dashboard", label: "Command Center", hint: "Live state of the business", icon: Activity, perm: "dashboard.view", hideForStaff: true, key: "g c" },
-      { href: "/analytics", label: "Analytics", hint: "P&L, margins, demand", icon: LineChart, perm: "analytics.view", key: "g a" },
+      { href: "/buy/new", label: "New buy", hint: "Record a market trip and set prices", icon: ShoppingBasket, perm: "buy.manage", key: "g b" },
+      { href: "/buy", label: "Buy history", hint: "Every trip and what it cost", icon: ShoppingBasket, perm: "buy.manage" },
     ],
   },
   {
-    id: "orders", title: "Orders", icon: ShoppingCart,
+    id: "stock", title: "Stock", icon: Boxes,
     items: [
-      { href: "/orders", label: "Orders & Dispatch", hint: "Import, pick, pack, ship", icon: PackageOpen, perm: "orders.view", key: "g o" },
-      { href: "/returns", label: "Returns", hint: "RTO and customer returns", icon: Undo2, perm: "returns.manage" },
-      { href: "/reconciliation", label: "Settlements", hint: "Marketplace payouts", icon: Scale, perm: "orders.import" },
+      { href: "/stock", label: "Stock", hint: "What you have, and update counts", icon: Boxes, perm: "stock.view", key: "g s" },
+      { href: "/scan", label: "Scan QR", hint: "Look up an item or a lot", icon: ScanLine, perm: "lookup.scan", key: "g q" },
+    ],
+  },
+  { id: "platforms", title: "Platforms", icon: Store, items: [{ href: "/platforms", label: "Platforms", hint: "Monthly reports and invoices", icon: Store, perm: "platforms.manage", key: "g p" }] },
+  {
+    id: "money", title: "Money", icon: LineChart,
+    items: [
+      { href: "/analytics", label: "Profit & analytics", hint: "Any week, month or custom range", icon: LineChart, perm: "analytics.view", key: "g a" },
+      { href: "/investments", label: "Investments", hint: "Everything you have put in", icon: LineChart, perm: "investments.manage" },
+      { href: "/reports", label: "Reports", hint: "Excel and PDF downloads", icon: LineChart, perm: "reports.view" },
     ],
   },
   {
-    id: "inventory", title: "Inventory", icon: Warehouse,
+    id: "team", title: "Team", icon: Users,
     items: [
-      { href: "/products", label: "Catalogue", hint: "Products, SKUs, listings", icon: Package, perm: "products.view", key: "g p" },
-      { href: "/stock", label: "Stock", hint: "Levels, bins, ledger", icon: Boxes, perm: "stock.view", key: "g s" },
-      { href: "/purchases", label: "Purchasing", hint: "Suppliers and inward", icon: Truck, perm: "purchases.manage" },
+      { href: "/hr/attendance", label: "Attendance", hint: "Who is in, with selfies", icon: Users, perm: "attendance.view" },
+      { href: "/hr/employees", label: "Employees", hint: "People and their logins", icon: Users, perm: "employees.manage" },
     ],
   },
-  {
-    id: "people", title: "People", icon: Users,
-    items: [
-      { href: "/hr/attendance", label: "Attendance", hint: "Geofenced check-ins", icon: Fingerprint, perm: "attendance.view" },
-      { href: "/hr/employees", label: "Workforce", hint: "Team directory", icon: BriefcaseBusiness, perm: "employees.view" },
-      { href: "/hr/tasks", label: "Tasks", hint: "Assign and track", icon: ClipboardList, perm: "tasks.manage" },
-      { href: "/hr/leave", label: "Leave", hint: "Requests and holidays", icon: CalendarDays, perm: "leave.approve" },
-      { href: "/hr/payroll", label: "Payroll", hint: "Salaries and payslips", icon: Wallet, perm: "payroll.manage" },
-    ],
-  },
-  {
-    id: "finance", title: "Finance", icon: WalletCards,
-    items: [
-      { href: "/billing", label: "GST Billing", hint: "Tax invoices", icon: Receipt, perm: "billing.manage" },
-      { href: "/expenses", label: "Expenses", hint: "Operating costs", icon: WalletCards, perm: "expenses.manage" },
-      { href: "/reports", label: "Reports", hint: "Excel and PDF exports", icon: FileSpreadsheet, perm: "reports.view" },
-    ],
-  },
-  {
-    id: "system", title: "System", icon: Cog,
-    items: [{ href: "/settings", label: "Settings", hint: "Business, fence, logins", icon: Cog, perm: "settings.manage" }],
-  },
+  { id: "system", title: "Settings", icon: Cog, items: [{ href: "/settings", label: "Settings", hint: "Business, location and password", icon: Cog, perm: "settings.manage" }] },
 ];
 
+/** Employees see "My shift" and "Scan QR"; the owner sees the rest. */
 export function navFor(perms: Permission[], role: string) {
-  return NAV.map((g) => ({
+  const out = NAV.map((g) => ({
     ...g,
-    items: g.items.filter((i) => perms.includes(i.perm) && !(i.staffOnly && role !== "STAFF") && !(i.hideForStaff && role === "STAFF")),
+    items: g.items.filter((i) => perms.includes(i.perm) && !(i.href === "/me" && role !== "STAFF") && !(i.href === "/scan" && false)),
   })).filter((g) => g.items.length);
+  // Employees: put Scan QR in its own section so the dock shows two clear buttons.
+  if (role === "STAFF") {
+    const scan = NAV.flatMap((g) => g.items).find((i) => i.href === "/scan")!;
+    return [out.find((g) => g.id === "me")!, { id: "scan", title: "Scan QR", icon: ScanLine, items: [scan] }].filter(Boolean);
+  }
+  return out;
 }
 
 export const groupOf = (path: string) => NAV.find((g) => g.items.some((i) => path === i.href || path.startsWith(`${i.href}/`)));

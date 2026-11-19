@@ -8,3 +8,9 @@ export const unauthorized = (message = "Please sign in again") => new AppError(4
 export const forbidden = (message = "You do not have access to this") => new AppError(403, "FORBIDDEN", message);
 export const notFound = (what = "Record") => new AppError(404, "NOT_FOUND", `${what} not found`);
 export const conflict = (message: string) => new AppError(409, "CONFLICT", message);
+
+/** The database wraps its message one level down, so look at the cause too. */
+export const isUniqueViolation = (e: unknown) => {
+  const x = e as { message?: string; code?: string; cause?: { message?: string; code?: string } };
+  return /UNIQUE|SQLITE_CONSTRAINT/i.test(`${x?.message} ${x?.code} ${x?.cause?.message} ${x?.cause?.code}`);
+};

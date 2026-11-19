@@ -1,130 +1,210 @@
 "use client";
-import { ProductGlyph } from "@/components/ui/ProductGlyph";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
+import { useState } from "react";
 import { Bar, CartesianGrid, ComposedChart, Legend, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { formatINR, previousRange } from "@pp/shared";
+import { GlassTooltip, axis, moneyTick } from "@/components/charts/theme";
 import { Loader } from "@/components/ui/Loader";
-import { Heatmap } from "@/components/charts/Heatmap";
-import { GlassTooltip, axis, moneyTick, tok } from "@/components/charts/theme";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { Badge, Card } from "@/components/ui/primitives";
+import { RangePicker, rangeFor, type RangeValue } from "@/components/ui/RangePicker";
+import { Card, Select } from "@/components/ui/primitives";
 import { api } from "@/lib/api";
-import { compactINR, fmtDate, formatINR } from "@/lib/format";
+import { monthShort, type Summary } from "@/lib/summary";
+import { cn } from "@/lib/cn";
+import { compactINR, fmtDate } from "@/lib/format";
 
-interface A {
-  pnl: { month: string; revenue: number; returns: number; fees: number; cogs: number; expenses: number; payroll: number; grossProfit: number; netProfit: number }[];
-  skuPerformance: { sku: string; name: string; emoji: string; units: number; paise: number; marginPaise: number; marginPct: number }[];
-  deadStock: { sku: string; name: string; emoji: string; onHand: number; valuePaise: number; lastSaleAt: number | null }[];
-  reorder: { sku: string; name: string; emoji: string; available: number; perDay: number; coverDays: number; suggestQty: number }[];
-  states: { state: string; paise: number; n: number }[];
-  heat: number[][];
-}
-const mLabel = (m: string) => new Date(`${m}-01`).toLocaleString("en-IN", { month: "short" });
+const MONEY_OUT_COLORS = ["rgb(var(--primary))", "rgb(var(--lav))", "rgb(var(--peach))", "#0E7C66", "#C9A227", "#8E8FA1", "#2874F0", "#9F2089"];
 
 export default function AnalyticsPage() {
-  const { data: a } = useQuery({ queryKey: ["analytics"], queryFn: () => api.get<A>("/insights/analytics") });
-  if (!a) return <Loader />;
-  const pnl = a.pnl.map((p) => ({ ...p, label: mLabel(p.month), costs: p.cogs + p.fees + p.returns + p.expenses + p.payroll }));
-  const last = a.pnl.at(-2) ?? a.pnl.at(-1)!;
-  const topState = Math.max(1, ...a.states.map((s) => s.paise));
-  const busiest = a.heat.flatMap((r, d) => r.map((n, h) => ({ d, h, n }))).sort((x, y) => y.n - x.n)[0];
-  const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+  const [range, setRange] = useState<RangeValue>(rangeFor("month"));
+  const [platformId, setPlatformId] = useState("");
+  const { data: plats } = useQuery({ queryKey: ["platforms"], queryFn: () => api.get<{ id: string; name: string }[]>("/platforms") });
+  const { data: s, isLoading } = useQuery({ queryKey: ["summary", "all", range.from, range.to, platformId], queryFn: () => api.get<Summary>(`/insights/summary?from=${range.from}&to=${range.to}${platformId ? `&platformId=${platformId}` : ""}`) });
+  const prev = previousRange(range);
+  const t = s?.totals;
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Analytics" subtitle="Where the money comes from, where it goes, and what to do next. Built only from your own data." />
-      <Card title="Profit & loss" subtitle={`Last complete month (${mLabel(last.month)}): revenue ${compactINR(last.revenue)}, net profit ${compactINR(last.netProfit)} — a ${last.revenue ? Math.round((last.netProfit / last.revenue) * 100) : 0}% margin.`}>
-        <div className="h-[340px] px-2 pb-4 pt-4">
-          <ResponsiveContainer>
-            <ComposedChart data={pnl} margin={{ left: 8, right: 16 }}>
-              <defs>
-                <linearGradient id="rev" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={tok("gold")} stopOpacity={0.9} /><stop offset="100%" stopColor={tok("gold")} stopOpacity={0.25} /></linearGradient>
-                <linearGradient id="cost" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={tok("sindoor")} stopOpacity={0.75} /><stop offset="100%" stopColor={tok("sindoor")} stopOpacity={0.2} /></linearGradient>
-              </defs>
-              <CartesianGrid stroke="rgb(var(--line) / 0.07)" vertical={false} />
-              <XAxis dataKey="label" {...axis} />
-              <YAxis {...axis} tickFormatter={moneyTick} width={56} />
-              <Tooltip content={<GlassTooltip />} cursor={{ fill: "rgb(var(--gold) / 0.05)" }} />
-              <Legend wrapperStyle={{ fontSize: 12, color: "rgb(var(--muted))" }} />
-              <Bar dataKey="revenue" name="Revenue" fill="url(#rev)" radius={[8, 8, 0, 0]} barSize={26} animationDuration={1400} />
-              <Bar dataKey="costs" name="All costs" fill="url(#cost)" radius={[8, 8, 0, 0]} barSize={26} animationDuration={1400} />
-              <Line dataKey="netProfit" name="Net profit" stroke={tok("leaf")} strokeWidth={3} dot={{ r: 4, fill: tok("leaf") }} type="monotone" animationDuration={2000} />
-            </ComposedChart>
-          </ResponsiveContainer>
-        </div>
-        <div className="overflow-x-auto border-t hairline px-5 py-4">
-          <table className="w-full min-w-[640px] text-[15.5px]">
-            <thead><tr className="text-[14px] text-muted"><th className="text-left font-medium">₹</th>{pnl.map((p) => <th key={p.month} className="text-right font-medium">{p.label}</th>)}</tr></thead>
-            <tbody>
-              {([["Revenue", "revenue"], ["Returns", "returns"], ["Marketplace fees", "fees"], ["Cost of goods", "cogs"], ["Expenses", "expenses"], ["Payroll", "payroll"], ["Net profit", "netProfit"]] as const).map(([l, k]) => (
-                <tr key={k} className={k === "netProfit" ? "font-semibold" : ""}>
-                  <td className="py-1.5 text-muted">{l}</td>
-                  {pnl.map((p) => <td key={p.month} className={`py-1.5 text-right num ${k === "netProfit" ? (p[k] >= 0 ? "text-leaf" : "text-sindoor") : ""}`}>{compactINR(p[k])}</td>)}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </Card>
-
-      <div className="grid gap-6 xl:grid-cols-2">
-        <Card title="What earns the most" subtitle="Last 30 days, by sales and margin after cost">
-          <ul className="space-y-1 p-4">
-            {a.skuPerformance.slice(0, 8).map((s, i) => (
-              <li key={s.sku} className="flex items-center gap-3 rounded-xl px-2 py-2">
-                <span className="w-5 text-right text-[14px] text-muted">{i + 1}</span>
-                <ProductGlyph name={s.name} size={34} />
-                <div className="min-w-0 flex-1"><div className="truncate text-[15.5px]">{s.name}</div><code className="text-[13.5px] text-muted">{s.sku} · {s.units} sold</code></div>
-                <div className="text-right"><div className="text-[15.5px] font-semibold num">{compactINR(s.paise)}</div><Badge tone={s.marginPct >= 45 ? "green" : s.marginPct >= 30 ? "gold" : "red"}>{s.marginPct}% margin</Badge></div>
-              </li>
-            ))}
-          </ul>
-        </Card>
-        <Card title="Restock before you run out" subtitle="SKUs with under 14 days of stock at the current sales pace">
-          <div className="space-y-2 p-4">
-            {a.reorder.map((r) => (
-              <div key={r.sku} className="flex items-center gap-3 rounded-2xl border border-line/10 bg-bg2/60 p-3">
-                <ProductGlyph name={r.name} size={34} />
-                <div className="min-w-0 flex-1"><div className="truncate text-[15.5px] font-medium">{r.name}</div><div className="text-[14px] text-muted">{r.available} left · selling {r.perDay}/day</div></div>
-                <div className="text-right"><div className={`text-[15.5px] font-semibold ${r.coverDays < 5 ? "text-sindoor" : "text-marigold"}`}>{r.coverDays} days left</div><div className="text-[14px] text-muted">order ~{r.suggestQty}</div></div>
-              </div>
-            ))}
-            {!a.reorder.length && <div className="py-8 text-center text-[15.5px] text-muted">Every SKU has at least two weeks of stock.</div>}
-          </div>
-        </Card>
+      <PageHeader title="Profit & analytics" subtitle="Pick any week, month or dates. Everything below follows the period you choose." />
+      <div className="flex flex-wrap items-center gap-3">
+        <RangePicker value={range} onChange={setRange} presets={["week", "month", "lastMonth", "last90", "year"]} />
+        <Select value={platformId} onChange={(e) => setPlatformId(e.target.value)} className="w-52"><option value="">All platforms</option>{plats?.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</Select>
       </div>
+      <p className="-mt-2 text-[14.5px] text-muted">{fmtDate(range.from, { day: "numeric", month: "short", year: "numeric" })} to {fmtDate(range.to, { day: "numeric", month: "short", year: "numeric" })}. Compared with {fmtDate(prev.from)} to {fmtDate(prev.to)}.</p>
 
-      <Card title="When orders arrive" subtitle={busiest ? `Busiest slot in the last 60 days: ${DAYS[busiest.d]}s around ${busiest.h}:00. Plan packing shifts around it.` : undefined}>
-        <div className="p-5"><Heatmap grid={a.heat} /></div>
-      </Card>
+      {isLoading || !s || !t ? <Loader label="Working it out" /> : (
+        <>
+          <div className="grid gap-4 lg:grid-cols-3">
+            <Hero label="Profit on items sold" value={t.profitPaise} change={s.compare.profitPct} days={s.compare.days} tone="bg-primary-soft" accent="text-primary" note="Received from platforms, minus what the items cost you, minus other investments." negative={t.profitPaise < 0} />
+            <Hero label="Received from platforms" value={t.netPaise} change={s.compare.netPct} days={s.compare.days} tone="bg-lav-soft" accent="text-lav" note={`${t.orders} orders delivered${t.returnOrders ? `, ${t.returnOrders} returned` : ""}.`} />
+            {platformId ? (
+              <Hero label="Cost of items sold" value={t.cogsPaise} tone="bg-peach-soft" accent="text-peach" note="Based on your real cost per piece." />
+            ) : (
+              <Hero label="Money you put in" value={t.moneyOutPaise} change={s.compare.moneyOutPct} days={s.compare.days} tone="bg-peach-soft" accent="text-peach" note="Market buys, trip costs and other investments." invertChange />
+            )}
+          </div>
 
-      <div className="grid gap-6 xl:grid-cols-2">
-        <Card title="Where your customers are" subtitle="Sales by state, last 6 months">
-          <div className="space-y-2.5 p-5">
-            {a.states.slice(0, 10).map((s, i) => (
-              <div key={s.state} className="flex items-center gap-3 text-[15.5px]">
-                <span className="w-32 truncate">{s.state}</span>
-                <div className="h-6 flex-1 overflow-hidden rounded-lg bg-line/[0.06]">
-                  <motion.div initial={{ width: 0 }} animate={{ width: `${(s.paise / topState) * 100}%` }} transition={{ duration: 1, delay: i * 0.06 }} className="flex h-full items-center justify-end rounded-lg bg-primary/80 pr-2 font-mono text-[13px] text-white">{s.n}</motion.div>
+          <Card title="From sales to profit" subtitle="How the profit figure is made, step by step">
+            <Walk rows={[
+              { label: "Sold (before platform fees)", v: t.grossPaise, kind: "total" },
+              { label: "Platform fees and commission", v: -t.feesPaise, kind: "less" },
+              { label: "Received from platforms", v: t.netPaise, kind: "total" },
+              { label: "Cost of the items you sold", v: -t.cogsPaise, kind: "less" },
+              ...(platformId ? [] : [{ label: "Other investments (rent, equipment...)", v: -t.otherPaise, kind: "less" as const }]),
+              { label: "Profit", v: t.profitPaise, kind: "result" },
+            ]} />
+            {!platformId && (
+              <div className="border-t hairline px-6 py-4 text-[15px] text-muted">
+                In cash terms you put in <b className="text-text">{formatINR(t.moneyOutPaise, { decimals: false })}</b> and received <b className="text-text">{formatINR(t.netPaise, { decimals: false })}</b>: <b className={cn(t.cashPaise < 0 ? "text-peach" : "text-leaf")}>{formatINR(t.cashPaise, { decimals: false })}</b>. This is lower than profit when you have bought stock that is not sold yet. It is still on your shelf.
+              </div>
+            )}
+          </Card>
+
+          {!platformId && (
+            <div className="grid gap-4 xl:grid-cols-[1.4fr_1fr]">
+              <Card title="Money in and out, month by month">
+                <div className="h-[300px] px-2 pb-4 pt-2">
+                  <ResponsiveContainer>
+                    <ComposedChart data={s.trend.map((x) => ({ ...x, label: monthShort(x.month) }))} margin={{ left: 4, right: 14, top: 8 }}>
+                      <CartesianGrid stroke="rgb(var(--line) / 0.06)" vertical={false} />
+                      <XAxis dataKey="label" {...axis} />
+                      <YAxis {...axis} tickFormatter={moneyTick} width={56} />
+                      <Tooltip content={<GlassTooltip />} cursor={{ fill: "rgb(var(--primary) / 0.06)" }} />
+                      <Legend wrapperStyle={{ fontSize: 14 }} />
+                      <Bar dataKey="moneyOutPaise" name="Put in" fill="rgb(var(--peach-soft))" radius={[8, 8, 0, 0]} barSize={22} />
+                      <Bar dataKey="netPaise" name="Received" fill="rgb(var(--primary-soft))" radius={[8, 8, 0, 0]} barSize={22} />
+                      <Line dataKey="profitPaise" name="Profit" stroke="rgb(var(--leaf))" strokeWidth={3} dot={{ r: 4 }} type="monotone" />
+                    </ComposedChart>
+                  </ResponsiveContainer>
                 </div>
-                <span className="w-16 text-right font-semibold num">{compactINR(s.paise)}</span>
-              </div>
-            ))}
+              </Card>
+              <Card title="Where the money went" subtitle={`${formatINR(t.moneyOutPaise, { decimals: false })} in this period`}>
+                <MoneyOut s={s} />
+              </Card>
+            </div>
+          )}
+
+          <Card title="Platforms" subtitle="Which ones are worth your time" plain className="overflow-hidden">
+            <div className="divide-y divide-line/[0.06]">
+              {s.platforms.map((p, i) => {
+                const maxP = Math.max(1, ...s.platforms.map((x) => Math.abs(x.profitPaise)));
+                return (
+                  <div key={p.id} className="grid gap-3 px-6 py-4 md:grid-cols-[170px_1fr_120px_120px] md:items-center">
+                    <div className="flex items-center gap-3 text-[16px] font-semibold"><span className="h-3 w-3 rounded-full" style={{ background: p.color }} />{p.name}</div>
+                    <div className="h-3 overflow-hidden rounded-full bg-bg2"><motion.div className={cn("h-full rounded-full", p.profitPaise < 0 ? "bg-peach" : "bg-primary")} initial={{ width: 0 }} animate={{ width: `${(Math.abs(p.profitPaise) / maxP) * 100}%` }} transition={{ duration: 0.8, delay: i * 0.08 }} /></div>
+                    <div className="text-[15px]"><b>{compactINR(p.profitPaise)}</b> <span className="text-muted">profit</span></div>
+                    <div className="text-[14px] text-muted">{p.orders} orders · {p.feePct}% fees</div>
+                  </div>
+                );
+              })}
+              {!s.platforms.length && <div className="px-6 py-8 text-center text-[15px] text-muted">No sales in this period. Upload a platform report to see this.</div>}
+            </div>
+          </Card>
+
+          <div className="grid gap-4 xl:grid-cols-2">
+            <ProductList title="What earns you the most" rows={s.products.best} good />
+            <ProductList title="What earns little or loses money" rows={s.products.worst} />
           </div>
-        </Card>
-        <Card title="Stock that is not moving" subtitle="No sale in 60 days — consider a discount or a bundle">
-          <div className="space-y-2 p-4">
-            {a.deadStock.map((d) => (
-              <div key={d.sku} className="flex items-center gap-3 rounded-xl px-2 py-2">
-                <ProductGlyph name={d.name} size={34} />
-                <div className="min-w-0 flex-1"><div className="truncate text-[15.5px]">{d.name}</div><div className="text-[14px] text-muted">{d.onHand} units · last sold {d.lastSaleAt ? fmtDate(d.lastSaleAt) : "never"}</div></div>
-                <span className="text-[15.5px] font-semibold text-marigold num">{formatINR(d.valuePaise, { decimals: false })}</span>
-              </div>
-            ))}
-            {!a.deadStock.length && <div className="py-8 text-center text-[15.5px] text-muted">Everything sold in the last 60 days. Wonderful.</div>}
+
+          <div className="grid gap-4 xl:grid-cols-2">
+            <Card title="Categories" subtitle="Received from platforms">
+              <Bars rows={s.categories.map((c) => ({ label: c.category, value: c.netPaise, note: `${c.units} sold` }))} />
+            </Card>
+            <Card title="Where your customers are" subtitle="Received, by Indian state">
+              <Bars rows={s.states.slice(0, 10).map((x) => ({ label: x.state, value: x.netPaise, note: `${x.orders} orders` }))} />
+            </Card>
           </div>
-        </Card>
+
+          <Card title="Stock on hand right now">
+            <div className="grid gap-4 p-6 sm:grid-cols-3">
+              <div><div className="text-[14px] text-muted">At what it cost you</div><div className="display text-[30px]">{formatINR(s.stock.valuePaise, { decimals: false })}</div></div>
+              <div><div className="text-[14px] text-muted">Pieces</div><div className="display text-[30px]">{s.stock.units.toLocaleString("en-IN")}</div></div>
+              <div><div className="text-[14px] text-muted">Last bought</div><div className="display text-[30px]">{s.stock.lastBuyDate ? fmtDate(s.stock.lastBuyDate, { day: "numeric", month: "short" }) : "—"}</div></div>
+            </div>
+          </Card>
+        </>
+      )}
+    </div>
+  );
+}
+
+function Hero({ label, value, change, days, tone, accent, note, negative, invertChange }: { label: string; value: number; change?: number; days?: number; tone: string; accent: string; note: string; negative?: boolean; invertChange?: boolean }) {
+  const good = change === undefined ? true : invertChange ? change <= 0 : change >= 0;
+  return (
+    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className={cn("rounded-[26px] p-6", tone)}>
+      <div className={cn("text-[15px] font-semibold", accent)}>{label}</div>
+      <div className={cn("display mt-2 text-[44px] leading-none", negative && "text-sindoor")}>{formatINR(value, { decimals: false })}</div>
+      {change !== undefined && <div className={cn("mt-3 inline-flex rounded-full bg-white/60 px-3 py-1 text-[14px] font-semibold", good ? "text-leaf" : "text-peach")}>{change >= 0 ? "↑" : "↓"} {Math.abs(change)}% vs the {days} days before</div>}
+      <p className="mt-3 text-[14px] leading-snug text-text/60">{note}</p>
+    </motion.div>
+  );
+}
+
+function Walk({ rows }: { rows: { label: string; v: number; kind: "total" | "less" | "result" }[] }) {
+  const max = Math.max(1, ...rows.map((r) => Math.abs(r.v)));
+  return (
+    <div className="divide-y divide-line/[0.06]">
+      {rows.map((r) => (
+        <div key={r.label} className={cn("grid items-center gap-3 px-6 py-3.5 md:grid-cols-[320px_1fr_150px]", r.kind === "result" && "bg-primary-tint/60")}>
+          <div className={cn("text-[16px]", r.kind === "result" ? "font-semibold" : "text-text/80")}>{r.kind === "less" && <span className="mr-2 text-muted">less</span>}{r.label}</div>
+          <div className="hidden h-2.5 overflow-hidden rounded-full bg-bg2 md:block"><motion.div className={cn("h-full rounded-full", r.kind === "less" ? "bg-peach-soft" : r.kind === "result" ? (r.v < 0 ? "bg-peach" : "bg-leaf") : "bg-primary-soft")} initial={{ width: 0 }} animate={{ width: `${(Math.abs(r.v) / max) * 100}%` }} transition={{ duration: 0.7 }} /></div>
+          <div className={cn("text-right text-[17px] font-semibold", r.kind === "result" && (r.v < 0 ? "text-sindoor" : "text-leaf"))}>{formatINR(r.v, { decimals: false })}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function MoneyOut({ s }: { s: Summary }) {
+  const parts = [{ label: "Items bought", v: s.moneyOut.itemsPaise }, ...s.moneyOut.tripCosts.map((k) => ({ label: k.kind, v: k.amountPaise })), ...s.moneyOut.other.map((k) => ({ label: k.category, v: k.amountPaise }))].filter((p) => p.v > 0);
+  const total = parts.reduce((a, p) => a + p.v, 0) || 1;
+  return (
+    <div className="p-6">
+      <div className="flex h-4 gap-0.5 overflow-hidden rounded-full">{parts.map((p, i) => <motion.div key={p.label} style={{ background: MONEY_OUT_COLORS[i % MONEY_OUT_COLORS.length] }} initial={{ width: 0 }} animate={{ width: `${(p.v / total) * 100}%` }} transition={{ duration: 0.7, delay: i * 0.05 }} />)}</div>
+      <div className="mt-5 divide-y divide-line/[0.06]">
+        {parts.map((p, i) => (
+          <div key={p.label} className="flex items-center gap-3 py-2.5 text-[15.5px]">
+            <span className="h-3 w-3 rounded-full" style={{ background: MONEY_OUT_COLORS[i % MONEY_OUT_COLORS.length] }} />
+            <span className="flex-1">{p.label}</span><span className="font-semibold">{formatINR(p.v, { decimals: false })}</span><span className="w-12 text-right text-muted">{Math.round((p.v / total) * 100)}%</span>
+          </div>
+        ))}
+        {!parts.length && <div className="py-6 text-center text-[15px] text-muted">Nothing bought in this period.</div>}
       </div>
     </div>
   );
 }
+
+function ProductList({ title, rows, good }: { title: string; rows: Summary["products"]["best"]; good?: boolean }) {
+  return (
+    <Card title={title} subtitle="By profit after the real cost of each item">
+      <div className="px-3 pb-3">
+        {rows.map((r, i) => (
+          <div key={r.name + i} className="flex items-center gap-3 rounded-xl px-3 py-3">
+            <span className="display w-6 text-[20px] text-muted">{i + 1}</span>
+            <div className="min-w-0 flex-1"><div className="truncate text-[15.5px] font-semibold">{r.name}</div><div className="text-[13.5px] text-muted">{r.units} sold · {r.category ?? "Not matched yet"}</div></div>
+            <div className="text-right"><div className={cn("text-[16px] font-semibold", r.profitPaise < 0 ? "text-sindoor" : good && "text-leaf")}>{formatINR(r.profitPaise, { decimals: false })}</div><div className="text-[13px] text-muted">{r.marginPct}% over cost</div></div>
+          </div>
+        ))}
+        {!rows.length && <div className="px-3 py-8 text-center text-[15px] text-muted">{good ? "No sales in this period." : "Nothing is losing money."}</div>}
+      </div>
+    </Card>
+  );
+}
+
+function Bars({ rows }: { rows: { label: string; value: number; note?: string }[] }) {
+  const max = Math.max(1, ...rows.map((r) => r.value));
+  return (
+    <div className="space-y-3 p-6">
+      {rows.map((r, i) => (
+        <div key={r.label} className="grid grid-cols-[130px_1fr_90px] items-center gap-3 text-[15px]">
+          <span className="truncate">{r.label}</span>
+          <div className="h-5 overflow-hidden rounded-lg bg-bg2"><motion.div className="h-full rounded-lg bg-primary-soft" initial={{ width: 0 }} animate={{ width: `${(r.value / max) * 100}%` }} transition={{ duration: 0.7, delay: i * 0.05 }} /></div>
+          <span className="text-right font-semibold">{compactINR(r.value)}</span>
+        </div>
+      ))}
+      {!rows.length && <div className="py-6 text-center text-[15px] text-muted">No data in this period.</div>}
+    </div>
+  );
+}
+

@@ -1,13 +1,13 @@
 import { and, between, desc, eq, gte, lte } from "drizzle-orm";
 import ExcelJS from "exceljs";
-import { formatINR, type Permission } from "@pp/shared";
+import { formatINR, type DateRange } from "@pp/shared";
 import { db } from "../../db/client";
-import {
-  attendance, channels, employees, invoiceItems, invoices, orders, payslips, products, returns, stockMovements, tenants, users, variants,
-} from "../../db/schema";
+import { attendance, employees, platformSales, platforms, products, tenants, tripItems, trips } from "../../db/schema";
 import { badRequest } from "../../lib/errors";
 import { footer, letterhead, newDoc, table, type Col } from "../../lib/pdf";
-import { list as stockList } from "../stock/service";
+import * as catalog from "../catalog/service";
+import * as invest from "../investments/service";
+import { summary } from "../insights/service";
 
 export interface Report {
   title: string;
@@ -16,93 +16,99 @@ export interface Report {
   totals?: Record<string, string | number>;
 }
 
-type Range = { from: string; to: string };
-const ms = (d: string, end = false) => new Date(`${d}T${end ? "23:59:59" : "00:00:00"}+05:30`);
 const day = (d: Date | null) => (d ? new Date(d.getTime() + 330 * 60_000).toISOString().slice(0, 10) : "");
 const time = (d: Date | null) => (d ? new Date(d.getTime() + 330 * 60_000).toISOString().slice(11, 16) : "");
-const rs = (p: number) => formatINR(p);
 
-export const REPORTS: Record<string, { title: string; permission: Permission; ranged: boolean }> = {
-  stock: { title: "Stock on hand", permission: "reports.view", ranged: false },
-  movements: { title: "Inward / outward register", permission: "reports.view", ranged: true },
-  sales: { title: "Sales by order", permission: "reports.view", ranged: true },
-  dispatch: { title: "Dispatch register", permission: "reports.view", ranged: true },
-  returns: { title: "Returns register", permission: "reports.view", ranged: true },
-  attendance: { title: "Attendance register", permission: "reports.view", ranged: true },
-  gst: { title: "GST summary (GSTR-1 style)", permission: "reports.view", ranged: true },
-  payroll: { title: "Payroll register", permission: "payroll.manage", ranged: true },
+export const REPORTS: Record<string, { title: string; ranged: boolean; blurb: string }> = {
+  pnl: { title: "Profit and loss", ranged: true, blurb: "Money in, money out and profit for the period, line by line." },
+  buys: { title: "Buying trips", ranged: true, blurb: "Every item bought, with its share of travel, food and other trip costs, and the real cost per piece." },
+  stock: { title: "Stock and value", ranged: false, blurb: "What is on hand today, at cost and at selling price, by category." },
+  sales: { title: "Sales by platform", ranged: true, blurb: "Every sale uploaded from your platform reports, with fees and what you received." },
+  platforms: { title: "Platform comparison", ranged: true, blurb: "Sales, fees, cost and profit for each platform." },
+  investments: { title: "Money invested", ranged: true, blurb: "Buying trips and every other investment in date order." },
+  attendance: { title: "Employee attendance", ranged: true, blurb: "Daily check-in and check-out times with distance from the shop." },
 };
 
-export async function build(tenantId: string, type: string, r: Range): Promise<Report> {
+export async function build(tenantId: string, type: string, r: DateRange): Promise<Report> {
   switch (type) {
+    case "pnl": {
+      const s = await summary(tenantId, r);
+      const t = s.totals;
+      const rows: Report["rows"] = [
+        { line: "Sales (delivered, before fees)", amount: t.grossPaise },
+        { line: "Platform fees and commission", amount: -t.feesPaise },
+        { line: "Money received from platforms", amount: t.netPaise },
+        { line: "Cost of the items sold", amount: -t.cogsPaise },
+        { line: "Other investments (rent, equipment...)", amount: -t.otherPaise },
+        { line: "PROFIT / LOSS ON ITEMS SOLD", amount: t.profitPaise },
+        { line: "", amount: "" },
+        { line: "Spent on buying trips: items", amount: t.tripsItemsPaise },
+        ...s.moneyOut.tripCosts.map((k) => ({ line: `Spent on buying trips: ${k.kind}`, amount: k.amountPaise })),
+        { line: "Total money out (trips + other)", amount: t.moneyOutPaise },
+        { line: "Cash result (money in minus money out)", amount: t.cashPaise },
+        { line: "", amount: "" },
+        { line: "Orders delivered", amount: t.orders },
+        { line: "Returns (value)", amount: t.returnsPaise },
+      ];
+      return { title: REPORTS.pnl.title, columns: [{ key: "line", label: "Line", width: 330 }, { key: "amount", label: "Amount", width: 160, align: "right", money: true }], rows: rows.map((x) => (x.line === "Orders delivered" ? { ...x, amount: `${x.amount}` } : x)) };
+    }
+    case "buys": {
+      const rows = await db
+        .select({ date: trips.date, place: trips.place, title: trips.title, name: products.name, category: products.category, qty: tripItems.qty, line: tripItems.linePaise, extra: tripItems.extraPaise, landed: tripItems.landedPaise, unit: tripItems.unitCostPaise, price: tripItems.unitPricePaise })
+        .from(tripItems)
+        .innerJoin(trips, eq(trips.id, tripItems.tripId))
+        .innerJoin(products, eq(products.id, tripItems.productId))
+        .where(and(eq(trips.tenantId, tenantId), between(trips.date, r.from, r.to)))
+        .orderBy(desc(trips.date));
+      return {
+        title: REPORTS.buys.title,
+        columns: [
+          { key: "date", label: "Date", width: 52 }, { key: "place", label: "Where", width: 62 }, { key: "name", label: "Item", width: 105 }, { key: "qty", label: "Qty", width: 32, align: "right" },
+          { key: "line", label: "Paid", width: 55, align: "right", money: true }, { key: "extra", label: "Trip share", width: 55, align: "right", money: true }, { key: "unit", label: "Cost/pc", width: 50, align: "right", money: true }, { key: "price", label: "Price/pc", width: 50, align: "right", money: true },
+        ],
+        rows: rows.map((x) => ({ date: x.date, place: x.place ?? x.title ?? "", name: x.name, qty: x.qty, line: x.line, extra: x.extra, unit: x.unit, price: x.price })),
+        totals: { date: "Total", qty: rows.reduce((s, x) => s + x.qty, 0), line: rows.reduce((s, x) => s + x.line, 0), extra: rows.reduce((s, x) => s + x.extra, 0) },
+      };
+    }
     case "stock": {
-      const s = await stockList(tenantId, {});
+      const s = await catalog.list(tenantId, {});
       return {
         title: REPORTS.stock.title,
-        columns: [
-          { key: "sku", label: "SKU", width: 95 }, { key: "name", label: "Product", width: 150 }, { key: "category", label: "Category", width: 80 },
-          { key: "bin", label: "Bin", width: 50 }, { key: "onHand", label: "On hand", width: 50, align: "right" },
-          { key: "committed", label: "Committed", width: 55, align: "right" }, { key: "value", label: "Value at cost", width: 80, align: "right", money: true },
-        ],
-        rows: s.items.map((i) => ({ sku: i.sku, name: i.name, category: i.category, bin: i.bins[0]?.code ?? "", onHand: i.onHand, committed: i.committed, value: i.onHand * i.costPaise })),
-        totals: { sku: "Total", onHand: s.totals.units, value: s.totals.valueAtCostPaise },
+        columns: [{ key: "category", label: "Category", width: 85 }, { key: "name", label: "Item", width: 130 }, { key: "code", label: "Code", width: 55 }, { key: "qty", label: "In stock", width: 45, align: "right" }, { key: "cost", label: "Cost/pc", width: 55, align: "right", money: true }, { key: "value", label: "Value at cost", width: 70, align: "right", money: true }, { key: "price", label: "Price/pc", width: 50, align: "right", money: true }],
+        rows: s.items.map((i) => ({ category: i.category, name: i.name, code: i.code, qty: i.onHand, cost: i.avgCostPaise, value: i.valuePaise, price: i.sellingPricePaise })),
+        totals: { category: "Total", qty: s.totals.units, value: s.totals.valuePaise },
       };
     }
-    case "movements": {
+    case "sales": {
       const rows = await db
-        .select({ m: stockMovements, sku: variants.sku, name: products.name, by: users.name })
-        .from(stockMovements)
-        .innerJoin(variants, eq(variants.id, stockMovements.variantId))
-        .innerJoin(products, eq(products.id, variants.productId))
-        .leftJoin(users, eq(users.id, stockMovements.userId))
-        .where(and(eq(stockMovements.tenantId, tenantId), gte(stockMovements.createdAt, ms(r.from)), lte(stockMovements.createdAt, ms(r.to, true))))
-        .orderBy(desc(stockMovements.createdAt));
+        .select({ s: platformSales, platform: platforms.name })
+        .from(platformSales)
+        .innerJoin(platforms, eq(platforms.id, platformSales.platformId))
+        .where(and(eq(platformSales.tenantId, tenantId), gte(platformSales.orderDate, r.from), lte(platformSales.orderDate, r.to)))
+        .orderBy(desc(platformSales.orderDate));
       return {
-        title: REPORTS.movements.title,
-        columns: [
-          { key: "date", label: "Date", width: 60 }, { key: "type", label: "Type", width: 65 }, { key: "sku", label: "SKU", width: 95 },
-          { key: "name", label: "Product", width: 120 }, { key: "qty", label: "Qty", width: 40, align: "right" }, { key: "reason", label: "Reason", width: 105 }, { key: "by", label: "By", width: 50 },
-        ],
-        rows: rows.map((x) => ({ date: day(x.m.createdAt), type: x.m.type, sku: x.sku, name: x.name, qty: x.m.qty, reason: x.m.reason ?? "", by: x.by ?? "" })),
+        title: REPORTS.sales.title,
+        columns: [{ key: "date", label: "Date", width: 52 }, { key: "platform", label: "Platform", width: 55 }, { key: "name", label: "Item", width: 115 }, { key: "qty", label: "Qty", width: 28, align: "right" }, { key: "gross", label: "Sale", width: 55, align: "right", money: true }, { key: "fees", label: "Fees", width: 45, align: "right", money: true }, { key: "net", label: "Received", width: 55, align: "right", money: true }, { key: "state", label: "State", width: 55 }, { key: "status", label: "Status", width: 50 }],
+        rows: rows.map(({ s, platform }) => ({ date: s.orderDate, platform, name: s.productName, qty: s.qty, gross: s.grossPaise, fees: s.feesPaise, net: s.netPaise, state: s.state ?? "", status: s.status })),
+        totals: { date: "Total", gross: rows.filter((x) => x.s.status === "DELIVERED").reduce((a, x) => a + x.s.grossPaise, 0), fees: rows.filter((x) => x.s.status === "DELIVERED").reduce((a, x) => a + x.s.feesPaise, 0), net: rows.filter((x) => x.s.status === "DELIVERED").reduce((a, x) => a + x.s.netPaise, 0) },
       };
     }
-    case "sales":
-    case "dispatch": {
-      const rows = await db
-        .select({ o: orders, channel: channels.name })
-        .from(orders)
-        .innerJoin(channels, eq(channels.id, orders.channelId))
-        .where(and(eq(orders.tenantId, tenantId), type === "dispatch" ? gte(orders.dispatchedAt, ms(r.from)) : gte(orders.orderedAt, ms(r.from)), type === "dispatch" ? lte(orders.dispatchedAt, ms(r.to, true)) : lte(orders.orderedAt, ms(r.to, true))))
-        .orderBy(desc(orders.orderedAt));
-      const total = rows.reduce((s, x) => s + x.o.totalPaise, 0);
+    case "platforms": {
+      const s = await summary(tenantId, r);
       return {
-        title: REPORTS[type].title,
-        columns: [
-          { key: "date", label: type === "dispatch" ? "Dispatched" : "Ordered", width: 60 }, { key: "channel", label: "Channel", width: 70 },
-          { key: "id", label: "Order ID", width: 110 }, { key: "customer", label: "Customer", width: 100 }, { key: "state", label: "State", width: 70 },
-          { key: "status", label: "Status", width: 60 }, { key: "total", label: "Value", width: 70, align: "right", money: true },
-        ],
-        rows: rows.map(({ o, channel }) => ({ date: day(type === "dispatch" ? o.dispatchedAt : o.orderedAt), channel, id: o.channelOrderId, customer: o.customerName, state: o.state ?? "", status: o.status, total: o.totalPaise })),
-        totals: { date: "Total", id: `${rows.length} orders`, total },
+        title: REPORTS.platforms.title,
+        columns: [{ key: "name", label: "Platform", width: 90 }, { key: "orders", label: "Orders", width: 45, align: "right" }, { key: "gross", label: "Sales", width: 70, align: "right", money: true }, { key: "fees", label: "Fees", width: 60, align: "right", money: true }, { key: "net", label: "Received", width: 70, align: "right", money: true }, { key: "cogs", label: "Cost of items", width: 70, align: "right", money: true }, { key: "profit", label: "Profit", width: 70, align: "right", money: true }],
+        rows: s.platforms.map((p) => ({ name: p.name, orders: p.orders, gross: p.grossPaise, fees: p.feesPaise, net: p.netPaise, cogs: p.cogsPaise, profit: p.profitPaise })),
+        totals: { name: "Total", gross: s.platforms.reduce((a, p) => a + p.grossPaise, 0), fees: s.platforms.reduce((a, p) => a + p.feesPaise, 0), net: s.platforms.reduce((a, p) => a + p.netPaise, 0), cogs: s.platforms.reduce((a, p) => a + p.cogsPaise, 0), profit: s.platforms.reduce((a, p) => a + p.profitPaise, 0) },
       };
     }
-    case "returns": {
-      const rows = await db
-        .select({ r: returns, id: orders.channelOrderId, channel: channels.name, sku: variants.sku })
-        .from(returns)
-        .innerJoin(orders, eq(orders.id, returns.orderId))
-        .innerJoin(channels, eq(channels.id, orders.channelId))
-        .innerJoin(variants, eq(variants.id, returns.variantId))
-        .where(and(eq(returns.tenantId, tenantId), gte(returns.createdAt, ms(r.from)), lte(returns.createdAt, ms(r.to, true))))
-        .orderBy(desc(returns.createdAt));
+    case "investments": {
+      const o = await invest.overview(tenantId, r);
       return {
-        title: REPORTS.returns.title,
-        columns: [
-          { key: "date", label: "Date", width: 60 }, { key: "channel", label: "Channel", width: 65 }, { key: "id", label: "Order ID", width: 105 },
-          { key: "sku", label: "SKU", width: 90 }, { key: "qty", label: "Qty", width: 35, align: "right" }, { key: "type", label: "Type", width: 55 },
-          { key: "condition", label: "Condition", width: 55 }, { key: "reason", label: "Reason", width: 70 },
-        ],
-        rows: rows.map((x) => ({ date: day(x.r.createdAt), channel: x.channel, id: x.id, sku: x.sku, qty: x.r.qty, type: x.r.type, condition: x.r.condition, reason: x.r.reason })),
+        title: REPORTS.investments.title,
+        columns: [{ key: "date", label: "Date", width: 60 }, { key: "type", label: "Type", width: 70 }, { key: "title", label: "What", width: 180 }, { key: "category", label: "Category", width: 90 }, { key: "amount", label: "Amount", width: 80, align: "right", money: true }],
+        rows: o.timeline.map((t) => ({ date: t.date, type: t.type === "BUY" ? "Buying trip" : "Other", title: t.title, category: t.category, amount: t.amountPaise })),
+        totals: { date: "Total", amount: o.totalPaise },
       };
     }
     case "attendance": {
@@ -114,59 +120,8 @@ export async function build(tenantId: string, type: string, r: Range): Promise<R
         .orderBy(desc(attendance.date), employees.name);
       return {
         title: REPORTS.attendance.title,
-        columns: [
-          { key: "date", label: "Date", width: 65 }, { key: "code", label: "Code", width: 55 }, { key: "name", label: "Employee", width: 120 },
-          { key: "status", label: "Status", width: 65 }, { key: "in", label: "In", width: 45 }, { key: "out", label: "Out", width: 45 },
-          { key: "dist", label: "Distance (m)", width: 65, align: "right" }, { key: "source", label: "Source", width: 55 },
-        ],
-        rows: rows.map((x) => ({ date: x.a.date, code: x.code, name: x.name, status: x.a.status, in: time(x.a.checkInAt), out: time(x.a.checkOutAt), dist: x.a.checkInDistanceM ?? "", source: x.a.source })),
-      };
-    }
-    case "gst": {
-      const rows = await db
-        .select({ inv: invoices, item: invoiceItems })
-        .from(invoiceItems)
-        .innerJoin(invoices, eq(invoices.id, invoiceItems.invoiceId))
-        .where(and(eq(invoices.tenantId, tenantId), eq(invoices.status, "ISSUED"), between(invoices.date, r.from, r.to)));
-      // HSN-wise summary, split by rate, the way GSTR-1 Table 12 asks for it.
-      const map = new Map<string, { hsn: string; rate: number; qty: number; taxable: number; tax: number; b2b: number }>();
-      for (const { inv, item } of rows) {
-        const k = `${item.hsn}-${item.gstRate}`;
-        const e = map.get(k) ?? { hsn: item.hsn, rate: item.gstRate, qty: 0, taxable: 0, tax: 0, b2b: 0 };
-        e.qty += item.qty;
-        e.taxable += item.taxablePaise;
-        e.tax += item.taxPaise;
-        if (inv.customerGstin) e.b2b += item.taxablePaise;
-        map.set(k, e);
-      }
-      const list = [...map.values()].sort((a, b) => a.hsn.localeCompare(b.hsn));
-      return {
-        title: REPORTS.gst.title,
-        columns: [
-          { key: "hsn", label: "HSN", width: 70 }, { key: "rate", label: "GST %", width: 50, align: "right" }, { key: "qty", label: "Qty", width: 50, align: "right" },
-          { key: "taxable", label: "Taxable value", width: 95, align: "right", money: true }, { key: "b2b", label: "of which B2B", width: 90, align: "right", money: true },
-          { key: "tax", label: "Total tax", width: 90, align: "right", money: true },
-        ],
-        rows: list.map((e) => ({ ...e })),
-        totals: { hsn: "Total", taxable: list.reduce((s, e) => s + e.taxable, 0), b2b: list.reduce((s, e) => s + e.b2b, 0), tax: list.reduce((s, e) => s + e.tax, 0) },
-      };
-    }
-    case "payroll": {
-      const rows = await db
-        .select({ p: payslips, name: employees.name, code: employees.code })
-        .from(payslips)
-        .innerJoin(employees, eq(employees.id, payslips.employeeId))
-        .where(and(eq(payslips.tenantId, tenantId), between(payslips.month, r.from.slice(0, 7), r.to.slice(0, 7))))
-        .orderBy(desc(payslips.month), employees.name);
-      return {
-        title: REPORTS.payroll.title,
-        columns: [
-          { key: "month", label: "Month", width: 55 }, { key: "code", label: "Code", width: 55 }, { key: "name", label: "Employee", width: 115 },
-          { key: "days", label: "Payable days", width: 65, align: "right" }, { key: "gross", label: "Gross", width: 75, align: "right", money: true },
-          { key: "adv", label: "Advance", width: 65, align: "right", money: true }, { key: "net", label: "Net", width: 75, align: "right", money: true },
-        ],
-        rows: rows.map((x) => ({ month: x.p.month, code: x.code, name: x.name, days: x.p.payableDays, gross: x.p.grossPaise, adv: x.p.advancePaise, net: x.p.netPaise })),
-        totals: { month: "Total", net: rows.reduce((s, x) => s + x.p.netPaise, 0), gross: rows.reduce((s, x) => s + x.p.grossPaise, 0) },
+        columns: [{ key: "date", label: "Date", width: 65 }, { key: "name", label: "Employee", width: 130 }, { key: "status", label: "Status", width: 65 }, { key: "in", label: "In", width: 45 }, { key: "out", label: "Out", width: 45 }, { key: "dist", label: "Distance (m)", width: 70, align: "right" }, { key: "source", label: "Source", width: 60 }],
+        rows: rows.map((x) => ({ date: x.a.date, name: x.name, status: x.a.status, in: time(x.a.checkInAt), out: time(x.a.checkOutAt), dist: x.a.checkInDistanceM ?? "", source: x.a.source })),
       };
     }
     default:
@@ -174,44 +129,39 @@ export async function build(tenantId: string, type: string, r: Range): Promise<R
   }
 }
 
-const display = (rep: Report, row: Record<string, string | number>) =>
-  Object.fromEntries(rep.columns.map((c) => [c.key, c.money && typeof row[c.key] === "number" ? rs(row[c.key] as number) : row[c.key] ?? ""]));
+const show = (rep: Report, row: Record<string, string | number>) =>
+  Object.fromEntries(rep.columns.map((c) => [c.key, c.money && typeof row[c.key] === "number" ? formatINR(row[c.key] as number) : row[c.key] ?? ""]));
 
-export async function toXlsx(rep: Report, business: string, range?: Range) {
+export async function toXlsx(rep: Report, business: string, range?: DateRange) {
   const wb = new ExcelJS.Workbook();
-  wb.creator = "Pujo Parbon Seller OS";
+  wb.creator = business;
   const ws = wb.addWorksheet(rep.title.slice(0, 30));
   ws.mergeCells(1, 1, 1, rep.columns.length);
   ws.getCell(1, 1).value = `${business} — ${rep.title}${range ? ` (${range.from} to ${range.to})` : ""}`;
-  ws.getCell(1, 1).font = { bold: true, size: 14, color: { argb: "FF9E1B32" } };
+  ws.getCell(1, 1).font = { bold: true, size: 14, color: { argb: "FF2E688C" } };
   const header = ws.getRow(3);
-  rep.columns.forEach((c, i) => {
-    header.getCell(i + 1).value = c.label;
-    ws.getColumn(i + 1).width = Math.max(10, Math.round(c.width / 5.5));
-  });
+  rep.columns.forEach((c, i) => { header.getCell(i + 1).value = c.label; ws.getColumn(i + 1).width = Math.max(11, Math.round(c.width / 5)); });
   header.font = { bold: true, color: { argb: "FFFFFFFF" } };
-  header.eachCell((cell) => (cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF9E1B32" } }));
+  header.eachCell((cell) => (cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF2E688C" } }));
   const write = (row: Record<string, string | number>, bold = false) => {
     const r = ws.addRow(rep.columns.map((c) => (c.money && typeof row[c.key] === "number" ? (row[c.key] as number) / 100 : row[c.key] ?? "")));
-    rep.columns.forEach((c, i) => {
-      if (c.money) r.getCell(i + 1).numFmt = '"₹"#,##,##0.00';
-    });
+    rep.columns.forEach((c, i) => { if (c.money) r.getCell(i + 1).numFmt = '"₹"#,##,##0.00'; });
     if (bold) r.font = { bold: true };
   };
-  rep.rows.forEach((row) => write(row));
+  rep.rows.forEach((row) => write(row, String(row.line ?? "").startsWith("PROFIT")));
   if (rep.totals) write(rep.totals, true);
   ws.views = [{ state: "frozen", ySplit: 3 }];
   return Buffer.from(await wb.xlsx.writeBuffer());
 }
 
-export async function toPdf(rep: Report, tenantId: string, range?: Range) {
+export async function toPdf(rep: Report, tenantId: string, range?: DateRange) {
   const [t] = await db.select().from(tenants).where(eq(tenants.id, tenantId));
   const { doc, done } = newDoc();
   letterhead(doc, t, rep.title, range ? `${range.from} to ${range.to}` : `As of ${day(new Date())}`);
-  const rows = rep.rows.map((r) => display(rep, r));
-  if (rep.totals) rows.push(display(rep, rep.totals));
+  const rows = rep.rows.map((r) => show(rep, r));
+  if (rep.totals) rows.push(show(rep, rep.totals));
   table(doc, rep.columns, rows.length ? rows : [{ [rep.columns[0].key]: "No records in this period" }]);
-  footer(doc);
+  footer(doc, `${t?.name ?? ""} · Seller OS`);
   doc.end();
   return done;
 }

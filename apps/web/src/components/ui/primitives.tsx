@@ -3,6 +3,7 @@ import { forwardRef, type ButtonHTMLAttributes, type InputHTMLAttributes, type R
 import { motion } from "framer-motion";
 import { Loader2 } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { ProductGlyph } from "./ProductGlyph";
 
 /* ── Button ─────────────────────────────────────────────────────── */
 type Variant = "primary" | "gold" | "ghost" | "outline" | "danger" | "peach";
@@ -156,5 +157,15 @@ export function Empty({ title, body, icon, action }: { title: string; body?: str
       {body && <p className="max-w-sm text-[15.5px] text-muted">{body}</p>}
       {action}
     </div>
+  );
+}
+
+/** Product tile with its name and a quiet second line. */
+export function ProductGlyphRow({ name, sub, size = 40 }: { name: string; sub?: ReactNode; size?: number }) {
+  return (
+    <span className="flex items-center gap-3">
+      <ProductGlyph name={name} size={size} />
+      <span className="min-w-0"><span className="block truncate font-semibold">{name}</span>{sub && <span className="block truncate text-[14px] text-muted">{sub}</span>}</span>
+    </span>
   );
 }

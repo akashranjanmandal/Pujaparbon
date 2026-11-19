@@ -33,9 +33,7 @@ That's it. Every push to `main` redeploys automatically.
 
 - **Sleeps after 15 minutes without visitors.** The next visit takes about a minute to wake up.
   Fine for demos. For daily warehouse use, switch the service to a paid instance in Render.
-- **Files are not kept between restarts.** Attendance selfies are saved on the server's disk, which the
-  free plan wipes on every restart or deploy. Attendance records themselves are safe in Turso.
-  Before real use, move selfies to cloud storage (for example Turso-adjacent object storage or S3).
+- **Nothing is lost on restart.** Attendance selfies, uploaded platform reports and invoices are stored in the Turso database, not on the server's disk, so Render's free plan restarts do not delete them.
 - **750 free instance hours per month** per Render workspace — enough for one service.
 
 ## 4. Custom domain (optional)

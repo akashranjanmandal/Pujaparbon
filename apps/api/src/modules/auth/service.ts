@@ -24,7 +24,7 @@ async function issueTokens(user: UserRow) {
 }
 
 export async function profile(user: UserRow) {
-  const [tenant] = await db.select({ name: tenants.name, state: tenants.state }).from(tenants).where(eq(tenants.id, user.tenantId));
+  const [tenant] = await db.select({ name: tenants.name }).from(tenants).where(eq(tenants.id, user.tenantId));
   const emp = user.employeeId
     ? (await db.select({ designation: employees.designation, avatarHue: employees.avatarHue }).from(employees).where(eq(employees.id, user.employeeId)))[0]
     : undefined;
@@ -34,7 +34,7 @@ export async function profile(user: UserRow) {
     email: user.email,
     role: user.role as Role,
     employeeId: user.employeeId,
-    designation: emp?.designation ?? (user.role === "OWNER" ? "Proprietor" : user.role === "MANAGER" ? "Warehouse Manager" : "Staff"),
+    designation: emp?.designation ?? (user.role === "OWNER" ? "Owner" : "Employee"),
     avatarHue: emp?.avatarHue ?? 20,
     tenant: tenant ?? null,
     permissions: ROLE_PERMISSIONS[user.role as Role],

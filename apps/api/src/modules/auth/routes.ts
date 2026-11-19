@@ -1,11 +1,12 @@
 import { Router, type CookieOptions } from "express";
 import rateLimit from "express-rate-limit";
-import { loginSchema } from "@pp/shared";
+import { changePasswordSchema, loginSchema } from "@pp/shared";
 import { authenticate } from "../../middleware/auth";
 import { parse } from "../../middleware/validate";
 import { ctx, handler } from "../../lib/http";
 import { env } from "../../config/env";
 import * as auth from "./service";
+import { changeOwnPassword } from "../admin/service";
 
 const COOKIE = "pp_rt";
 const cookieOptions: CookieOptions = {
@@ -56,3 +57,8 @@ authRoutes.post(
 );
 
 authRoutes.get("/me", authenticate, handler((req) => auth.me(ctx(req).userId)));
+
+authRoutes.post("/change-password", authenticate, handler((req) => {
+  const { current, next } = parse(changePasswordSchema, req.body);
+  return changeOwnPassword(ctx(req), current, next);
+}));

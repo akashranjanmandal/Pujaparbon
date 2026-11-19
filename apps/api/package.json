@@ -12,7 +12,9 @@
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "tsx src/db/migrate.ts"
+    "db:migrate": "tsx src/db/migrate.ts",
+    "db:reset": "tsx src/db/reset.ts",
+    "db:fresh": "tsx src/db/reset.ts && tsx src/db/migrate.ts && tsx src/db/seed.ts"
   },
   "dependencies": {
     "@libsql/client": "^0.18.0",
@@ -31,6 +33,7 @@
     "multer": "^2.5.0",
     "papaparse": "^5.7.1",
     "pdfkit": "^0.20.2",
+    "qrcode": "^1.5.4",
     "zod": "^3.25.76"
   },
   "devDependencies": {
@@ -42,6 +45,7 @@
     "@types/node": "^26.6.6",
     "@types/papaparse": "^5.5.2",
     "@types/pdfkit": "^0.17.7",
+    "@types/qrcode": "^1.5.6",
     "@types/supertest": "^7.2.1",
     "drizzle-kit": "^0.31.11",
     "supertest": "^7.3.2",

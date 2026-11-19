@@ -35,22 +35,3 @@ export function workingDaysInMonth(month: string, holidays: string[]): number {
   }
   return count;
 }
-
-export interface PayslipInput {
-  monthlySalaryPaise: number;
-  workingDays: number;
-  presentDays: number;
-  paidLeaveDays: number;
-  lateCount: number;
-  advancePaise: number;
-}
-
-/** Rule: every 3 late marks deduct half a day. Advances are recovered from net pay. */
-export function computePayslip(i: PayslipInput) {
-  const lateDeductionDays = Math.floor(i.lateCount / 3) * 0.5;
-  const payableDays = Math.max(0, Math.min(i.workingDays, i.presentDays + i.paidLeaveDays) - lateDeductionDays);
-  const perDay = i.workingDays > 0 ? i.monthlySalaryPaise / i.workingDays : 0;
-  const grossPaise = Math.round(perDay * payableDays);
-  const netPaise = Math.max(0, grossPaise - i.advancePaise);
-  return { lateDeductionDays, payableDays, perDayPaise: Math.round(perDay), grossPaise, netPaise };
-}

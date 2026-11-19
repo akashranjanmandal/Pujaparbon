@@ -1,7 +1,7 @@
 import PDFDocument from "pdfkit";
 
-/** Brand palette for printed documents: sindoor red, marigold gold, ink. */
-export const PDF = { red: "#9E1B32", gold: "#C9902B", ink: "#1E1A1A", muted: "#6B6260", rule: "#E8DCCB", tint: "#FBF4E8" };
+/** Brand palette for printed documents: powder blue, sunset peach, ink. */
+export const PDF = { red: "#2E688C", gold: "#D2643E", ink: "#1C202E", muted: "#606678", rule: "#E6E1D8", tint: "#E8F3FA" };
 
 export function newDoc(opts: { landscape?: boolean } = {}) {
   const doc = new PDFDocument({ size: "A4", margin: 40, layout: opts.landscape ? "landscape" : "portrait", bufferPages: true });
@@ -11,7 +11,7 @@ export function newDoc(opts: { landscape?: boolean } = {}) {
   return { doc, done };
 }
 
-/** Letterhead: red-and-gold border like a laal-paar saree, business name, document title. */
+/** Letterhead: coloured top band, business name, document title. */
 export function letterhead(doc: PDFKit.PDFDocument, business: { name: string; address?: string | null; gstin?: string | null }, title: string, subtitle?: string) {
   const w = doc.page.width;
   doc.rect(0, 0, w, 10).fill(PDF.red);
