@@ -37,7 +37,6 @@ export default function BuyHistory() {
             { key: "paid", header: "Paid for items", align: "right", cell: (r) => formatINR(r.itemsPaise, { decimals: false }) },
             { key: "costs", header: "Trip costs", align: "right", cell: (r) => formatINR(r.costsPaise, { decimals: false }) },
             { key: "total", header: "Total", align: "right", cell: (r) => <b>{formatINR(r.totalPaise, { decimals: false })}</b> },
-            { key: "code", header: "QR code", cell: (r) => <code className="text-[13px]">{r.code}</code> },
           ]} />
       </Card>
     </div>

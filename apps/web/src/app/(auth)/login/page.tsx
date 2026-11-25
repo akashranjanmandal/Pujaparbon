@@ -9,7 +9,7 @@ import { ProfitFlow } from "@/components/brand/ProfitFlow";
 import { Button, Input, Segmented } from "@/components/ui/primitives";
 import { homeFor, useAuth } from "@/lib/auth";
 
-const DEMO = { owner: { email: "owner@pujaparbon.in", hint: "Everything: buys, stock, platforms, profit, team" }, staff: { email: "staff@pujaparbon.in", hint: "Check in and out, look up an item by QR" } };
+const DEMO = { owner: { email: "owner@pujaparbon.in", hint: "Everything: buys, stock, platforms, profit, team" }, staff: { email: "staff@pujaparbon.in", hint: "Check in and out" } };
 
 function LoginInner() {
   const { login, logout, user, ready } = useAuth();

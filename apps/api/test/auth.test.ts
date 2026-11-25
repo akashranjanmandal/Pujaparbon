@@ -41,7 +41,7 @@ describe("authentication", () => {
 });
 
 describe("roles and tenant isolation", () => {
-  it("keeps employees out of everything except attendance and QR look-ups", async () => {
+  it("keeps employees out of everything except attendance", async () => {
     const t = await makeTenant();
     for (const url of ["/api/v1/products", "/api/v1/trips", "/api/v1/platforms", "/api/v1/insights/summary", "/api/v1/investments", "/api/v1/reports", "/api/v1/employees", "/api/v1/users"]) {
       expect((await t.asStaff.get(url)).status, url).toBe(403);
@@ -60,6 +60,5 @@ describe("roles and tenant isolation", () => {
     expect(made.status).toBe(201);
     expect((await b.asOwner.get("/api/v1/products")).body.items).toHaveLength(0);
     expect((await b.asOwner.get(`/api/v1/products/${made.body.id}`)).status).toBe(404);
-    expect((await b.asOwner.get(`/api/v1/lookup/${made.body.code}`)).status).toBe(404);
   });
 });

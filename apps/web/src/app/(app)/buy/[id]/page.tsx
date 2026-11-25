@@ -2,13 +2,12 @@
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Printer, Trash2 } from "lucide-react";
+import { ArrowLeft, Trash2 } from "lucide-react";
 import { formatINR } from "@pp/shared";
-import { Qr } from "@/components/Qr";
 import { Loader } from "@/components/ui/Loader";
 import { Table } from "@/components/ui/Table";
 import { Badge, Button, Card, ProductGlyphRow } from "@/components/ui/primitives";
-import { api, openFile } from "@/lib/api";
+import { api } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { fmtDate } from "@/lib/format";
 import { useAction } from "@/lib/hooks";
@@ -35,13 +34,8 @@ export default function BuyDetail() {
           <h1 className="display mt-1 text-[36px] leading-tight">{t.place || t.title || "Buying trip"}</h1>
           {t.notes && <p className="mt-2 max-w-xl text-[16px] text-muted">{t.notes}</p>}
           <div className="mt-4 flex flex-wrap gap-2">
-            <Button icon={<Printer className="h-4 w-4" />} onClick={() => openFile("/products/labels", { tripIds: [t.id], productIds: t.items.map((i) => i.productId), baseUrl: window.location.origin })}>Print QR labels</Button>
             <Button variant="danger" icon={<Trash2 className="h-4 w-4" />} onClick={() => confirm("Delete this buy? Its stock will be taken back out.") && remove.mutate(undefined)}>Delete</Button>
           </div>
-        </div>
-        <div className="flex items-center gap-4 rounded-2xl border border-line/[0.08] bg-panel p-4 shadow-soft">
-          <Qr code={t.code} size={110} />
-          <div><div className="text-[13px] text-muted">Lot QR code</div><div className="font-mono text-[18px] font-semibold tracking-wider">{t.code}</div><div className="mt-1 max-w-[180px] text-[13px] text-muted">Scan to open this page on any phone.</div></div>
         </div>
       </div>
 

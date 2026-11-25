@@ -114,33 +114,3 @@ describe("stock counts", () => {
   });
 });
 
-describe("QR codes", () => {
-  it("shows the owner everything for a product and for a whole lot", async () => {
-    const t = await makeTenant();
-    const a = await buy(t);
-    const product = await t.asOwner.get(`/api/v1/lookup/${byName(a, "Steel Bottle").code}`);
-    expect(product.body).toMatchObject({ type: "PRODUCT", money: true });
-    expect(product.body.product.avgCostPaise).toBe(1200);
-    const lot = await t.asOwner.get(`/api/v1/lookup/${a.body.code}`);
-    expect(lot.body).toMatchObject({ type: "LOT", money: true });
-    expect(lot.body.trip.items).toHaveLength(2);
-    expect(lot.body.trip.costs).toHaveLength(3);
-  });
-  it("shows employees only the name and stock count, never costs", async () => {
-    const t = await makeTenant();
-    const a = await buy(t);
-    const res = await t.asStaff.get(`/api/v1/lookup/${byName(a, "Steel Bottle").code}`);
-    expect(res.status).toBe(200);
-    expect(res.body.money).toBe(false);
-    expect(JSON.stringify(res.body)).not.toMatch(/costPaise|valuePaise|sellingPrice|lots/i);
-    expect(res.body.product.onHand).toBe(100);
-    expect((await t.asStaff.get(`/api/v1/lookup/${a.body.code}`)).status).toBe(404); // lots are owner-only
-  });
-  it("prints a QR label sheet as a PDF", async () => {
-    const t = await makeTenant();
-    const a = await buy(t);
-    const res = await t.asOwner.post("/api/v1/products/labels").send({ tripIds: [a.body.id], productIds: [byName(a, "Steel Bottle").productId], baseUrl: "https://example.com" });
-    expect(res.status).toBe(200);
-    expect(res.headers["content-type"]).toMatch(/pdf/);
-  });
-});

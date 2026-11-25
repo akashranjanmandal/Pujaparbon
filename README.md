@@ -6,14 +6,13 @@ Built by **GOBT — Group of Blooming Technicians**.
 ## What it does
 - **Buy**: record a market trip: items, what was paid, and every trip cost (travel, food, toll, van, labour...). The app spreads those costs over the items, shows the **real cost per piece**, and lets him set the selling price by amount, percentage or exact price, with the percentage shown live.
 - **Stock**: categories are created by typing them. Update counts every day or two on one simple screen. Stock value is always in step with the ledger.
-- **QR codes**: a sticker for every item and for every lot (market trip). Scan to see stock and details; employees see only name and count.
 - **Platforms**: add any platform (Flipkart, Amazon, Meesho...). Upload the monthly sales report (Excel/CSV) and invoice. Unfamiliar columns are matched once and remembered; a monthly checklist shows what is missing.
 - **Analytics**: profit, money in and out, platform comparison, best and worst items, categories, customer states, for any week, month or custom dates.
 - **Investments**: market buys plus other investments (equipment, rent, packing...).
 - **Team**: employees check in and out from their phone, inside the shop location, with a selfie; owner sees a live board and month register.
 - **Reports**: Excel and PDF for everything.
 
-Two logins only: **Owner** (everything) and **Employee** (shift and QR look-ups).
+Two logins only: **Owner** (everything) and **Employee** (shift).
 
 ## Stack
 | Layer | Choice |

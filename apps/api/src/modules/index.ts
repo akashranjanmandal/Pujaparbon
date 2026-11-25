@@ -1,6 +1,5 @@
 import { Router } from "express";
 import { productRoutes } from "./catalog/routes";
-import { lookupRoutes } from "./catalog/lookup";
 import { tripRoutes } from "./trips/routes";
 import { stockRoutes } from "./stock/routes";
 import { platformRoutes } from "./platforms/routes";
@@ -13,7 +12,6 @@ import { insightRoutes, settingsRoutes, userRoutes } from "./admin/routes";
 export const apiRoutes = Router();
 apiRoutes.use("/insights", insightRoutes);
 apiRoutes.use("/products", productRoutes);
-apiRoutes.use("/lookup", lookupRoutes);
 apiRoutes.use("/trips", tripRoutes);
 apiRoutes.use("/stock", stockRoutes);
 apiRoutes.use("/platforms", platformRoutes);

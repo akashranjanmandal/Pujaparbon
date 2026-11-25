@@ -3,13 +3,12 @@ import { useQuery } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
-import { ArrowRight, CheckCircle2, Plus, Printer, Trash2 } from "lucide-react";
+import { ArrowRight, CheckCircle2, Plus, Trash2 } from "lucide-react";
 import { COST_KINDS, adjustmentFromPrice, allocateTrip, formatINR, pctOver, priceFromPct, tripTotals, type AllocationBasis } from "@pp/shared";
-import { Qr } from "@/components/Qr";
 import { ProductField, type CatalogItem, type PickedProduct } from "@/components/ProductField";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Button, Card, Field, Input, Segmented } from "@/components/ui/primitives";
-import { api, openFile } from "@/lib/api";
+import { api } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { compactINR, todayKey } from "@/lib/format";
 import { useAction } from "@/lib/hooks";
@@ -234,7 +233,7 @@ export default function NewBuyPage() {
                 <ul className="space-y-1 rounded-xl bg-bg2 p-3 text-[14px] text-muted">{problems.slice(0, 4).map((p) => <li key={p}>• {p}</li>)}</ul>
               )}
               <Button variant="primary" size="lg" className="w-full" disabled={problems.length > 0} loading={save.isPending} icon={<ArrowRight className="h-5 w-5" />} onClick={() => save.mutate(undefined)}>Save this buy</Button>
-              <p className="text-center text-[13px] text-muted">Saving adds the stock, sets your prices and makes a QR code for the lot.</p>
+              <p className="text-center text-[13px] text-muted">Saving adds the stock, sets your prices and keeps a record of the trip.</p>
             </div>
           </Card>
         </aside>
@@ -243,7 +242,7 @@ export default function NewBuyPage() {
   );
 }
 
-/** After saving: the lot's QR code, ready to print and stick on the bag. */
+/** After saving: a plain confirmation with the next steps. */
 function Done({ saved, onAgain, onView }: { saved: Saved; onAgain: () => void; onView: () => void }) {
   return (
     <div className="mx-auto max-w-2xl py-6">
@@ -251,13 +250,8 @@ function Done({ saved, onAgain, onView }: { saved: Saved; onAgain: () => void; o
         <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring", delay: 0.1 }} className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-leaf/10 text-leaf"><CheckCircle2 className="h-9 w-9" /></motion.div>
         <h1 className="display mt-5 text-[34px]">Saved</h1>
         <p className="mt-2 text-[16px] text-muted">{formatINR(saved.totalPaise, { decimals: false })} put in. Your stock and prices are up to date.</p>
-        <div className="my-8 flex flex-col items-center gap-3">
-          <Qr code={saved.code} size={200} />
-          <div className="font-mono text-[15px] font-semibold tracking-wider">{saved.code}</div>
-          <p className="max-w-sm text-[14.5px] text-muted">Stick this QR on the bag. Scan it with any phone to see everything about this lot: items, costs and prices.</p>
-        </div>
+        <div className="my-6" />
         <div className="flex flex-wrap justify-center gap-3">
-          <Button variant="primary" icon={<Printer className="h-4 w-4" />} onClick={() => openFile("/products/labels", { tripIds: [saved.id], productIds: saved.items.map((i) => i.productId), copies: 1, baseUrl: window.location.origin })}>Print QR labels</Button>
           <Button onClick={onView}>See this buy</Button>
           <Button onClick={onAgain}>Record another</Button>
         </div>

@@ -4,13 +4,13 @@ import { motion } from "framer-motion";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useMemo, useState } from "react";
-import { Boxes, ClipboardCheck, Minus, Plus, Printer, Search } from "lucide-react";
+import { Boxes, ClipboardCheck, Minus, Plus, Search } from "lucide-react";
 import { formatINR } from "@pp/shared";
 import { Drawer } from "@/components/ui/Drawer";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Table } from "@/components/ui/Table";
 import { Badge, Button, Card, Empty, Field, Input, ProductGlyphRow } from "@/components/ui/primitives";
-import { api, openFile } from "@/lib/api";
+import { api } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { compactINR, timeAgo } from "@/lib/format";
 import { useAction } from "@/lib/hooks";
@@ -38,7 +38,6 @@ function StockInner() {
       <PageHeader title="Stock" subtitle="Everything you have, what it cost you, and what it is worth. Update your counts every day or two and the numbers stay true."
         actions={
           <>
-            <Button icon={<Printer className="h-4 w-4" />} onClick={() => data && openFile("/products/labels", { productIds: data.items.map((i) => i.id), baseUrl: window.location.origin })}>Print QR labels</Button>
             <Button icon={<Plus className="h-4 w-4" />} onClick={() => setAdding(true)}>Add item</Button>
             <Button variant="primary" icon={<ClipboardCheck className="h-4 w-4" />} onClick={() => setCounting(true)}>Update counts</Button>
           </>

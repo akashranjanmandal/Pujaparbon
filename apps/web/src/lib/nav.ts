@@ -1,10 +1,10 @@
 import type { Permission } from "@pp/shared";
-import { Boxes, Cog, Fingerprint, Home, LineChart, ScanLine, ShoppingBasket, Store, Users, type LucideIcon } from "lucide-react";
+import { Boxes, Cog, Fingerprint, Home, LineChart, ShoppingBasket, Store, Users, type LucideIcon } from "lucide-react";
 
 export interface NavItem { href: string; label: string; hint: string; icon: LucideIcon; perm: Permission; key?: string }
 export interface NavGroup { id: string; title: string; icon: LucideIcon; items: NavItem[] }
 
-/** Two kinds of people use the app: the owner (everything) and employees (their shift and QR look-ups). */
+/** Two kinds of people use the app: the owner (everything) and employees (their shift). */
 export const NAV: NavGroup[] = [
   { id: "me", title: "My shift", icon: Fingerprint, items: [{ href: "/me", label: "My shift", hint: "Check in and out", icon: Fingerprint, perm: "attendance.self" }] },
   { id: "home", title: "Home", icon: Home, items: [{ href: "/dashboard", label: "Home", hint: "Profit, stock and what needs you", icon: Home, perm: "dashboard.view", key: "g h" }] },
@@ -19,7 +19,6 @@ export const NAV: NavGroup[] = [
     id: "stock", title: "Stock", icon: Boxes,
     items: [
       { href: "/stock", label: "Stock", hint: "What you have, and update counts", icon: Boxes, perm: "stock.view", key: "g s" },
-      { href: "/scan", label: "Scan QR", hint: "Look up an item or a lot", icon: ScanLine, perm: "lookup.scan", key: "g q" },
     ],
   },
   { id: "platforms", title: "Platforms", icon: Store, items: [{ href: "/platforms", label: "Platforms", hint: "Monthly reports and invoices", icon: Store, perm: "platforms.manage", key: "g p" }] },
@@ -41,17 +40,12 @@ export const NAV: NavGroup[] = [
   { id: "system", title: "Settings", icon: Cog, items: [{ href: "/settings", label: "Settings", hint: "Business, location and password", icon: Cog, perm: "settings.manage" }] },
 ];
 
-/** Employees see "My shift" and "Scan QR"; the owner sees the rest. */
+/** Employees see "My shift"; the owner sees the rest. */
 export function navFor(perms: Permission[], role: string) {
   const out = NAV.map((g) => ({
     ...g,
-    items: g.items.filter((i) => perms.includes(i.perm) && !(i.href === "/me" && role !== "STAFF") && !(i.href === "/scan" && false)),
+    items: g.items.filter((i) => perms.includes(i.perm) && !(i.href === "/me" && role !== "STAFF")),
   })).filter((g) => g.items.length);
-  // Employees: put Scan QR in its own section so the dock shows two clear buttons.
-  if (role === "STAFF") {
-    const scan = NAV.flatMap((g) => g.items).find((i) => i.href === "/scan")!;
-    return [out.find((g) => g.id === "me")!, { id: "scan", title: "Scan QR", icon: ScanLine, items: [scan] }].filter(Boolean);
-  }
   return out;
 }
 

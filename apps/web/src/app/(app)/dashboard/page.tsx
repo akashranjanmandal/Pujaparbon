@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { ArrowRight, Boxes, ClipboardCheck, ScanLine, ShoppingBasket, Upload } from "lucide-react";
+import { ArrowRight, Boxes, ClipboardCheck, ShoppingBasket, Upload } from "lucide-react";
 import { formatINR } from "@pp/shared";
 import { GlassTooltip, axis, moneyTick } from "@/components/charts/theme";
 import { Loader } from "@/components/ui/Loader";
@@ -83,12 +83,11 @@ export default function HomePage() {
       </div>
 
       {/* what he does most */}
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
         {[
           { href: "/buy/new", icon: ShoppingBasket, label: "New buy", sub: "Record a market trip" },
           { href: "/stock?count=1", icon: ClipboardCheck, label: "Update counts", sub: "Takes two minutes" },
           { href: "/platforms", icon: Upload, label: "Upload a report", sub: "Monthly platform sales" },
-          { href: "/scan", icon: ScanLine, label: "Scan a QR", sub: "Item or lot details" },
         ].map((a, i) => (
           <motion.div key={a.href} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 + i * 0.05 }}>
             <Link href={a.href} className="paar-card flex items-center gap-4 p-5 transition hover:-translate-y-0.5 hover:shadow-lift">

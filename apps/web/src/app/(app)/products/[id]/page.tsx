@@ -3,15 +3,14 @@ import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { ArrowLeft, Archive, Pencil, Printer } from "lucide-react";
+import { ArrowLeft, Archive, Pencil } from "lucide-react";
 import { formatINR } from "@pp/shared";
-import { Qr } from "@/components/Qr";
 import { Drawer } from "@/components/ui/Drawer";
 import { Loader } from "@/components/ui/Loader";
 import { ProductGlyph } from "@/components/ui/ProductGlyph";
 import { Table } from "@/components/ui/Table";
 import { Badge, Button, Card, Field, Input, Textarea } from "@/components/ui/primitives";
-import { api, openFile } from "@/lib/api";
+import { api } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { fmtDate, fmtDateTime } from "@/lib/format";
 import { useAction } from "@/lib/hooks";
@@ -48,14 +47,9 @@ export default function ProductPage() {
             {p.notes && <p className="mt-1 max-w-xl text-[15.5px] text-muted">{p.notes}</p>}
             <div className="mt-4 flex flex-wrap gap-2">
               <Button icon={<Pencil className="h-4 w-4" />} onClick={() => setEditing(true)}>Edit</Button>
-              <Button icon={<Printer className="h-4 w-4" />} onClick={() => openFile("/products/labels", { productIds: [p.id], copies: 4, baseUrl: window.location.origin })}>Print QR labels</Button>
               <Button variant="danger" icon={<Archive className="h-4 w-4" />} onClick={() => confirm("Archive this item? Its history stays in your reports.") && archive.mutate(undefined)}>Archive</Button>
             </div>
           </div>
-        </div>
-        <div className="flex items-center gap-4 rounded-2xl border border-line/[0.08] bg-panel p-4 shadow-soft">
-          <Qr code={p.code} size={110} />
-          <div><div className="text-[13px] text-muted">Item QR code</div><div className="font-mono text-[18px] font-semibold tracking-wider">{p.code}</div><div className="mt-1 max-w-[170px] text-[13px] text-muted">Scan to see stock and details.</div></div>
         </div>
       </div>
 
