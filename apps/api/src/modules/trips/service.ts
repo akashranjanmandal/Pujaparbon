@@ -10,6 +10,9 @@ import { levels, recordMovement } from "../stock/service";
 
 type Ctx = Pick<AuthContext, "tenantId" | "userId">;
 
+/** GST is added only when the market price did not include it. */
+const withGst = (linePaise: number, gstPct?: number) => (gstPct ? Math.round(linePaise * (1 + gstPct / 100)) : linePaise);
+
 /**
  * Saving a buy: creates any new products (the owner invents categories as he goes), spreads the trip costs over the
  * items, adds stock at landed cost, and sets the selling prices he decided on. All in one transaction.
@@ -17,7 +20,7 @@ type Ctx = Pick<AuthContext, "tenantId" | "userId">;
 export async function create(c: Ctx, input: TripInput) {
   const id = await db.transaction(async (tx) => {
     // Resolve every line to a product, creating new ones.
-    const resolved: { productId: string; qty: number; linePaise: number; unitPricePaise: number }[] = [];
+    const resolved: { productId: string; qty: number; linePaise: number; unitPricePaise: number; gstPct: number | null }[] = [];
     const seen = new Set<string>();
     for (const item of input.items) {
       let productId = item.productId;
@@ -37,7 +40,7 @@ export async function create(c: Ctx, input: TripInput) {
       }
       if (seen.has(productId!)) throw badRequest("The same product is listed twice. Combine them into one line.");
       seen.add(productId!);
-      resolved.push({ productId: productId!, qty: item.qty, linePaise: item.linePaise, unitPricePaise: item.unitPricePaise });
+      resolved.push({ productId: productId!, qty: item.qty, linePaise: withGst(item.linePaise, item.gstPct), unitPricePaise: item.unitPricePaise, gstPct: item.gstPct || null });
     }
 
     const lines = resolved.map((r) => ({ qty: r.qty, linePaise: r.linePaise }));
@@ -59,7 +62,7 @@ export async function create(c: Ctx, input: TripInput) {
       const s = split[i];
       await tx.insert(tripItems).values({
         tripId: trip.id, productId: r.productId, qty: r.qty, linePaise: r.linePaise, extraPaise: s.extraPaise, landedPaise: s.landedPaise,
-        unitCostPaise: s.unitCostPaise, unitPricePaise: r.unitPricePaise,
+        unitCostPaise: s.unitCostPaise, unitPricePaise: r.unitPricePaise, gstPct: r.gstPct,
       });
       await recordMovement(tx, c, { productId: r.productId, qty: r.qty, valuePaise: s.landedPaise, type: "BUY", refType: "trip", refId: trip.id, note: `Bought${input.place ? ` at ${input.place}` : ""}` });
       if (r.unitPricePaise > 0) await tx.update(products).set({ sellingPricePaise: r.unitPricePaise }).where(eq(products.id, r.productId));

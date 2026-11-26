@@ -56,6 +56,9 @@ authRoutes.post(
   }),
 );
 
+/** Public on purpose: the sign-in screen needs the shop location to show employees whether they are at the shop. */
+authRoutes.get("/fence", handler(() => auth.fence()));
+
 authRoutes.get("/me", authenticate, handler((req) => auth.me(ctx(req).userId)));
 
 authRoutes.post("/change-password", authenticate, handler((req) => {

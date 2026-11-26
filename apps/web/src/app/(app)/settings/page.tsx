@@ -10,7 +10,7 @@ import { fmtDateTime } from "@/lib/format";
 import { useAction } from "@/lib/hooks";
 import { getPosition } from "@/lib/presence";
 
-interface Tenant { name: string; address: string | null; geofenceLat: number; geofenceLng: number; geofenceRadiusM: number; shiftStart: string; shiftEnd: string; lateGraceMin: number; selfieRetentionDays: number }
+interface Tenant { name: string; address: string | null; geofenceLat: number; geofenceLng: number; geofenceRadiusM: number; shiftStart: string; shiftEnd: string; lateGraceMin: number; selfieRetentionDays: number; leaveCl: number; leaveSick: number; leaveEarned: number }
 interface Audit { id: string; action: string; entity: string; createdAt: number; by: string | null }
 
 export default function SettingsPage() {
@@ -54,6 +54,10 @@ function Business() {
           <Field label="Counts as late after (minutes)"><Input type="number" value={f.lateGraceMin} onChange={(e) => set("lateGraceMin", Number(e.target.value))} /></Field>
           <Field label="Work starts"><Input type="time" value={f.shiftStart} onChange={(e) => set("shiftStart", e.target.value)} /></Field>
           <Field label="Work ends"><Input type="time" value={f.shiftEnd} onChange={(e) => set("shiftEnd", e.target.value)} /></Field>
+          <Field label="Casual leave per year (CL)" hint="Paid days off for each employee."><Input type="number" value={f.leaveCl} onChange={(e) => set("leaveCl", Number(e.target.value))} /></Field>
+          <Field label="Sick leave per year"><Input type="number" value={f.leaveSick} onChange={(e) => set("leaveSick", Number(e.target.value))} /></Field>
+          <Field label="Earned leave per year"><Input type="number" value={f.leaveEarned} onChange={(e) => set("leaveEarned", Number(e.target.value))} /></Field>
+          <p className="self-end pb-2 text-[14px] text-muted">Event leave is always paid. Leave beyond these days is unpaid.</p>
           <Field label="Keep selfies for (days)" hint="Photos are deleted after this. Attendance records stay." className="sm:col-span-2"><Input type="number" value={f.selfieRetentionDays} onChange={(e) => set("selfieRetentionDays", Number(e.target.value))} /></Field>
         </div>
       </Card>

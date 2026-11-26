@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { PLATFORM_COLORS, REPORT_KINDS } from "./constants";
-import { ROLES } from "./permissions";
+import { ATTENDANCE_STATUSES } from "./hr";
+import { ASSIGNABLE_PERMISSIONS, ROLES } from "./permissions";
 
 /** Request schemas: the web forms and the API validate with the same rules. */
 
@@ -14,6 +15,8 @@ const optionalText = (max = 500) => z.string().trim().max(max).optional().or(z.l
 export const loginSchema = z.object({
   email: z.string().trim().toLowerCase().email(),
   password: z.string().min(6).max(128),
+  /** Employees can only sign in from the shop, so their phone sends its location. */
+  location: z.object({ lat: z.number().min(-90).max(90), lng: z.number().min(-180).max(180), accuracyM: z.number().nonnegative() }).optional(),
 });
 export const changePasswordSchema = z.object({ current: z.string().min(1), next: z.string().min(8, "At least 8 characters").max(128) });
 
@@ -39,6 +42,8 @@ export const tripItemSchema = z
     qty: z.number().int().positive("Quantity must be at least 1"),
     /** What he paid in total for all pieces of this line. */
     linePaise: paise,
+    /** Only when the market price does NOT include GST: the percentage added on top. */
+    gstPct: z.number().min(0).max(100).optional(),
     /** Selling price per piece he decided on (0 = leave unchanged). */
     unitPricePaise: paise.default(0),
   })
@@ -56,7 +61,7 @@ export const tripSchema = z.object({
   title: optionalText(80),
   place: optionalText(80),
   notes: optionalText(),
-  basis: z.enum(["VALUE", "QTY"]).default("VALUE"),
+  basis: z.enum(["VALUE", "QTY"]).default("QTY"),
   items: z.array(tripItemSchema).min(1, "Add at least one item"),
   costs: z.array(tripCostSchema).default([]),
 });
@@ -96,6 +101,8 @@ export const employeeSchema = z.object({
   designation: text(60).min(2),
   joinDate: dateKey,
   shiftStart: z.string().regex(/^\d{2}:\d{2}$/).default("10:00"),
+  /** Monthly salary, paid in cash. Only the owner ever sees it. */
+  salaryPaise: paise.default(0),
 });
 export const checkInSchema = z.object({
   lat: z.number().min(-90).max(90),
@@ -108,7 +115,7 @@ export const checkInSchema = z.object({
 export const manualAttendanceSchema = z.object({
   employeeId: id,
   date: dateKey,
-  status: z.enum(["PRESENT", "LATE", "HALF_DAY", "ABSENT"]),
+  status: z.enum(ATTENDANCE_STATUSES),
 });
 
 /* ── Settings & logins ── */
@@ -122,6 +129,10 @@ export const settingsSchema = z.object({
   shiftEnd: z.string().regex(/^\d{2}:\d{2}$/),
   lateGraceMin: z.number().int().min(0).max(120),
   selfieRetentionDays: z.number().int().min(7).max(365),
+  /** Paid leave days per year, per employee. */
+  leaveCl: z.number().int().min(0).max(60),
+  leaveSick: z.number().int().min(0).max(60),
+  leaveEarned: z.number().int().min(0).max(60),
 });
 export const userCreateSchema = z.object({
   name: text(80).min(2),
@@ -129,8 +140,23 @@ export const userCreateSchema = z.object({
   password: z.string().min(8, "At least 8 characters").max(128),
   role: z.enum(ROLES).default("STAFF"),
   employeeId: id.optional(),
+  /** Which employee role (what they may see). Leave empty for a login that only checks in and out. */
+  roleId: id.optional(),
+});
+export const roleSchema = z.object({
+  name: text(40).min(2),
+  permissions: z.array(z.enum(ASSIGNABLE_PERMISSIONS)).default([]),
+});
+export const materialSchema = z.object({
+  name: text(80).min(2),
+  qty: z.number().int().nonnegative(),
+  /** At or below this count the item shows as "needs buying". */
+  minQty: z.number().int().nonnegative().default(0),
+  unit: text(20).default("pcs"),
 });
 
+export type RoleInput = z.infer<typeof roleSchema>;
+export type MaterialInput = z.infer<typeof materialSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 export type ProductInput = z.infer<typeof productSchema>;
 export type TripInput = z.infer<typeof tripSchema>;

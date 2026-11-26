@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
-import { resolveRange, settingsSchema, userCreateSchema, type RangePreset } from "@pp/shared";
+import { resolveRange, roleSchema, settingsSchema, userCreateSchema, type RangePreset } from "@pp/shared";
 import { requirePermission } from "../../middleware/auth";
 import { parse } from "../../middleware/validate";
 import { ctx, handler, str } from "../../lib/http";
@@ -22,8 +22,15 @@ userRoutes.post("/", handler(async (req, res) => {
   return admin.createUser(ctx(req), parse(userCreateSchema, req.body));
 }));
 userRoutes.patch("/:id", handler((req) =>
-  admin.updateUser(ctx(req), String(req.params.id), parse(z.object({ active: z.boolean().optional(), resetDevice: z.boolean().optional(), password: z.string().min(8).optional() }), req.body)),
+  admin.updateUser(ctx(req), String(req.params.id), parse(z.object({ active: z.boolean().optional(), resetDevice: z.boolean().optional(), password: z.string().min(8).optional(), roleId: z.string().nullable().optional() }), req.body)),
 ));
+
+export const roleRoutes = Router();
+roleRoutes.use(requirePermission("users.manage"));
+roleRoutes.get("/", handler((req) => admin.listRoles(ctx(req).tenantId)));
+roleRoutes.post("/", handler(async (req, res) => { res.status(201); return admin.saveRole(ctx(req), parse(roleSchema, req.body)); }));
+roleRoutes.put("/:id", handler((req) => admin.saveRole(ctx(req), parse(roleSchema, req.body), String(req.params.id))));
+roleRoutes.delete("/:id", handler((req) => admin.deleteRole(ctx(req), String(req.params.id))));
 
 const rangeOf = (q: Record<string, unknown>) => {
   const d = resolveRange((str(q.preset) as Exclude<RangePreset, "custom">) ?? "month");

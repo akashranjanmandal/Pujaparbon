@@ -1,5 +1,5 @@
 import { and, between, desc, eq, sql } from "drizzle-orm";
-import { attendanceStatus, checkGeofence, istDateKey, type CheckInInput, type EmployeeInput } from "@pp/shared";
+import { LIMITED_LEAVES, attendanceStatus, checkGeofence, computePay, istDateKey, workingDaysInMonth, type AttendanceStatus, type CheckInInput, type EmployeeInput } from "@pp/shared";
 import { db } from "../../db/client";
 import { attendance, employees, tenants, users } from "../../db/schema";
 import { AppError, badRequest, conflict, notFound } from "../../lib/errors";
@@ -84,7 +84,7 @@ export async function myToday(c: Ctx) {
   const month = istDateKey().slice(0, 7);
   const monthRows = await db.select({ status: attendance.status }).from(attendance).where(and(eq(attendance.employeeId, c.employeeId), between(attendance.date, `${month}-01`, `${month}-31`)));
   return {
-    employee: e ?? null, record: record ?? null,
+    employee: e ? { id: e.id, name: e.name, designation: e.designation, avatarHue: e.avatarHue } : null, record: record ?? null,
     fence: { lat: t.geofenceLat, lng: t.geofenceLng, radiusM: t.geofenceRadiusM, shiftStart: e?.shiftStart ?? t.shiftStart, shiftEnd: t.shiftEnd, graceMin: t.lateGraceMin, name: t.name },
     month: { present: monthRows.filter((r) => r.status === "PRESENT").length, late: monthRows.filter((r) => r.status === "LATE").length, halfDay: monthRows.filter((r) => r.status === "HALF_DAY").length },
   };
@@ -163,7 +163,7 @@ export async function monthGrid(tenantId: string, month: string) {
   return { month, employees: emps, records: recs };
 }
 
-export async function markManual(c: Ctx, input: { employeeId: string; date: string; status: "PRESENT" | "LATE" | "HALF_DAY" | "ABSENT" }) {
+export async function markManual(c: Ctx, input: { employeeId: string; date: string; status: AttendanceStatus }) {
   const [e] = await db.select({ id: employees.id }).from(employees).where(and(eq(employees.id, input.employeeId), eq(employees.tenantId, c.tenantId)));
   if (!e) throw notFound("Employee");
   const [existing] = await db.select().from(attendance).where(and(eq(attendance.employeeId, input.employeeId), eq(attendance.date, input.date)));
@@ -191,4 +191,33 @@ export async function purgeOldSelfies() {
     n += res.rowsAffected;
   }
   return n;
+}
+
+/**
+ * Month-end salary sheet: for every active employee, what to pay in cash. Paid-leave allowance is per calendar year,
+ * so leave taken in earlier months of the year is counted before this month.
+ */
+export async function payroll(tenantId: string, month: string) {
+  const t = await tenantRow(tenantId);
+  const year = month.slice(0, 4);
+  const [emps, recs] = await Promise.all([
+    db.select().from(employees).where(and(eq(employees.tenantId, tenantId), eq(employees.active, true))).orderBy(employees.name),
+    db.select({ employeeId: attendance.employeeId, date: attendance.date, status: attendance.status }).from(attendance).where(and(eq(attendance.tenantId, tenantId), between(attendance.date, `${year}-01-01`, `${month}-31`))),
+  ]);
+  const workingDays = workingDaysInMonth(month, []);
+  const allowance = { CL: t.leaveCl, SICK: t.leaveSick, EARNED: t.leaveEarned };
+  const rows = emps.map((e) => {
+    const counts: Partial<Record<AttendanceStatus, number>> = {};
+    const usedBefore = { CL: 0, SICK: 0, EARNED: 0 };
+    for (const r of recs.filter((x) => x.employeeId === e.id)) {
+      if (r.date.startsWith(month)) counts[r.status] = (counts[r.status] ?? 0) + 1;
+      else if ((LIMITED_LEAVES as readonly string[]).includes(r.status)) usedBefore[r.status as keyof typeof usedBefore]++;
+    }
+    const pay = computePay({ salaryPaise: e.salaryPaise, workingDays, counts, allowance, usedBefore });
+    return {
+      employee: { id: e.id, name: e.name, code: e.code, designation: e.designation, avatarHue: e.avatarHue },
+      salaryPaise: e.salaryPaise, counts, usedBefore, ...pay,
+    };
+  });
+  return { month, workingDays, allowance, rows, totalPaise: rows.reduce((s, r) => s + r.payablePaise, 0) };
 }

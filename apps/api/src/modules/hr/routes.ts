@@ -24,6 +24,7 @@ attendanceRoutes.post("/check-in", requirePermission("attendance.self"), handler
   return hr.checkIn(ctx(req), parse(checkInSchema, req.body));
 }));
 attendanceRoutes.post("/check-out", requirePermission("attendance.self"), handler((req) => hr.checkOut(ctx(req), parse(checkInSchema, req.body))));
+attendanceRoutes.get("/payroll", requirePermission("payroll.manage"), handler((req) => hr.payroll(ctx(req).tenantId, str(req.query.month) ?? istDateKey().slice(0, 7))));
 attendanceRoutes.get("/today", requirePermission("attendance.view"), handler((req) => hr.todayBoard(ctx(req).tenantId)));
 attendanceRoutes.get("/month", requirePermission("attendance.view"), handler((req) => hr.monthGrid(ctx(req).tenantId, str(req.query.month) ?? istDateKey().slice(0, 7))));
 attendanceRoutes.post("/manual", requirePermission("attendance.view"), handler((req) => hr.markManual(ctx(req), parse(manualAttendanceSchema, req.body))));

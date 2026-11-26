@@ -15,21 +15,22 @@ import { useAction } from "@/lib/hooks";
 import { paise, rupeeStr } from "@/lib/money";
 
 type Mode = "adjust" | "pct" | "price";
-interface Line { id: number; product: PickedProduct | null; qty: string; paid: string; mode: Mode; value: string }
+interface Line { id: number; product: PickedProduct | null; qty: string; paid: string; gst: boolean; gstPct: string; mode: Mode; value: string }
 interface Cost { id: number; kind: string; label: string; amount: string; paidBy: string }
 interface Saved { id: string; code: string; totalPaise: number; items: { productId: string; name: string }[]; expectedProfitPaise: number }
 
 let seq = 1;
-const newLine = (): Line => ({ id: seq++, product: null, qty: "", paid: "", mode: "pct", value: "" });
+const newLine = (): Line => ({ id: seq++, product: null, qty: "", paid: "", gst: false, gstPct: "18", mode: "pct", value: "" });
 const newCost = (kind = "Travel"): Cost => ({ id: seq++, kind, label: "", amount: "", paidBy: "" });
 
 export default function NewBuyPage() {
   const router = useRouter();
+  /** Trip costs are shared equally per piece. */
+  const basis: AllocationBasis = "QTY";
   const { data: cat } = useQuery({ queryKey: ["products", ""], queryFn: () => api.get<{ items: CatalogItem[]; categories: { name: string }[] }>("/products") });
   const [date, setDate] = useState(todayKey());
   const [place, setPlace] = useState("");
   const [notes, setNotes] = useState("");
-  const [basis, setBasis] = useState<AllocationBasis>("VALUE");
   const [lines, setLines] = useState<Line[]>([newLine()]);
   const [costs, setCosts] = useState<Cost[]>([newCost("Travel"), newCost("Food")]);
   const [saved, setSaved] = useState<Saved | null>(null);
@@ -37,7 +38,11 @@ export default function NewBuyPage() {
 
   /* ── the live calculation: everything below is derived from what he has typed ── */
   const calc = useMemo(() => {
-    const filled = lines.map((l) => ({ l, qty: Math.max(0, Math.floor(Number(l.qty) || 0)), linePaise: paise(l.paid) }));
+    const filled = lines.map((l) => {
+      const rawPaise = paise(l.paid);
+      const gstPct = l.gst ? Math.max(0, Number(l.gstPct) || 0) : 0;
+      return { l, qty: Math.max(0, Math.floor(Number(l.qty) || 0)), rawPaise, gstPct, linePaise: Math.round(rawPaise * (1 + gstPct / 100)) };
+    });
     const usable = filled.filter((f) => f.qty > 0);
     const costRows = costs.map((c) => ({ amountPaise: paise(c.amount) })).filter((c) => c.amountPaise > 0);
     const totals = tripTotals(usable.map((f) => ({ qty: f.qty, linePaise: f.linePaise })), costRows);
@@ -59,7 +64,7 @@ export default function NewBuyPage() {
     const expectedSales = priced.reduce((s, r) => s + r.qty * r.price, 0);
     const allPriced = rows.filter((r) => r.qty > 0).length === priced.length && priced.length > 0;
     return { rows, totals, expectedSales, allPriced, pricedCost: priced.reduce((s, r) => s + r.landed, 0), unpriced: rows.filter((r) => r.qty > 0 && r.price === 0).length };
-  }, [lines, costs, basis]);
+  }, [lines, costs]);
 
   const setLine = (id: number, patch: Partial<Line>) => setLines((ls) => ls.map((l) => (l.id === id ? { ...l, ...patch } : l)));
   const setCost = (id: number, patch: Partial<Cost>) => setCosts((cs) => cs.map((c) => (c.id === id ? { ...c, ...patch } : c)));
@@ -76,10 +81,10 @@ export default function NewBuyPage() {
   const save = useAction(
     () =>
       api.post<Saved>("/trips", {
-        date, place: place || undefined, notes: notes || undefined, basis,
+        date, place: place || undefined, notes: notes || undefined,
         items: calc.rows.map((r) => ({
           ...(r.l.product!.id ? { productId: r.l.product!.id } : { newProduct: { name: r.l.product!.name, category: r.l.product!.category.trim(), unit: r.l.product!.unit || "pcs" } }),
-          qty: r.qty, linePaise: r.linePaise, unitPricePaise: r.price,
+          qty: r.qty, linePaise: r.rawPaise, gstPct: r.gstPct || undefined, unitPricePaise: r.price,
         })),
         costs: costs.filter((c) => paise(c.amount) > 0).map((c) => ({ kind: c.kind.trim() || "Other", label: c.label || undefined, amountPaise: paise(c.amount), paidBy: c.paidBy || undefined })),
       }),
@@ -120,6 +125,13 @@ export default function NewBuyPage() {
                     <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
                       <Field label="How many pieces?"><Input inputMode="numeric" value={r.l.qty} onChange={(e) => setLine(r.l.id, { qty: e.target.value.replace(/\D/g, "") })} placeholder="100" /></Field>
                       <Field label="Total you paid (₹)" className="col-span-1 sm:col-span-2"><Input inputMode="decimal" value={r.l.paid} onChange={(e) => setLine(r.l.id, { paid: e.target.value })} placeholder="1000" /></Field>
+                    </div>
+                    <div className="mt-3">
+                      <div className="mb-1.5 text-[14px] font-semibold">Add GST on top of this price?</div>
+                      <div className="flex flex-wrap items-center gap-3">
+                        <Segmented value={r.l.gst ? "yes" : "no"} onChange={(v) => setLine(r.l.id, { gst: v === "yes" })} options={[{ value: "no", label: "No, already included" }, { value: "yes", label: "Yes, add GST" }]} />
+                        {r.l.gst && <div className="flex items-center gap-2"><Input inputMode="decimal" className="w-24" value={r.l.gstPct} onChange={(e) => setLine(r.l.id, { gstPct: e.target.value })} aria-label="GST percentage" /><span className="text-[15px] text-muted">% GST{r.gstPct > 0 && r.rawPaise > 0 ? ` = ${formatINR(r.linePaise - r.rawPaise)} added` : ""}</span></div>}
+                      </div>
                     </div>
 
                     {r.qty > 0 && r.linePaise > 0 && (
@@ -211,11 +223,7 @@ export default function NewBuyPage() {
                   ))}
                 </div>
               )}
-              <div>
-                <div className="mb-2 text-[14px] font-semibold">How to share the trip costs</div>
-                <Segmented value={basis} onChange={setBasis} options={[{ value: "VALUE", label: "By money paid" }, { value: "QTY", label: "By pieces" }]} />
-                <p className="mt-2 text-[13.5px] text-muted">{basis === "VALUE" ? "Costlier items carry more of the trip cost." : "Every piece carries the same trip cost."}</p>
-              </div>
+              <p className="text-[13.5px] text-muted">Trip costs are shared equally over every piece you bought.</p>
               {calc.expectedSales > 0 && (
                 <div className="rounded-2xl bg-peach-tint p-4">
                   <div className="text-[14px] font-semibold text-peach">If you sell everything at your prices</div>

@@ -74,20 +74,23 @@ const TRIP_DAYS = [178, 164, 150, 136, 123, 109, 95, 81, 67, 53, 39, 25, 11, 4];
 async function main() {
   await runMigrations();
   console.log(`[seed] target: ${env.db.mode}`);
-  for (const t of [s.auditLogs, s.attendance, s.employees, s.productAliases, s.platformSales, s.platformReports, s.platforms, s.investments, s.tripCosts, s.tripItems, s.trips, s.stockMovements, s.products, s.refreshTokens, s.users, s.tenants]) await db.delete(t);
+  for (const t of [s.packagingMaterials, s.auditLogs, s.attendance, s.employees, s.productAliases, s.platformSales, s.platformReports, s.platforms, s.investments, s.tripCosts, s.tripItems, s.trips, s.stockMovements, s.products, s.refreshTokens, s.users, s.roles, s.tenants]) await db.delete(t);
 
   const tenantId = crypto.randomUUID();
   await db.insert(s.tenants).values({ id: tenantId, name: "Pujo Parbon", slug: "pujo-parbon", address: "Sarisha, South 24 Parganas, West Bengal", geofenceLat: 22.2701, geofenceLng: 88.2052, geofenceRadiusM: 150, shiftStart: "10:00", shiftEnd: "19:00", lateGraceMin: 10, selfieRetentionDays: 90 });
 
   /* team */
   const team = [["Rina Das", "Helper"], ["Sourav Mondal", "Packing"], ["Moumita Pal", "Packing"], ["Arup Sarkar", "Loader"]] as const;
-  const emps = team.map(([name, designation], i) => ({ id: crypto.randomUUID(), tenantId, code: `E${String(i + 1).padStart(3, "0")}`, name, phone: `98${int(30000000, 99999999)}`, designation, joinDate: dayKey(int(150, 700)), shiftStart: "10:00", avatarHue: (i * 83 + 12) % 360 }));
+  const emps = team.map(([name, designation], i) => ({ id: crypto.randomUUID(), tenantId, code: `E${String(i + 1).padStart(3, "0")}`, name, phone: `98${int(30000000, 99999999)}`, designation, salaryPaise: rupees([12000, 11000, 11000, 10000][i]), joinDate: dayKey(int(150, 700)), shiftStart: "10:00", avatarHue: (i * 83 + 12) % 360 }));
   await db.insert(s.employees).values(emps);
+  const packingRole = crypto.randomUUID();
+  await db.insert(s.roles).values({ id: packingRole, tenantId, name: "Packing team", permissions: JSON.stringify(["packaging.view", "packaging.manage"]) });
+  await db.insert(s.packagingMaterials).values([["Small boxes", 140, 60], ["Large boxes", 22, 30], ["Packing tape rolls", 9, 6], ["Bubble wrap (metres)", 40, 50], ["Poly mailers", 220, 100]].map(([name, qty, minQty]) => ({ tenantId, name: String(name), qty: Number(qty), minQty: Number(minQty) })));
   const pw = await hashPassword("PujaParbon@2026");
   await db.insert(s.users).values([
     { tenantId, name: "Somnath Pal", email: "owner@pujaparbon.in", passwordHash: pw, role: "OWNER" as const },
     { tenantId, name: "Rina Das", email: "staff@pujaparbon.in", passwordHash: pw, role: "STAFF" as const, employeeId: emps[0].id },
-    { tenantId, name: "Sourav Mondal", email: "sourav@pujaparbon.in", passwordHash: pw, role: "STAFF" as const, employeeId: emps[1].id },
+    { tenantId, name: "Sourav Mondal", email: "sourav@pujaparbon.in", passwordHash: pw, role: "STAFF" as const, employeeId: emps[1].id, roleId: packingRole },
   ]);
 
   /* products + platforms */
@@ -255,6 +258,7 @@ async function main() {
         continue;
       }
       const r = rnd();
+      if (r < 0.015) { att.push({ tenantId, employeeId: e.id, date: dk, status: r < 0.008 ? "CL" : "SICK", source: "MANUAL" }); continue; }
       if (r < 0.04) { att.push({ tenantId, employeeId: e.id, date: dk, status: "ABSENT", source: "MANUAL" }); continue; }
       const late = r > 0.88, half = r > 0.86 && r <= 0.88;
       att.push({ tenantId, employeeId: e.id, date: dk, status: half ? "HALF_DAY" : late ? "LATE" : "PRESENT", checkInAt: new Date(`${dk}T${late ? `10:${int(12, 40)}` : `09:${int(40, 59)}`}:00+05:30`), checkOutAt: new Date(`${dk}T${half ? "14" : int(18, 19)}:${String(int(0, 59)).padStart(2, "0")}:00+05:30`), checkInDistanceM: int(3, 90), checkOutDistanceM: int(3, 90), deviceId: `seed-${i}`, source: "GEOFENCE" });

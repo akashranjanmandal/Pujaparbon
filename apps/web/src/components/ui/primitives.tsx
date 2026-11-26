@@ -105,12 +105,13 @@ export function Badge({ tone = "muted", children, dot, className }: { tone?: Ton
 
 export const STATUS_TONE: Record<string, Tone> = {
   NEW: "blue", PICKED: "lav", PACKED: "orange", DISPATCHED: "green", DELIVERED: "muted", CANCELLED: "red", RETURNED: "red",
-  PRESENT: "green", LATE: "orange", HALF_DAY: "gold", ABSENT: "red", LEAVE: "lav", NOT_IN: "muted",
+  PRESENT: "green", LATE: "orange", HALF_DAY: "gold", ABSENT: "red", LEAVE: "lav", CL: "blue", SICK: "blue", EVENT: "lav", EARNED: "blue", NOT_IN: "muted",
   PENDING: "gold", APPROVED: "green", REJECTED: "red", TODO: "muted", IN_PROGRESS: "lav", DONE: "green",
   RESTOCKED: "green", WRITTEN_OFF: "red", RECEIVED: "blue", ISSUED: "green", DRAFT: "gold", PAID: "green",
   OK: "green", LOW: "orange", OUT: "red", MATCHED: "green", SHORT: "red", HIGH: "red", MEDIUM: "orange",
 };
-export const statusLabel = (s: string) => s.replace(/_/g, " ").toLowerCase().replace(/^\w/, (c) => c.toUpperCase());
+const LEAVE_NAME: Record<string, string> = { CL: "Casual leave", SICK: "Sick leave", EVENT: "Event leave", EARNED: "Earned leave" };
+export const statusLabel = (s: string) => LEAVE_NAME[s] ?? s.replace(/_/g, " ").toLowerCase().replace(/^\w/, (c) => c.toUpperCase());
 export const StatusBadge = ({ status }: { status: string }) => <Badge tone={STATUS_TONE[status] ?? "muted"} dot>{statusLabel(status === "NOT_IN" ? "Not in yet" : status)}</Badge>;
 
 /* ── Misc ───────────────────────────────────────────────────────── */

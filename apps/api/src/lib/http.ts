@@ -1,11 +1,12 @@
 import type { NextFunction, Request, RequestHandler, Response } from "express";
-import type { Role } from "@pp/shared";
+import type { Permission, Role } from "@pp/shared";
 
 export interface AuthContext {
   userId: string;
   tenantId: string;
   role: Role;
   employeeId: string | null;
+  perms: Permission[];
 }
 
 declare global {

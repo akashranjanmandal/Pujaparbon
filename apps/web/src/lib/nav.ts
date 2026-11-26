@@ -1,5 +1,5 @@
 import type { Permission } from "@pp/shared";
-import { Boxes, Cog, Fingerprint, Home, LineChart, ShoppingBasket, Store, Users, type LucideIcon } from "lucide-react";
+import { Boxes, Cog, Fingerprint, Home, LineChart, Package, ShoppingBasket, Store, Users, type LucideIcon } from "lucide-react";
 
 export interface NavItem { href: string; label: string; hint: string; icon: LucideIcon; perm: Permission; key?: string }
 export interface NavGroup { id: string; title: string; icon: LucideIcon; items: NavItem[] }
@@ -21,6 +21,7 @@ export const NAV: NavGroup[] = [
       { href: "/stock", label: "Stock", hint: "What you have, and update counts", icon: Boxes, perm: "stock.view", key: "g s" },
     ],
   },
+  { id: "packaging", title: "Packing", icon: Package, items: [{ href: "/packaging", label: "Packing", hint: "Items to pack and packing materials", icon: Package, perm: "packaging.view", key: "g k" }] },
   { id: "platforms", title: "Platforms", icon: Store, items: [{ href: "/platforms", label: "Platforms", hint: "Monthly reports and invoices", icon: Store, perm: "platforms.manage", key: "g p" }] },
   {
     id: "money", title: "Money", icon: LineChart,
@@ -34,6 +35,7 @@ export const NAV: NavGroup[] = [
     id: "team", title: "Team", icon: Users,
     items: [
       { href: "/hr/attendance", label: "Attendance", hint: "Who is in, with selfies", icon: Users, perm: "attendance.view" },
+      { href: "/hr/payroll", label: "Salary", hint: "Who to pay this month, and how much", icon: Users, perm: "payroll.manage" },
       { href: "/hr/employees", label: "Employees", hint: "People and their logins", icon: Users, perm: "employees.manage" },
     ],
   },

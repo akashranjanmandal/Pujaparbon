@@ -1,4 +1,5 @@
 import { sql } from "drizzle-orm";
+import { ATTENDANCE_STATUSES } from "@pp/shared";
 import { blob, index, integer, real, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
 /**
@@ -23,6 +24,9 @@ export const tenants = sqliteTable("tenants", {
   shiftEnd: text("shift_end").notNull().default("19:00"),
   lateGraceMin: integer("late_grace_min").notNull().default(10),
   selfieRetentionDays: integer("selfie_retention_days").notNull().default(90),
+  leaveCl: integer("leave_cl").notNull().default(6),
+  leaveSick: integer("leave_sick").notNull().default(6),
+  leaveEarned: integer("leave_earned").notNull().default(6),
   createdAt: createdAt(),
 });
 
@@ -36,6 +40,7 @@ export const users = sqliteTable(
     passwordHash: text("password_hash").notNull(),
     role: text("role", { enum: ["OWNER", "STAFF"] }).notNull(),
     employeeId: text("employee_id"),
+    roleId: text("role_id"),
     deviceId: text("device_id"),
     active: integer("active", { mode: "boolean" }).notNull().default(true),
     failedLogins: integer("failed_logins").notNull().default(0),
@@ -127,6 +132,8 @@ export const tripItems = sqliteTable("trip_items", {
   landedPaise: integer("landed_paise").notNull(),
   unitCostPaise: integer("unit_cost_paise").notNull(),
   unitPricePaise: integer("unit_price_paise").notNull(),
+  /** Set only when GST was added on top of the market price. */
+  gstPct: real("gst_pct"),
 });
 
 export const tripCosts = sqliteTable("trip_costs", {
@@ -249,6 +256,7 @@ export const employees = sqliteTable(
     designation: text("designation").notNull(),
     joinDate: text("join_date").notNull(),
     shiftStart: text("shift_start").notNull().default("10:00"),
+    salaryPaise: integer("salary_paise").notNull().default(0),
     avatarHue: integer("avatar_hue").notNull().default(20),
     active: integer("active", { mode: "boolean" }).notNull().default(true),
     createdAt: createdAt(),
@@ -263,7 +271,7 @@ export const attendance = sqliteTable(
     tenantId: tenant(),
     employeeId: text("employee_id").notNull().references(() => employees.id),
     date: text("date").notNull(),
-    status: text("status", { enum: ["PRESENT", "LATE", "HALF_DAY", "ABSENT"] }).notNull(),
+    status: text("status", { enum: ATTENDANCE_STATUSES }).notNull(),
     checkInAt: integer("check_in_at", { mode: "timestamp_ms" }),
     checkOutAt: integer("check_out_at", { mode: "timestamp_ms" }),
     checkInDistanceM: integer("check_in_distance_m"),
@@ -291,3 +299,23 @@ export const auditLogs = sqliteTable(
   },
   (t) => [index("audit_created_idx").on(t.tenantId, t.createdAt)],
 );
+
+/** An employee role the owner makes up (e.g. "Packing team"). Permissions are a JSON list from ASSIGNABLE_PERMISSIONS. */
+export const roles = sqliteTable("roles", {
+  id: pk(),
+  tenantId: tenant(),
+  name: text("name").notNull(),
+  permissions: text("permissions").notNull().default("[]"),
+  createdAt: createdAt(),
+});
+
+/** Boxes, tape, bubble wrap... the things the packing team needs in stock. */
+export const packagingMaterials = sqliteTable("packaging_materials", {
+  id: pk(),
+  tenantId: tenant(),
+  name: text("name").notNull(),
+  unit: text("unit").notNull().default("pcs"),
+  qty: integer("qty").notNull().default(0),
+  minQty: integer("min_qty").notNull().default(0),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => new Date()),
+});

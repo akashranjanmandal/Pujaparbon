@@ -3,11 +3,17 @@ import { motion } from "framer-motion";
 import { ArrowRight, Eye, EyeOff, Lock } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
+import { MapPin } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Logo } from "@/components/brand/Logo";
 import { ProfitFlow } from "@/components/brand/ProfitFlow";
 import { Button, Input, Segmented } from "@/components/ui/primitives";
+import { api } from "@/lib/api";
 import { homeFor, useAuth } from "@/lib/auth";
+import { getPosition, offsetMeters, type Fix } from "@/lib/presence";
+
+const DEMO_MODE = process.env.NEXT_PUBLIC_DEMO_MODE === "true";
 
 const DEMO = { owner: { email: "owner@pujaparbon.in", hint: "Everything: buys, stock, platforms, profit, team" }, staff: { email: "staff@pujaparbon.in", hint: "Check in and out" } };
 
@@ -21,6 +27,18 @@ function LoginInner() {
   const [show, setShow] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [fix, setFix] = useState<Fix | null>(null);
+  const [geoErr, setGeoErr] = useState("");
+  const [pretend, setPretend] = useState(false);
+  const { data: fence } = useQuery({ queryKey: ["fence"], queryFn: () => api.get<{ lat: number; lng: number; radiusM: number } | null>("/auth/fence"), enabled: who === "staff" });
+
+  // Employees can only sign in at the shop: read the phone's location and compare it with the shop.
+  const locate = () => { setGeoErr(""); getPosition().then(setFix).catch((e: Error) => setGeoErr(e.message)); };
+  useEffect(() => { if (who === "staff") locate(); }, [who]);
+  const here: Fix | null = pretend && fence ? { lat: fence.lat, lng: fence.lng, accuracyM: 10 } : fix;
+  const away = here && fence ? Math.round(offsetMeters(here, fence).d) : null;
+  const atShop = !!here && !!fence && away! <= fence.radiusM && here.accuracyM <= fence.radiusM;
+  const blocked = who === "staff" && !atShop;
 
   useEffect(() => { if (ready && user) router.replace(params.get("next") || homeFor(user)); }, [ready, user, router, params]);
   useEffect(() => { if (params.get("expired")) toast.info("Your session ended. Please sign in again."); }, [params]);
@@ -30,7 +48,7 @@ function LoginInner() {
     setBusy(true);
     setError("");
     try {
-      const u = await login(email, password);
+      const u = await login(email, password, who === "staff" && here ? here : undefined);
       // The tab is a guide, not a gate: but a wrong tab usually means a wrong account, so say so.
       if ((who === "owner") !== (u.role === "OWNER")) {
         await logout();
@@ -71,8 +89,18 @@ function LoginInner() {
               <Input type={show ? "text" : "password"} autoComplete="current-password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} required className="h-12 pr-11" />
               <button type="button" onClick={() => setShow((s) => !s)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted hover:text-text" aria-label="Show password">{show ? <EyeOff className="h-[18px] w-[18px]" /> : <Eye className="h-[18px] w-[18px]" />}</button>
             </div>
+            {who === "staff" && (
+              <div className={`flex items-start gap-3 rounded-2xl p-4 text-[15px] ${atShop ? "bg-leaf/10 text-leaf" : "bg-peach-soft text-peach"}`}>
+                <MapPin className="mt-0.5 h-5 w-5 shrink-0" />
+                <div className="flex-1">
+                  {atShop ? "You are at the shop. You can sign in." : geoErr ? geoErr : !here || !fence ? "Checking your location…" : here.accuracyM > fence.radiusM ? "Your location is too imprecise. Step near a window." : `You are ${away! >= 1000 ? `${(away! / 1000).toFixed(1)} km` : `${away} m`} from the shop. You can only sign in at the shop.`}
+                  {!atShop && <button type="button" onClick={locate} className="ml-2 font-semibold underline">Try again</button>}
+                  {DEMO_MODE && <label className="mt-2 flex items-center gap-2 text-[14px] text-text/70"><input type="checkbox" checked={pretend} onChange={(e) => setPretend(e.target.checked)} /> Demo only: pretend I am at the shop</label>}
+                </div>
+              </div>
+            )}
             {error && <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1, x: [0, -4, 4, 0] }} className="text-[15px] text-sindoor">{error}</motion.p>}
-            <Button type="submit" variant="primary" size="lg" loading={busy} className="w-full">Sign in <ArrowRight className="h-4 w-4" /></Button>
+            <Button type="submit" variant="primary" size="lg" loading={busy} disabled={blocked} className="w-full">Sign in <ArrowRight className="h-4 w-4" /></Button>
           </form>
 
           <div className="mt-8 rounded-2xl border border-dashed border-line/20 p-4">

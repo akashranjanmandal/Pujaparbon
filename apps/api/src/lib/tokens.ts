@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
 import jwt from "jsonwebtoken";
-import type { Role } from "@pp/shared";
+import type { Permission, Role } from "@pp/shared";
 import { env } from "../config/env";
 
 export interface AccessClaims {
@@ -8,6 +8,7 @@ export interface AccessClaims {
   tid: string;
   role: Role;
   eid: string | null;
+  perms: Permission[];
 }
 
 export const signAccessToken = (c: AccessClaims) =>

@@ -5,7 +5,8 @@ import { useState } from "react";
 import { Camera, Clock, MapPin, UserCheck, UserX } from "lucide-react";
 import { SelfieImg } from "@/components/SelfieImg";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { Avatar, Card, Input, Segmented, StatusBadge } from "@/components/ui/primitives";
+import { Drawer } from "@/components/ui/Drawer";
+import { Avatar, Button, Card, Input, Segmented, StatusBadge } from "@/components/ui/primitives";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { fmtTime, monthKey } from "@/lib/format";
@@ -14,7 +15,8 @@ import { useAction } from "@/lib/hooks";
 interface Item { employee: { id: string; name: string; code: string; designation: string; avatarHue: number }; record: { id: string; status: string; checkInAt: number | null; checkOutAt: number | null; checkInDistanceM: number | null; hasPhoto: boolean; source: string } | null; state: string }
 interface Board { date: string; items: Item[]; summary: { total: number; present: number; late: number; halfDay: number; notIn: number } }
 interface Grid { month: string; employees: { id: string; name: string; code: string; avatarHue: number }[]; records: { employeeId: string; date: string; status: string }[] }
-const CELL: Record<string, string> = { PRESENT: "bg-leaf", LATE: "bg-peach", HALF_DAY: "bg-lav", ABSENT: "bg-sindoor/80" };
+const CELL: Record<string, string> = { PRESENT: "bg-leaf", LATE: "bg-peach", HALF_DAY: "bg-lav", ABSENT: "bg-sindoor/80", CL: "bg-primary", SICK: "bg-primary/60", EVENT: "bg-lav/60", EARNED: "bg-primary/35" };
+const MARKS = [["PRESENT", "Present"], ["LATE", "Late"], ["HALF_DAY", "Half day"], ["ABSENT", "Absent"], ["CL", "Casual leave (CL)"], ["SICK", "Sick leave"], ["EVENT", "Event leave"], ["EARNED", "Earned leave"]] as const;
 
 export default function AttendancePage() {
   const [tab, setTab] = useState<"today" | "month">("today");
@@ -68,13 +70,13 @@ const Tile = ({ icon, label, value, tone }: { icon: React.ReactNode; label: stri
 function Month() {
   const [month, setMonth] = useState(monthKey());
   const { data } = useQuery({ queryKey: ["attendance", "month", month], queryFn: () => api.get<Grid>(`/attendance/month?month=${month}`) });
-  const mark = useAction((v: { employeeId: string; date: string; status: string }) => api.post("/attendance/manual", v), { success: "Corrected", invalidate: ["attendance"] });
+  const mark = useAction((v: { employeeId: string; date: string; status: string }) => api.post("/attendance/manual", v), { success: "Saved", invalidate: ["attendance"] });
+  const [pick, setPick] = useState<{ employeeId: string; name: string; date: string } | null>(null);
   const [y, m] = month.split("-").map(Number);
   const keys = Array.from({ length: new Date(y, m, 0).getDate() }, (_, i) => `${month}-${String(i + 1).padStart(2, "0")}`);
-  const cycle = ["PRESENT", "LATE", "HALF_DAY", "ABSENT"];
   const today = new Date().toISOString().slice(0, 10);
   return (
-    <Card title="Month register" subtitle="Tap a day to correct it. It cycles through present, late, half day and absent." action={<Input type="month" value={month} onChange={(e) => setMonth(e.target.value)} className="w-44" />}>
+    <Card title="Month register" subtitle="Tap a day to mark present, absent or a kind of leave. Salary is worked out from this." action={<Input type="month" value={month} onChange={(e) => setMonth(e.target.value)} className="w-44" />}>
       <div className="overflow-x-auto p-5">
         <table className="border-separate border-spacing-[3px] text-[13.5px]">
           <thead><tr><th className="sticky left-0 bg-panel pr-3 text-left font-semibold text-muted">Employee</th>{keys.map((k) => { const d = new Date(`${k}T00:00:00`); return <th key={k} className={cn("w-8 font-medium", d.getDay() === 0 ? "text-peach" : "text-muted")}>{d.getDate()}</th>; })}<th className="pl-3 font-semibold text-muted">Days</th></tr></thead>
@@ -86,7 +88,7 @@ function Month() {
                   <td className="sticky left-0 whitespace-nowrap bg-panel pr-3"><span className="flex items-center gap-2 text-[14.5px] font-medium"><Avatar name={e.name} hue={e.avatarHue} size={26} />{e.name}</span></td>
                   {keys.map((k) => {
                     const st = recs.get(k); const sunday = new Date(`${k}T00:00:00`).getDay() === 0;
-                    return <td key={k}><button title={`${k}${st ? ` · ${st}` : ""}`} onClick={() => !sunday && k <= today && mark.mutate({ employeeId: e.id, date: k, status: cycle[(cycle.indexOf(st ?? "") + 1) % cycle.length] })} className={cn("block h-8 w-8 rounded-lg transition hover:scale-110", st ? CELL[st] : sunday ? "bg-peach-tint" : "bg-bg2")} /></td>;
+                    return <td key={k}><button title={`${k}${st ? ` · ${st}` : ""}`} onClick={() => !sunday && k <= today && setPick({ employeeId: e.id, name: e.name, date: k })} className={cn("block h-8 w-8 rounded-lg transition hover:scale-110", st ? CELL[st] : sunday ? "bg-peach-tint" : "bg-bg2")} /></td>;
                   })}
                   <td className="pl-3 text-[15px] font-semibold">{[...recs.values()].filter((s) => s === "PRESENT" || s === "LATE").length}</td>
                 </tr>
@@ -94,8 +96,15 @@ function Month() {
             })}
           </tbody>
         </table>
-        <div className="mt-4 flex flex-wrap gap-4 text-[14px] text-muted">{[["Present", "bg-leaf"], ["Late", "bg-peach"], ["Half day", "bg-lav"], ["Absent", "bg-sindoor/80"]].map(([l, c]) => <span key={l} className="flex items-center gap-1.5"><span className={cn("h-3.5 w-3.5 rounded", c)} />{l}</span>)}</div>
+        <div className="mt-4 flex flex-wrap gap-4 text-[14px] text-muted">{[["Present", "bg-leaf"], ["Late", "bg-peach"], ["Half day", "bg-lav"], ["Absent", "bg-sindoor/80"], ["Casual", "bg-primary"], ["Sick", "bg-primary/60"], ["Event", "bg-lav/60"], ["Earned", "bg-primary/35"]].map(([l, c]) => <span key={l} className="flex items-center gap-1.5"><span className={cn("h-3.5 w-3.5 rounded", c)} />{l}</span>)}</div>
       </div>
+      {pick && (
+        <Drawer open onClose={() => setPick(null)} title={pick.name} subtitle={new Date(`${pick.date}T00:00:00`).toDateString()}>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {MARKS.map(([v, l]) => <Button key={v} size="lg" onClick={() => { mark.mutate({ employeeId: pick.employeeId, date: pick.date, status: v }); setPick(null); }}>{l}</Button>)}
+          </div>
+        </Drawer>
+      )}
     </Card>
   );
 }

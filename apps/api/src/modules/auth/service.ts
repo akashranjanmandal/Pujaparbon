@@ -1,7 +1,7 @@
 import { and, eq, gt, isNull } from "drizzle-orm";
-import { ROLE_PERMISSIONS, type LoginInput, type Role } from "@pp/shared";
+import { ASSIGNABLE_PERMISSIONS, ROLE_PERMISSIONS, checkGeofence, type LoginInput, type Permission, type Role } from "@pp/shared";
 import { db } from "../../db/client";
-import { employees, refreshTokens, tenants, users } from "../../db/schema";
+import { employees, refreshTokens, roles, tenants, users } from "../../db/schema";
 import { unauthorized, AppError } from "../../lib/errors";
 import { verifyPassword } from "../../lib/password";
 import { hashToken, newRefreshToken, signAccessToken } from "../../lib/tokens";
@@ -12,8 +12,17 @@ const LOCK_MINUTES = 15;
 
 type UserRow = typeof users.$inferSelect;
 
+/** The owner holds everything; an employee holds check-in plus whatever their role allows (never money screens). */
+export async function permsFor(user: UserRow): Promise<Permission[]> {
+  const base = [...ROLE_PERMISSIONS[user.role as Role]];
+  if (!user.roleId) return base;
+  const [r] = await db.select({ p: roles.permissions }).from(roles).where(eq(roles.id, user.roleId));
+  const granted = (JSON.parse(r?.p ?? "[]") as Permission[]).filter((p) => (ASSIGNABLE_PERMISSIONS as readonly string[]).includes(p));
+  return [...new Set([...base, ...granted])];
+}
+
 async function issueTokens(user: UserRow) {
-  const accessToken = signAccessToken({ sub: user.id, tid: user.tenantId, role: user.role, eid: user.employeeId });
+  const accessToken = signAccessToken({ sub: user.id, tid: user.tenantId, role: user.role, eid: user.employeeId, perms: await permsFor(user) });
   const refreshToken = newRefreshToken();
   await db.insert(refreshTokens).values({
     userId: user.id,
@@ -37,7 +46,7 @@ export async function profile(user: UserRow) {
     designation: emp?.designation ?? (user.role === "OWNER" ? "Owner" : "Employee"),
     avatarHue: emp?.avatarHue ?? 20,
     tenant: tenant ?? null,
-    permissions: ROLE_PERMISSIONS[user.role as Role],
+    permissions: await permsFor(user),
   };
 }
 
@@ -56,6 +65,15 @@ export async function login(input: LoginInput) {
       .set({ failedLogins: fails >= MAX_FAILS ? 0 : fails, lockedUntil: fails >= MAX_FAILS ? new Date(Date.now() + LOCK_MINUTES * 60_000) : null })
       .where(eq(users.id, user.id));
     throw invalid;
+  }
+  // Employees can only sign in from the shop. The owner can sign in from anywhere.
+  if (user.role !== "OWNER") {
+    const [t] = await db.select().from(tenants).where(eq(tenants.id, user.tenantId));
+    if (!input.location) throw new AppError(403, "LOCATION_REQUIRED", "Turn on location to sign in. Employees can only sign in at the shop.");
+    const fence = checkGeofence({ ...input.location, accuracyM: input.location.accuracyM }, { lat: t.geofenceLat, lng: t.geofenceLng, radiusM: t.geofenceRadiusM });
+    if (!fence.allowed) throw new AppError(403, "OUTSIDE_SHOP", fence.reason === "LOW_ACCURACY"
+        ? "Your location is too imprecise. Step near a window or turn on precise location."
+        : `You are ${fence.distanceM} m from the shop. Employees can only sign in at the shop.`);
   }
   await db.update(users).set({ failedLogins: 0, lockedUntil: null, lastLoginAt: new Date() }).where(eq(users.id, user.id));
   return issueTokens(user);
@@ -90,4 +108,9 @@ export async function me(userId: string) {
   const [user] = await db.select().from(users).where(eq(users.id, userId));
   if (!user) throw unauthorized();
   return profile(user);
+}
+
+export async function fence() {
+  const [t] = await db.select({ lat: tenants.geofenceLat, lng: tenants.geofenceLng, radiusM: tenants.geofenceRadiusM }).from(tenants).limit(1);
+  return t ?? null;
 }

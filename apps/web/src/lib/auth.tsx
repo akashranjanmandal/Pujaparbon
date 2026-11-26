@@ -8,7 +8,7 @@ import type { User } from "./types";
 interface AuthState {
   user: User | null;
   ready: boolean;
-  login: (email: string, password: string) => Promise<User>;
+  login: (email: string, password: string, location?: { lat: number; lng: number; accuracyM: number }) => Promise<User>;
   logout: () => Promise<void>;
   can: (p: Permission) => boolean;
 }
@@ -32,8 +32,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
   }, [router]);
 
-  const login = useCallback(async (email: string, password: string) => {
-    const res = await api.post<{ accessToken: string; user: User }>("/auth/login", { email, password });
+  const login = useCallback(async (email: string, password: string, location?: { lat: number; lng: number; accuracyM: number }) => {
+    const res = await api.post<{ accessToken: string; user: User }>("/auth/login", { email, password, location });
     setAccessToken(res.accessToken);
     setUser(res.user);
     return res.user;

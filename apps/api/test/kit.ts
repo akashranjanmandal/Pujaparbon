@@ -9,6 +9,7 @@ export const api = () => request(app);
 
 export const FENCE = { lat: 22.2889, lng: 88.2633 };
 const PASSWORD = "Test@12345";
+const atShop = { lat: FENCE.lat, lng: FENCE.lng };
 
 /** An isolated business: an owner, one employee (with a login), and the hub location. */
 export async function makeTenant(tag = Math.random().toString(36).slice(2, 8)) {
@@ -17,7 +18,7 @@ export async function makeTenant(tag = Math.random().toString(36).slice(2, 8)) {
   const hash = await hashPassword(PASSWORD);
   const [owner] = await db.insert(users).values({ tenantId: t.id, name: `Owner ${tag}`, email: `owner-${tag}@test.in`, passwordHash: hash, role: "OWNER" }).returning();
   const [staff] = await db.insert(users).values({ tenantId: t.id, name: `Staff ${tag}`, email: `staff-${tag}@test.in`, passwordHash: hash, role: "STAFF", employeeId: emp.id }).returning();
-  const token = async (u: { email: string }) => (await api().post("/api/v1/auth/login").send({ email: u.email, password: PASSWORD })).body.accessToken as string;
+  const token = async (u: { email: string }) => (await api().post("/api/v1/auth/login").send({ email: u.email, password: PASSWORD, location: { ...atShop, accuracyM: 10 } })).body.accessToken as string;
   const [ownerT, staffT] = await Promise.all([token(owner), token(staff)]);
   const as = (tok: string) => ({
     get: (url: string) => api().get(url).set("Authorization", `Bearer ${tok}`),
