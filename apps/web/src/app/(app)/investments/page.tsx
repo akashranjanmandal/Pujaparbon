@@ -1,4 +1,5 @@
 "use client";
+import { useActiveBusiness } from "@/lib/business";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import Link from "next/link";
@@ -12,16 +13,19 @@ import { Table } from "@/components/ui/Table";
 import { Badge, Button, Card, Field, Input, Textarea } from "@/components/ui/primitives";
 import { api } from "@/lib/api";
 import { compactINR, fmtDate, todayKey } from "@/lib/format";
-import { useAction } from "@/lib/hooks";
+import { BusinessSelect } from "@/components/BusinessSelect";
+import { Select } from "@/components/ui/primitives";
+import { useAction, useBusinesses, usePlaces } from "@/lib/hooks";
 import { paise, rupeeStr } from "@/lib/money";
 
-interface Entry { type: "BUY" | "OTHER"; id: string; code: string | null; date: string; title: string; detail: string; category: string; amountPaise: number }
+interface Entry { type: "BUY" | "OTHER"; businessId?: string | null; locationId?: string | null; id: string; code: string | null; date: string; title: string; detail: string; category: string; amountPaise: number }
 interface Res { timeline: Entry[]; totalPaise: number; buyPaise: number; otherPaise: number; byCategory: { category: string; amountPaise: number }[] }
 
 export default function InvestmentsPage() {
   const [range, setRange] = useState<RangeValue>(rangeFor("month"));
   const [edit, setEdit] = useState<Entry | "new" | null>(null);
-  const { data, isLoading } = useQuery({ queryKey: ["investments", range.from, range.to], queryFn: () => api.get<Res>(`/investments?from=${range.from}&to=${range.to}`) });
+  const biz = useActiveBusiness();
+  const { data, isLoading } = useQuery({ queryKey: ["investments", range.from, range.to, biz.id ?? ""], queryFn: () => api.get<Res>(`/investments?from=${range.from}&to=${range.to}${biz.id ? `&businessId=${biz.id}` : ""}`) });
   const del = useAction((id: string) => api.del(`/investments/${id}`), { success: "Removed", invalidate: ["investments", "summary", "home"] });
   const max = Math.max(1, ...(data?.byCategory.map((c) => c.amountPaise) ?? [1]));
 
@@ -58,9 +62,12 @@ export default function InvestmentsPage() {
 }
 
 function Editor({ entry, onClose }: { entry: Entry | null; onClose: () => void }) {
+  const biz0 = useActiveBusiness();
   const { data: cats } = useQuery({ queryKey: ["inv-cats"], queryFn: () => api.get<string[]>("/investments/categories") });
-  const [f, setF] = useState({ date: entry?.date ?? todayKey(), label: entry?.title ?? "", category: entry?.category ?? "", amount: entry ? rupeeStr(entry.amountPaise) : "", note: entry?.detail ?? "" });
-  const body = () => ({ date: f.date, label: f.label, category: f.category, amountPaise: paise(f.amount), note: f.note || undefined });
+  const [f, setF] = useState({ date: entry?.date ?? todayKey(), label: entry?.title ?? "", category: entry?.category ?? "", amount: entry ? rupeeStr(entry.amountPaise) : "", note: entry?.detail ?? "", businessId: entry?.businessId ?? biz0.id ?? "", locationId: entry?.locationId ?? "" });
+  const { data: biz } = useBusinesses();
+  const { data: places } = usePlaces();
+  const body = () => ({ date: f.date, label: f.label, category: f.category, amountPaise: paise(f.amount), businessId: f.businessId || null, locationId: f.locationId || null, note: f.note || undefined });
   const save = useAction(() => (entry ? api.put(`/investments/${entry.id}`, body()) : api.post("/investments", body())), { success: "Saved", invalidate: ["investments", "summary", "home", "inv-cats"], onSuccess: onClose });
   return (
     <Drawer open onClose={onClose} title={entry ? "Edit investment" : "Add an investment"} subtitle="For money spent outside a market trip. Trip costs go in the New buy screen."
@@ -70,6 +77,8 @@ function Editor({ entry, onClose }: { entry: Entry | null; onClose: () => void }
         <Field label="Kind" hint="Type any name, e.g. Equipment, Rent, Packing."><Input list="inv-cat" value={f.category} onChange={(e) => setF({ ...f, category: e.target.value })} /><datalist id="inv-cat">{cats?.map((c) => <option key={c} value={c} />)}</datalist></Field>
         <Field label="Amount (₹)"><Input inputMode="decimal" value={f.amount} onChange={(e) => setF({ ...f, amount: e.target.value })} /></Field>
         <Field label="Date"><Input type="date" value={f.date} max={todayKey()} onChange={(e) => setF({ ...f, date: e.target.value })} /></Field>
+        <Field label="For which business?"><BusinessSelect value={f.businessId} onChange={(v) => setF({ ...f, businessId: v })} list={biz} none="Shared / not sure" /></Field>
+        <Field label="For a fair or place?" hint="Optional. Gives that fair its own profit."><Select value={f.locationId} onChange={(e) => setF({ ...f, locationId: e.target.value })}><option value="">None</option>{places?.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</Select></Field>
         <Field label="Note" className="sm:col-span-2"><Textarea value={f.note} onChange={(e) => setF({ ...f, note: e.target.value })} /></Field>
       </div>
     </Drawer>

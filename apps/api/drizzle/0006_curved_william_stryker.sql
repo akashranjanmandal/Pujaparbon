@@ -1,0 +1,1 @@
+ALTER TABLE `employees` ADD `business_id` text;

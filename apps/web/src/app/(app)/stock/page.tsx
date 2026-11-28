@@ -1,4 +1,5 @@
 "use client";
+import { useActiveBusiness } from "@/lib/business";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import Link from "next/link";
@@ -13,7 +14,8 @@ import { Badge, Button, Card, Empty, Field, Input, ProductGlyphRow } from "@/com
 import { api } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { compactINR, timeAgo } from "@/lib/format";
-import { useAction } from "@/lib/hooks";
+import { BusinessSelect } from "@/components/BusinessSelect";
+import { useAction, useBusinesses } from "@/lib/hooks";
 import { paise } from "@/lib/money";
 import { ProductGlyph } from "@/components/ui/ProductGlyph";
 import type { Product } from "@/lib/summary";
@@ -30,6 +32,8 @@ function StockInner() {
   const qs = new URLSearchParams();
   if (search) qs.set("search", search);
   if (category) qs.set("category", category);
+  const biz = useActiveBusiness();
+  if (biz.id) qs.set("businessId", biz.id);
   const { data, isLoading } = useQuery({ queryKey: ["products", qs.toString()], queryFn: () => api.get<Res>(`/products?${qs}`) });
   const t = data?.totals;
 
@@ -91,15 +95,15 @@ const Tile = ({ label, value, sub, tone }: { label: string; value: string; sub?:
 function CountSheet({ items, onClose }: { items: Product[]; onClose: () => void }) {
   const [counts, setCounts] = useState<Record<string, string>>(() => Object.fromEntries(items.map((i) => [i.id, String(Math.max(0, i.onHand))])));
   useEffect(() => { document.body.style.overflow = "hidden"; return () => { document.body.style.overflow = ""; }; }, []);
-  const rows = useMemo(() => items.map((i) => { const c = counts[i.id]; const n = c === "" ? i.onHand : Math.max(0, Math.floor(Number(c) || 0)); return { ...i, counted: n, diff: n - Math.max(0, i.onHand) }; }), [items, counts]);
+  const rows = useMemo(() => items.map((i) => { const c = counts[i.id]; const n = c === "" ? i.onHand : Math.max(0, Math.round((Number(c) || 0) * 1000) / 1000); return { ...i, counted: n, diff: n - Math.max(0, i.onHand) }; }), [items, counts]);
   const changed = rows.filter((r) => r.diff !== 0);
   const down = changed.filter((r) => r.diff < 0), up = changed.filter((r) => r.diff > 0);
   const save = useAction(() => api.post<{ changed: number; unitsDown: number; unitsUp: number; valueDownPaise: number }>("/stock/counts", { counts: rows.map((r) => ({ productId: r.id, counted: r.counted })) }), {
     success: (r) => (r.changed ? `Counts saved. ${r.unitsDown} pieces fewer, worth ${formatINR(r.valueDownPaise, { decimals: false })}.` : "Counts saved. Everything matched."),
     invalidate: ["products"], onSuccess: onClose,
   });
-  const set = (id: string, v: string) => setCounts((c) => ({ ...c, [id]: v.replace(/\D/g, "") }));
-  const step = (id: string, d: number, cur: number) => setCounts((c) => ({ ...c, [id]: String(Math.max(0, cur + d)) }));
+  const set = (id: string, v: string) => setCounts((c) => ({ ...c, [id]: v.replace(/[^\d.]/g, "") }));
+  const step = (id: string, d: number, cur: number) => setCounts((c) => ({ ...c, [id]: String(Math.max(0, Math.round((cur + d) * 1000) / 1000)) }));
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-bg">
@@ -118,7 +122,7 @@ function CountSheet({ items, onClose }: { items: Product[]; onClose: () => void 
               </div>
               <div className="flex items-center gap-1.5">
                 <button onClick={() => step(r.id, -1, r.counted)} className="grid h-11 w-11 place-items-center rounded-xl border border-line/15 bg-panel text-text active:scale-95" aria-label="One less"><Minus className="h-4 w-4" /></button>
-                <input inputMode="numeric" value={counts[r.id]} onChange={(e) => set(r.id, e.target.value)} onFocus={(e) => e.currentTarget.select()} className="h-11 w-[72px] rounded-xl border border-line/20 bg-panel text-center text-[18px] font-semibold focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary-soft/50" aria-label={`Count for ${r.name}`} />
+                <input inputMode="decimal" value={counts[r.id]} onChange={(e) => set(r.id, e.target.value)} onFocus={(e) => e.currentTarget.select()} className="h-11 w-[72px] rounded-xl border border-line/20 bg-panel text-center text-[18px] font-semibold focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary-soft/50" aria-label={`Count for ${r.name}`} />
                 <button onClick={() => step(r.id, 1, r.counted)} className="grid h-11 w-11 place-items-center rounded-xl border border-line/15 bg-panel text-text active:scale-95" aria-label="One more"><Plus className="h-4 w-4" /></button>
               </div>
             </motion.div>
@@ -142,9 +146,12 @@ function CountSheet({ items, onClose }: { items: Product[]; onClose: () => void 
 }
 
 function AddItem({ open, onClose, categories }: { open: boolean; onClose: () => void; categories: string[] }) {
-  const [f, setF] = useState({ name: "", category: "", unit: "pcs", price: "", qty: "", cost: "" });
-  const save = useAction(() => api.post("/products", { name: f.name, category: f.category, unit: f.unit || "pcs", sellingPricePaise: paise(f.price), openingQty: Number(f.qty) || 0, openingUnitCostPaise: paise(f.cost) }), {
-    success: "Item added", invalidate: ["products"], onSuccess: () => { setF({ name: "", category: "", unit: "pcs", price: "", qty: "", cost: "" }); onClose(); },
+  const ab0 = useActiveBusiness();
+  const blank = { name: "", category: "", unit: "pcs", price: "", wholesale: "", gst: "", businessId: ab0.id ?? "", qty: "", cost: "" };
+  const [f, setF] = useState(blank);
+  const { data: biz } = useBusinesses();
+  const save = useAction(() => api.post("/products", { name: f.name, category: f.category, unit: f.unit || "pcs", sellingPricePaise: paise(f.price), wholesalePricePaise: paise(f.wholesale), gstPct: Number(f.gst) || 0, businessId: f.businessId || undefined, openingQty: Number(f.qty) || 0, openingUnitCostPaise: paise(f.cost) }), {
+    success: "Item added", invalidate: ["products"], onSuccess: () => { setF(blank); onClose(); },
   });
   const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement>) => setF({ ...f, [k]: e.target.value });
   return (
@@ -153,10 +160,13 @@ function AddItem({ open, onClose, categories }: { open: boolean; onClose: () => 
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Item name" className="sm:col-span-2"><Input value={f.name} onChange={set("name")} placeholder="e.g. Steel bottle 1L" /></Field>
         <Field label="Category" hint="Type any name. A new one is created for you."><Input list="cats" value={f.category} onChange={set("category")} placeholder="e.g. Bottles" /><datalist id="cats">{categories.map((c) => <option key={c} value={c} />)}</datalist></Field>
-        <Field label="Unit"><Input value={f.unit} onChange={set("unit")} /></Field>
-        <Field label="How many do you have now?"><Input inputMode="numeric" value={f.qty} onChange={set("qty")} placeholder="0" /></Field>
+        <Field label="Unit" hint="pcs, kg, ton, bag... your choice."><Input list="units" value={f.unit} onChange={set("unit")} /><datalist id="units">{["pcs", "kg", "ton", "bag", "dozen", "litre", "box"].map((u) => <option key={u} value={u} />)}</datalist></Field>
+        <Field label="How many do you have now?"><Input inputMode="decimal" value={f.qty} onChange={set("qty")} placeholder="0" /></Field>
         <Field label="Cost of each (₹)"><Input inputMode="decimal" value={f.cost} onChange={set("cost")} placeholder="0" /></Field>
-        <Field label="Selling price (₹)" className="sm:col-span-2"><Input inputMode="decimal" value={f.price} onChange={set("price")} placeholder="Optional" /></Field>
+        <Field label="Retail price (₹)"><Input inputMode="decimal" value={f.price} onChange={set("price")} placeholder="Optional" /></Field>
+        <Field label="Wholesale price (₹)"><Input inputMode="decimal" value={f.wholesale} onChange={set("wholesale")} placeholder="Optional" /></Field>
+        <Field label="GST on sales (%)"><Input inputMode="decimal" value={f.gst} onChange={set("gst")} placeholder="Optional" /></Field>
+        <Field label="Belongs to"><BusinessSelect value={f.businessId} onChange={(v) => setF({ ...f, businessId: v })} list={biz} /></Field>
       </div>
     </Drawer>
   );

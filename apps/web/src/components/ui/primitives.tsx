@@ -1,4 +1,5 @@
 "use client";
+import { Tr } from "@/lib/i18n";
 import { forwardRef, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from "react";
 import { motion } from "framer-motion";
 import { Loader2 } from "lucide-react";
@@ -30,7 +31,7 @@ export const Button = forwardRef<HTMLButtonElement, BtnProps>(function Button({ 
       {...p}
     >
       {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : icon}
-      {children}
+      <Tr>{children}</Tr>
     </button>
   );
 });
@@ -53,9 +54,9 @@ export const Select = forwardRef<HTMLSelectElement, SelectHTMLAttributes<HTMLSel
 export function Field({ label, hint, error, children, className }: { label: string; hint?: string; error?: string; children: ReactNode; className?: string }) {
   return (
     <label className={cn("block space-y-1.5", className)}>
-      <span className="text-[14.5px] font-semibold text-text/80">{label}</span>
+      <span className="text-[14.5px] font-semibold text-text/80"><Tr>{label}</Tr></span>
       {children}
-      {error ? <span className="block text-[14px] text-sindoor">{error}</span> : hint ? <span className="block text-[14px] text-muted">{hint}</span> : null}
+      {error ? <span className="block text-[14px] text-sindoor">{error}</span> : hint ? <span className="block text-[14px] text-muted"><Tr>{hint}</Tr></span> : null}
     </label>
   );
 }
@@ -72,8 +73,8 @@ export function Card({ children, className, plain, title, action, subtitle, dela
       {(title || action) && (
         <header className="flex items-start justify-between gap-3 px-6 pb-2 pt-5">
           <div>
-            {title && <h3 className="text-[17px] font-semibold tracking-tight">{title}</h3>}
-            {subtitle && <p className="mt-0.5 text-[15px] text-muted">{subtitle}</p>}
+            {title && <h3 className="text-[17px] font-semibold tracking-tight"><Tr>{title}</Tr></h3>}
+            {subtitle && <p className="mt-0.5 text-[15px] text-muted"><Tr>{subtitle}</Tr></p>}
           </div>
           {action}
         </header>
@@ -143,7 +144,7 @@ export function Segmented<T extends string>({ value, onChange, options, classNam
       {options.map((o) => (
         <button key={o.value} onClick={() => onChange(o.value)} className={cn("relative z-10 rounded-lg px-3.5 py-1.5 text-[14.5px] font-semibold transition-colors", value === o.value ? "text-text" : "text-muted hover:text-text")}>
           {value === o.value && <motion.span layoutId={`seg-${options.map((x) => x.value).join("")}`} className="absolute inset-0 -z-10 rounded-lg bg-panel shadow-soft" transition={{ type: "spring", bounce: 0.15, duration: 0.45 }} />}
-          {o.label}
+          <Tr>{o.label}</Tr>
         </button>
       ))}
     </div>
@@ -154,8 +155,8 @@ export function Empty({ title, body, icon, action }: { title: string; body?: str
   return (
     <div className="flex flex-col items-center justify-center gap-3 px-6 py-14 text-center">
       <div className="grid h-12 w-12 place-items-center rounded-2xl bg-primary-tint text-primary">{icon}</div>
-      <div className="text-[17px] font-semibold">{title}</div>
-      {body && <p className="max-w-sm text-[15.5px] text-muted">{body}</p>}
+      <div className="text-[17px] font-semibold"><Tr>{title}</Tr></div>
+      {body && <p className="max-w-sm text-[15.5px] text-muted"><Tr>{body}</Tr></p>}
       {action}
     </div>
   );

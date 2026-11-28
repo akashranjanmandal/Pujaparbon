@@ -24,7 +24,7 @@ export async function levels(ex: Executor, tenantId: string, productIds?: string
     .from(stockMovements)
     .where(and(...where))
     .groupBy(stockMovements.productId);
-  return new Map<string, Level>(rows.map((r) => [r.productId, { qty: Number(r.qty), valuePaise: Number(r.value), lastCountAt: r.lastCount ? Number(r.lastCount) : null }]));
+  return new Map<string, Level>(rows.map((r) => [r.productId, { qty: Math.round(Number(r.qty) * 1000) / 1000, valuePaise: Number(r.value), lastCountAt: r.lastCount ? Number(r.lastCount) : null }]));
 }
 
 /** Cost of one unit right now: average of what is on the shelf, or the latest buy price if the shelf is empty. */
@@ -41,7 +41,7 @@ export async function unitCost(ex: Executor, tenantId: string, productId: string
   return last?.unit ?? 0;
 }
 
-export interface MovementInput { productId: string; qty: number; valuePaise: number; type: MovementType; refType?: string; refId?: string; note?: string }
+export interface MovementInput { productId: string; qty: number; valuePaise: number; type: MovementType; refType?: string; refId?: string; note?: string; locationId?: string | null }
 
 export async function recordMovement(ex: Executor, c: Ctx, m: MovementInput) {
   const [row] = await ex.insert(stockMovements).values({ tenantId: c.tenantId, userId: c.userId, ...m }).returning();

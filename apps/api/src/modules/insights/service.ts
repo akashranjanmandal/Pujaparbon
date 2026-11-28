@@ -20,8 +20,8 @@ async function totalsFor(tenantId: string, r: DateRange, platformId?: string) {
         dCogs: sql<number>`coalesce(sum(case when ${platformSales.status} = 'DELIVERED' then ${platformSales.costPaise} end), 0)`,
         dOrders: sql<number>`count(case when ${platformSales.status} = 'DELIVERED' then 1 end)`,
         dUnits: sql<number>`coalesce(sum(case when ${platformSales.status} = 'DELIVERED' then ${platformSales.qty} end), 0)`,
-        rGross: sql<number>`coalesce(sum(case when ${platformSales.status} = 'RETURNED' then ${platformSales.grossPaise} end), 0)`,
-        rOrders: sql<number>`count(case when ${platformSales.status} = 'RETURNED' then 1 end)`,
+        rGross: sql<number>`coalesce(sum(case when ${platformSales.status} in ('RETURNED', 'RTO') then ${platformSales.grossPaise} end), 0)`,
+        rOrders: sql<number>`count(case when ${platformSales.status} in ('RETURNED', 'RTO') then 1 end)`,
         cOrders: sql<number>`count(case when ${platformSales.status} = 'CANCELLED' then 1 end)`,
       })
       .from(platformSales)

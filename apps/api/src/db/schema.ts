@@ -60,6 +60,36 @@ export const refreshTokens = sqliteTable("refresh_tokens", {
   createdAt: createdAt(),
 });
 
+/** One of the family's businesses. Each has its own books; products and stock can belong to one or be shared. */
+export const businesses = sqliteTable(
+  "businesses",
+  {
+    id: pk(),
+    tenantId: tenant(),
+    name: text("name").notNull(),
+    kind: text("kind", { enum: ["CLAY", "FISH", "MELA", "PAINT", "ONLINE"] }).notNull(),
+    color: text("color").notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex("businesses_name_uq").on(t.tenantId, t.name)],
+);
+
+/** A shop, haat, mela, warehouse or the online channel. */
+export const locations = sqliteTable(
+  "locations",
+  {
+    id: pk(),
+    tenantId: tenant(),
+    businessId: text("business_id").references(() => businesses.id),
+    name: text("name").notNull(),
+    kind: text("kind", { enum: ["SHOP", "HAAT", "MELA", "WAREHOUSE", "ONLINE"] }).notNull(),
+    days: text("days", { mode: "json" }).$type<string[]>().notNull().$defaultFn(() => []),
+    active: integer("active", { mode: "boolean" }).notNull().default(true),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex("locations_name_uq").on(t.tenantId, t.name)],
+);
+
 /** A thing he sells. Category is free text: he creates categories simply by typing them. */
 export const products = sqliteTable(
   "products",
@@ -72,6 +102,9 @@ export const products = sqliteTable(
     category: text("category").notNull(),
     unit: text("unit").notNull().default("pcs"),
     sellingPricePaise: integer("selling_price_paise").notNull().default(0),
+    wholesalePricePaise: integer("wholesale_price_paise").notNull().default(0),
+    gstPct: real("gst_pct").notNull().default(0),
+    businessId: text("business_id"),
     notes: text("notes"),
     archivedAt: integer("archived_at", { mode: "timestamp_ms" }),
     createdAt: createdAt(),
@@ -86,9 +119,12 @@ export const stockMovements = sqliteTable(
     id: pk(),
     tenantId: tenant(),
     productId: text("product_id").notNull().references(() => products.id),
+    /** May be fractional (kg of fish); SQLite keeps the decimals even though the column is declared integer. */
     qty: integer("qty").notNull(),
     valuePaise: integer("value_paise").notNull(),
-    type: text("type", { enum: ["OPENING", "BUY", "COUNT"] }).notNull(),
+    type: text("type", { enum: ["OPENING", "BUY", "COUNT", "SALE", "RETURN", "LOSS", "TRANSFER", "PROCESS"] }).notNull(),
+    /** Where the goods are. Empty = the main stock, not placed anywhere yet. */
+    locationId: text("location_id"),
     refType: text("ref_type"),
     refId: text("ref_id"),
     note: text("note"),
@@ -111,6 +147,7 @@ export const trips = sqliteTable(
     place: text("place"),
     notes: text("notes"),
     basis: text("basis", { enum: ["VALUE", "QTY"] }).notNull().default("VALUE"),
+    businessId: text("business_id"),
     itemsPaise: integer("items_paise").notNull(),
     costsPaise: integer("costs_paise").notNull(),
     totalPaise: integer("total_paise").notNull(),
@@ -154,6 +191,8 @@ export const investments = sqliteTable(
     date: text("date").notNull(),
     label: text("label").notNull(),
     category: text("category").notNull(),
+    businessId: text("business_id"),
+    locationId: text("location_id"),
     amountPaise: integer("amount_paise").notNull(),
     note: text("note"),
     createdById: text("created_by_id"),
@@ -221,7 +260,7 @@ export const platformSales = sqliteTable(
     /** What the platform actually paid out for this line. */
     netPaise: integer("net_paise").notNull(),
     state: text("state"),
-    status: text("status", { enum: ["DELIVERED", "RETURNED", "CANCELLED"] }).notNull(),
+    status: text("status", { enum: ["DELIVERED", "RETURNED", "RTO", "IN_TRANSIT", "CANCELLED"] }).notNull(),
     /** Estimated cost of the goods sold (average landed cost at import time). */
     costPaise: integer("cost_paise").notNull().default(0),
   },
@@ -257,6 +296,8 @@ export const employees = sqliteTable(
     joinDate: text("join_date").notNull(),
     shiftStart: text("shift_start").notNull().default("10:00"),
     salaryPaise: integer("salary_paise").notNull().default(0),
+    /** The business whose books carry this person's salary. Empty = not assigned. */
+    businessId: text("business_id"),
     avatarHue: integer("avatar_hue").notNull().default(20),
     active: integer("active", { mode: "boolean" }).notNull().default(true),
     createdAt: createdAt(),
@@ -319,3 +360,200 @@ export const packagingMaterials = sqliteTable("packaging_materials", {
   minQty: integer("min_qty").notNull().default(0),
   updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => new Date()),
 });
+
+const qtyCol = (name: string) => real(name).notNull();
+
+/** A bill at the shop, a haat, a mela stall or to a wholesale customer. */
+export const sales = sqliteTable(
+  "sales",
+  {
+    id: pk(),
+    tenantId: tenant(),
+    businessId: text("business_id").notNull().references(() => businesses.id),
+    locationId: text("location_id"),
+    channel: text("channel", { enum: ["SHOP", "HAAT", "MELA", "WHOLESALE"] }).notNull(),
+    date: text("date").notNull(),
+    customerId: text("customer_id"),
+    totalPaise: integer("total_paise").notNull(),
+    paidPaise: integer("paid_paise").notNull(),
+    /** Cost of the items sold; 0 for a daily total that lists no items. */
+    costPaise: integer("cost_paise").notNull().default(0),
+    note: text("note"),
+    createdById: text("created_by_id"),
+    createdAt: createdAt(),
+  },
+  (t) => [index("bill_sales_date_idx").on(t.tenantId, t.date), index("bill_sales_biz_idx").on(t.businessId, t.date)],
+);
+
+export const saleItems = sqliteTable("sale_items", {
+  id: pk(),
+  saleId: text("sale_id").notNull().references(() => sales.id),
+  productId: text("product_id").notNull().references(() => products.id),
+  qty: qtyCol("qty"),
+  gstPct: real("gst_pct").notNull().default(0),
+  unitPricePaise: integer("unit_price_paise").notNull(),
+  linePaise: integer("line_paise").notNull(),
+  costPaise: integer("cost_paise").notNull(),
+});
+
+/** Goods that came back from a customer: good ones return to stock, damaged ones become a loss. */
+export const saleReturns = sqliteTable(
+  "sale_returns",
+  {
+    id: pk(),
+    tenantId: tenant(),
+    businessId: text("business_id").notNull().references(() => businesses.id),
+    locationId: text("location_id"),
+    productId: text("product_id").notNull().references(() => products.id),
+    qty: qtyCol("qty"),
+    date: text("date").notNull(),
+    condition: text("condition", { enum: ["GOOD", "DAMAGED"] }).notNull(),
+    refundPaise: integer("refund_paise").notNull().default(0),
+    costPaise: integer("cost_paise").notNull().default(0),
+    note: text("note"),
+    createdById: text("created_by_id"),
+    createdAt: createdAt(),
+  },
+  (t) => [index("returns_date_idx").on(t.tenantId, t.date)],
+);
+
+/** The loss account: damaged returns and wasted or spoiled stock, valued at cost. */
+export const losses = sqliteTable(
+  "losses",
+  {
+    id: pk(),
+    tenantId: tenant(),
+    businessId: text("business_id"),
+    locationId: text("location_id"),
+    productId: text("product_id").references(() => products.id),
+    qty: qtyCol("qty"),
+    valuePaise: integer("value_paise").notNull(),
+    date: text("date").notNull(),
+    reason: text("reason", { enum: ["DAMAGED_RETURN", "WASTE", "SPOILAGE", "OTHER"] }).notNull(),
+    note: text("note"),
+    createdById: text("created_by_id"),
+    createdAt: createdAt(),
+  },
+  (t) => [index("losses_date_idx").on(t.tenantId, t.date)],
+);
+
+/** A customer or supplier whose dues he tracks. */
+export const parties = sqliteTable(
+  "parties",
+  {
+    id: pk(),
+    tenantId: tenant(),
+    name: text("name").notNull(),
+    kind: text("kind", { enum: ["CUSTOMER", "SUPPLIER"] }).notNull(),
+    phone: text("phone"),
+    note: text("note"),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex("parties_name_uq").on(t.tenantId, t.kind, t.name)],
+);
+
+/** bill − payments − advances = what is still due (customer owes us / we owe the supplier). */
+export const partyEntries = sqliteTable(
+  "party_entries",
+  {
+    id: pk(),
+    tenantId: tenant(),
+    partyId: text("party_id").notNull().references(() => parties.id),
+    kind: text("kind", { enum: ["BILL", "PAYMENT", "ADVANCE"] }).notNull(),
+    amountPaise: integer("amount_paise").notNull(),
+    date: text("date").notNull(),
+    businessId: text("business_id"),
+    refType: text("ref_type"),
+    refId: text("ref_id"),
+    note: text("note"),
+    createdById: text("created_by_id"),
+    createdAt: createdAt(),
+  },
+  (t) => [index("entries_party_idx").on(t.partyId, t.date)],
+);
+
+/** A claim raised with a marketplace for a damaged, wrong or missing return, and how it ended. */
+export const claims = sqliteTable(
+  "claims",
+  {
+    id: pk(),
+    tenantId: tenant(),
+    platformId: text("platform_id").notNull().references(() => platforms.id),
+    orderId: text("order_id").notNull(),
+    productId: text("product_id"),
+    date: text("date").notNull(),
+    kind: text("kind", { enum: ["DAMAGED", "WRONG_ITEM", "MISSING", "OTHER"] }).notNull(),
+    status: text("status", { enum: ["RAISED", "APPROVED", "REJECTED"] }).notNull().default("RAISED"),
+    reason: text("reason"),
+    expectedPaise: integer("expected_paise").notNull().default(0),
+    receivedPaise: integer("received_paise").notNull().default(0),
+    note: text("note"),
+    createdById: text("created_by_id"),
+    createdAt: createdAt(),
+  },
+  (t) => [index("claims_platform_idx").on(t.tenantId, t.platformId, t.date)],
+);
+
+/** Raw goods in, colour and labour, finished goods out. The whole cost moves into the finished goods' stock value. */
+export const batches = sqliteTable(
+  "batches",
+  {
+    id: pk(),
+    tenantId: tenant(),
+    businessId: text("business_id").notNull().references(() => businesses.id),
+    name: text("name").notNull(),
+    date: text("date").notNull(),
+    inputsPaise: integer("inputs_paise").notNull(),
+    costsPaise: integer("costs_paise").notNull(),
+    totalPaise: integer("total_paise").notNull(),
+    costs: text("costs", { mode: "json" }).$type<{ kind: string; label?: string; amountPaise: number }[]>().notNull(),
+    note: text("note"),
+    createdById: text("created_by_id"),
+    createdAt: createdAt(),
+  },
+  (t) => [index("batches_date_idx").on(t.tenantId, t.date)],
+);
+export const batchLines = sqliteTable("batch_lines", {
+  id: pk(),
+  batchId: text("batch_id").notNull().references(() => batches.id),
+  productId: text("product_id").notNull().references(() => products.id),
+  side: text("side", { enum: ["IN", "OUT"] }).notNull(),
+  qty: qtyCol("qty"),
+  valuePaise: integer("value_paise").notNull(),
+});
+
+/** How many parcels left with each courier, and how many came back (customer return or RTO). */
+export const courierMoves = sqliteTable(
+  "courier_moves",
+  {
+    id: pk(),
+    tenantId: tenant(),
+    date: text("date").notNull(),
+    platformId: text("platform_id"),
+    courier: text("courier").notNull(),
+    outgoing: integer("outgoing").notNull().default(0),
+    customerReturn: integer("customer_return").notNull().default(0),
+    rto: integer("rto").notNull().default(0),
+    time: text("time"),
+    createdById: text("created_by_id"),
+    createdAt: createdAt(),
+  },
+  (t) => [index("courier_date_idx").on(t.tenantId, t.date)],
+);
+
+/** Money moved from one business's books to another's. */
+export const fundTransfers = sqliteTable(
+  "fund_transfers",
+  {
+    id: pk(),
+    tenantId: tenant(),
+    date: text("date").notNull(),
+    fromBusinessId: text("from_business_id").notNull().references(() => businesses.id),
+    toBusinessId: text("to_business_id").notNull().references(() => businesses.id),
+    amountPaise: integer("amount_paise").notNull(),
+    note: text("note"),
+    createdById: text("created_by_id"),
+    createdAt: createdAt(),
+  },
+  (t) => [index("funds_date_idx").on(t.tenantId, t.date)],
+);

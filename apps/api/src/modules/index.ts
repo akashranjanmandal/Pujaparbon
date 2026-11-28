@@ -7,11 +7,26 @@ import { investmentRoutes } from "./investments/routes";
 import { attendanceRoutes, employeeRoutes } from "./hr/routes";
 import { reportRoutes } from "./reports/routes";
 import { packagingRoutes } from "./packaging/routes";
+import { accountRoutes, dueRoutes, lossRoutes, placeStockRoutes, saleRoutes } from "./trade/routes";
+import { batchRoutes, courierRoutes, moneyRoutes } from "./ops/routes";
+import { claimRoutes } from "./claims/routes";
+import { businessRoutes, locationRoutes } from "./business/routes";
 import { insightRoutes, roleRoutes, settingsRoutes, userRoutes } from "./admin/routes";
 
 /** Every route here sits behind authenticate(); each one also checks its own permission. */
 export const apiRoutes = Router();
 apiRoutes.use("/insights", insightRoutes);
+apiRoutes.use("/businesses", businessRoutes);
+apiRoutes.use("/sales", saleRoutes);
+apiRoutes.use("/claims", claimRoutes);
+apiRoutes.use("/losses", lossRoutes);
+apiRoutes.use("/place-stock", placeStockRoutes);
+apiRoutes.use("/dues", dueRoutes);
+apiRoutes.use("/accounts", moneyRoutes);
+apiRoutes.use("/accounts", accountRoutes);
+apiRoutes.use("/batches", batchRoutes);
+apiRoutes.use("/couriers", courierRoutes);
+apiRoutes.use("/locations", locationRoutes);
 apiRoutes.use("/products", productRoutes);
 apiRoutes.use("/trips", tripRoutes);
 apiRoutes.use("/stock", stockRoutes);

@@ -16,6 +16,9 @@ import { useAuth } from "@/lib/auth";
 import { cn } from "@/lib/cn";
 import { compactINR, fmtDate, timeAgo } from "@/lib/format";
 import { monthShort, type Summary } from "@/lib/summary";
+import { PeriodStrip } from "@/components/PeriodStrip";
+import { BusinessHome } from "@/components/BusinessHome";
+import { useActiveBusiness } from "@/lib/business";
 import { rangeFor } from "@/components/ui/RangePicker";
 
 interface Home {
@@ -30,6 +33,12 @@ const LABEL: Record<Preset, string> = { month: "This month", lastMonth: "Last mo
 const greet = () => { const h = Number(new Date().toLocaleString("en-GB", { timeZone: "Asia/Kolkata", hour: "numeric" })); return h < 12 ? "morning" : h < 17 ? "afternoon" : "evening"; };
 
 export default function HomePage() {
+  const ab = useActiveBusiness();
+  if (ab.business && ab.kind !== "ONLINE") return <BusinessHome />;
+  return <OnlineHome />;
+}
+
+function OnlineHome() {
   const { user } = useAuth();
   const router = useRouter();
   const [preset, setPreset] = useState<Preset>("month");
@@ -51,6 +60,8 @@ export default function HomePage() {
         </div>
         <Segmented value={preset} onChange={setPreset} options={(Object.keys(LABEL) as Preset[]).map((k) => ({ value: k, label: LABEL[k] }))} />
       </div>
+
+      <PeriodStrip />
 
       <div className="grid gap-4 lg:grid-cols-3">
         <motion.button onClick={() => router.push("/analytics")} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="relative overflow-hidden rounded-[28px] bg-primary-soft p-7 text-left">

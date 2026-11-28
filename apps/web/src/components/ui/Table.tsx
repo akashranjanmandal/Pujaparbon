@@ -2,6 +2,7 @@
 import { motion } from "framer-motion";
 import type { ReactNode } from "react";
 import { cn } from "@/lib/cn";
+import { Tr } from "@/lib/i18n";
 import { Skeleton } from "./primitives";
 
 export interface Column<T> { key: string; header: ReactNode; cell: (row: T) => ReactNode; className?: string; align?: "right" | "center"; /** Hide on phones. */ hideMobile?: boolean }
@@ -35,7 +36,7 @@ export function Table<T extends object>({ columns, rows, loading, onRowClick, em
               <dl className="mt-2.5 grid grid-cols-2 gap-x-4 gap-y-2">
                 {rest.filter((c) => !c.hideMobile).map((c) => (
                   <div key={c.key} className="min-w-0">
-                    {c.header ? <dt className="text-[13.5px] font-medium text-muted">{c.header}</dt> : null}
+                    {c.header ? <dt className="text-[13.5px] font-medium text-muted"><Tr>{c.header}</Tr></dt> : null}
                     <dd className="mt-0.5 truncate text-[15px]">{c.cell(r)}</dd>
                   </div>
                 ))}
@@ -53,7 +54,7 @@ export function Table<T extends object>({ columns, rows, loading, onRowClick, em
               {onToggle && <th className="w-10 border-b hairline bg-panel2 px-5 py-3" />}
               {columns.map((c) => (
                 <th key={c.key} className={cn("border-b hairline bg-panel2 px-5 py-3 text-left text-[14px] font-semibold text-muted", c.align === "right" && "text-right", c.align === "center" && "text-center", c.className)}>
-                  {c.header}
+                  <Tr>{c.header}</Tr>
                 </th>
               ))}
             </tr>

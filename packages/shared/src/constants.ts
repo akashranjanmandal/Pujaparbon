@@ -7,9 +7,9 @@ export const SUGGESTED_PLATFORMS = [
   { name: "Myntra", color: "#FF3F6C" }, { name: "Ajio", color: "#2C4152" }, { name: "JioMart", color: "#0E7C66" },
 ] as const;
 
-export const SALE_STATUSES = ["DELIVERED", "RETURNED", "CANCELLED"] as const;
+export const SALE_STATUSES = ["DELIVERED", "RETURNED", "RTO", "IN_TRANSIT", "CANCELLED"] as const;
 export type SaleStatus = (typeof SALE_STATUSES)[number];
-export const MOVEMENT_TYPES = ["OPENING", "BUY", "COUNT"] as const;
+export const MOVEMENT_TYPES = ["OPENING", "BUY", "COUNT", "SALE", "RETURN", "LOSS", "TRANSFER", "PROCESS"] as const;
 export type MovementType = (typeof MOVEMENT_TYPES)[number];
 export const REPORT_KINDS = ["SALES", "INVOICE"] as const;
 export type ReportKind = (typeof REPORT_KINDS)[number];
@@ -35,3 +35,28 @@ export const INDIAN_STATES = [
   "Mizoram", "Nagaland", "Odisha", "Punjab", "Rajasthan", "Sikkim", "Tamil Nadu", "Telangana", "Tripura",
   "Uttar Pradesh", "Uttarakhand", "West Bengal",
 ] as const;
+
+/** The family's businesses. Each has its own books; stock and the GST number are shared. */
+export const BUSINESS_KINDS = ["CLAY", "FISH", "MELA", "PAINT", "ONLINE"] as const;
+export type BusinessKind = (typeof BUSINESS_KINDS)[number];
+export const DEFAULT_BUSINESSES: { kind: BusinessKind; name: string; color: string }[] = [
+  { kind: "CLAY", name: "Clay & puja shop", color: "#B45309" },
+  { kind: "FISH", name: "Dried fish", color: "#0E7490" },
+  { kind: "MELA", name: "Mela & fair stalls", color: "#7C3AED" },
+  { kind: "PAINT", name: "Painting & wholesale", color: "#BE123C" },
+  { kind: "ONLINE", name: "Online selling", color: "#15803D" },
+];
+/** Where goods are kept or sold. A haat or mela is a place too, so stock and sales can be tracked per place. */
+export const LOCATION_KINDS = ["SHOP", "HAAT", "MELA", "WAREHOUSE", "ONLINE"] as const;
+export type LocationKind = (typeof LOCATION_KINDS)[number];
+export const WEEKDAYS = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"] as const;
+
+export const SALE_CHANNELS = ["SHOP", "HAAT", "MELA", "WHOLESALE"] as const;
+export type SaleChannel = (typeof SALE_CHANNELS)[number];
+export const PARTY_KINDS = ["CUSTOMER", "SUPPLIER"] as const;
+export const ENTRY_KINDS = ["BILL", "PAYMENT", "ADVANCE"] as const;
+export const LOSS_REASONS = ["DAMAGED_RETURN", "WASTE", "SPOILAGE", "OTHER"] as const;
+export type LossReason = (typeof LOSS_REASONS)[number];
+
+export const CLAIM_STATUSES = ["RAISED", "APPROVED", "REJECTED"] as const;
+export const CLAIM_KINDS = ["DAMAGED", "WRONG_ITEM", "MISSING", "OTHER"] as const;

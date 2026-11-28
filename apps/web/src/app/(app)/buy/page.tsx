@@ -1,4 +1,5 @@
 "use client";
+import { useActiveBusiness } from "@/lib/business";
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { useState } from "react";
@@ -15,7 +16,8 @@ interface Res { items: Trip[]; totals: { trips: number; itemsPaise: number; cost
 
 export default function BuyHistory() {
   const [range, setRange] = useState<RangeValue>(rangeFor("last90"));
-  const { data, isLoading } = useQuery({ queryKey: ["trips", range.from, range.to], queryFn: () => api.get<Res>(`/trips?from=${range.from}&to=${range.to}`) });
+  const biz = useActiveBusiness();
+  const { data, isLoading } = useQuery({ queryKey: ["trips", range.from, range.to, biz.id ?? ""], queryFn: () => api.get<Res>(`/trips?from=${range.from}&to=${range.to}${biz.id ? `&businessId=${biz.id}` : ""}`) });
   const t = data?.totals;
   return (
     <div>

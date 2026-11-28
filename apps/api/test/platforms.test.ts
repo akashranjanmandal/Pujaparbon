@@ -141,6 +141,8 @@ describe("platform sales reports", () => {
     const rep = (await t.asOwner.get(`/api/v1/platforms/${flipkart.id}`)).body.reports[0];
     expect(rep.month).toBe("2026-09");
     expect([rep.from, rep.to]).toEqual(["2026-09-05", "2026-10-02"]);
+    const parse = (await import("../src/modules/platforms/importer")).parseStatus;
+    expect(["RTO_COMPLETE", "RTO_LOCKED", "Return", "SHIPPED", "DELIVERED", "CANCELLED"].map(parse)).toEqual(["RTO", "RTO", "RETURNED", "IN_TRANSIT", "DELIVERED", "CANCELLED"]);
     const returns = 'Order ID,Return ID,SKU,Product,Total Price,Quantity,Return Requested Date\nOD1,R1,TP-1,Tadka Pan,134.0,1,"21 November, 2026"';
     const pre2 = await t.asOwner.post(`/api/v1/platforms/${flipkart.id}/preview`).attach("file", Buffer.from(returns), "r.csv");
     expect(pre2.body.returns).toBe(true);

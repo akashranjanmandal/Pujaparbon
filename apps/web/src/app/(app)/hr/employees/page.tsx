@@ -10,9 +10,10 @@ import { ASSIGNABLE_PERMISSIONS, PERMISSION_LABELS, formatINR } from "@pp/shared
 import { api } from "@/lib/api";
 import { paise, rupeeStr } from "@/lib/money";
 import { fmtTime, todayKey } from "@/lib/format";
-import { useAction } from "@/lib/hooks";
+import { BusinessSelect } from "@/components/BusinessSelect";
+import { useAction, useBusinesses } from "@/lib/hooks";
 
-interface Employee { id: string; code: string; name: string; phone: string; designation: string; joinDate: string; shiftStart: string; salaryPaise: number; avatarHue: number; active: boolean; todayStatus: string | null; checkInAt: number | null; hasLogin: boolean; hasDevice: boolean }
+interface Employee { id: string; code: string; name: string; phone: string; designation: string; joinDate: string; shiftStart: string; salaryPaise: number; businessId?: string | null; avatarHue: number; active: boolean; todayStatus: string | null; checkInAt: number | null; hasLogin: boolean; hasDevice: boolean }
 interface U { id: string; employeeId: string | null; email: string; roleId: string | null }
 interface RoleRow { id: string; name: string; permissions: string[] }
 
@@ -65,8 +66,9 @@ export default function EmployeesPage() {
 }
 
 function EmployeeForm({ employee, onClose }: { employee?: Employee; onClose: () => void }) {
-  const [f, setF] = useState({ name: employee?.name ?? "", phone: employee?.phone ?? "", designation: employee?.designation ?? "Helper", joinDate: employee?.joinDate ?? todayKey(), shiftStart: employee?.shiftStart ?? "10:00", salary: employee?.salaryPaise ? rupeeStr(employee.salaryPaise) : "" });
-  const body = () => ({ name: f.name, phone: f.phone, designation: f.designation, joinDate: f.joinDate, shiftStart: f.shiftStart, salaryPaise: paise(f.salary) });
+  const [f, setF] = useState({ name: employee?.name ?? "", phone: employee?.phone ?? "", designation: employee?.designation ?? "Helper", joinDate: employee?.joinDate ?? todayKey(), shiftStart: employee?.shiftStart ?? "10:00", salary: employee?.salaryPaise ? rupeeStr(employee.salaryPaise) : "", businessId: employee?.businessId ?? "" });
+  const { data: biz } = useBusinesses();
+  const body = () => ({ name: f.name, phone: f.phone, designation: f.designation, joinDate: f.joinDate, shiftStart: f.shiftStart, salaryPaise: paise(f.salary), businessId: f.businessId || null });
   const save = useAction(() => (employee ? api.patch(`/employees/${employee.id}`, body()) : api.post("/employees", body())), { success: employee ? "Saved" : "Added", invalidate: ["employees"], onSuccess: onClose });
   const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement>) => setF({ ...f, [k]: e.target.value });
   return (
@@ -76,6 +78,7 @@ function EmployeeForm({ employee, onClose }: { employee?: Employee; onClose: () 
         <Field label="Phone"><Input inputMode="tel" value={f.phone} onChange={set("phone")} /></Field>
         <Field label="Job title"><Input value={f.designation} onChange={set("designation")} placeholder="e.g. Helper, Packing" /></Field>
         <Field label="Joined on"><Input type="date" value={f.joinDate} onChange={set("joinDate")} /></Field>
+        <Field label="Works for" hint="This business's accounts carry the salary." className="sm:col-span-2"><BusinessSelect value={f.businessId} onChange={(v) => setF({ ...f, businessId: v })} list={biz} none="Not assigned to a business" /></Field>
         <Field label="Monthly salary (₹)" hint="Paid in cash. Only you can see this." className="sm:col-span-2"><Input inputMode="decimal" value={f.salary} onChange={set("salary")} placeholder="e.g. 12000" /></Field>
         <Field label="Shift starts"><Input type="time" value={f.shiftStart} onChange={set("shiftStart")} /></Field>
       </div>

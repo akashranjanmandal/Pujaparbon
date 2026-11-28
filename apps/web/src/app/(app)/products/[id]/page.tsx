@@ -13,7 +13,8 @@ import { Badge, Button, Card, Field, Input, Textarea } from "@/components/ui/pri
 import { api } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { fmtDate, fmtDateTime } from "@/lib/format";
-import { useAction } from "@/lib/hooks";
+import { BusinessSelect } from "@/components/BusinessSelect";
+import { useAction, useBusinesses } from "@/lib/hooks";
 import { paise, rupeeStr } from "@/lib/money";
 import type { Product } from "@/lib/summary";
 
@@ -56,7 +57,7 @@ export default function ProductPage() {
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <Tile label="In stock" value={`${p.onHand.toLocaleString("en-IN")} ${p.unit}`} sub={p.lastCountAt ? `Counted ${fmtDateTime(p.lastCountAt)}` : "Not counted yet"} tone="bg-primary-soft text-primary" />
         <Tile label="Real cost each" value={p.avgCostPaise ? formatINR(p.avgCostPaise) : "—"} sub="Average, with trip costs" tone="bg-lav-soft text-lav" />
-        <Tile label="Your price" value={p.sellingPricePaise ? formatINR(p.sellingPricePaise) : "Not set"} sub={p.avgCostPaise && p.sellingPricePaise ? `${p.marginPct >= 0 ? "+" : ""}${p.marginPct}% over cost` : undefined} tone="bg-peach-soft text-peach" />
+        <Tile label="Your price" value={p.sellingPricePaise ? formatINR(p.sellingPricePaise) : "Not set"} sub={[p.avgCostPaise && p.sellingPricePaise ? `${p.marginPct >= 0 ? "+" : ""}${p.marginPct}% over cost` : "", p.wholesalePricePaise ? `Wholesale ${formatINR(p.wholesalePricePaise)}` : ""].filter(Boolean).join(" · ") || undefined} tone="bg-peach-soft text-peach" />
         <Tile label="Stock value at cost" value={formatINR(p.valuePaise, { decimals: false })} tone="bg-panel text-text" />
       </div>
 
@@ -103,17 +104,22 @@ const Tile = ({ label, value, sub, tone }: { label: string; value: string; sub?:
 
 function EditDrawer({ p, open, onClose }: { p: Detail; open: boolean; onClose: () => void }) {
   const { data: cats } = useQuery({ queryKey: ["products", ""], queryFn: () => api.get<{ categories: { name: string }[] }>("/products"), enabled: open });
-  const [f, setF] = useState({ name: p.name, category: p.category, unit: p.unit, price: rupeeStr(p.sellingPricePaise), notes: p.notes ?? "" });
-  useEffect(() => setF({ name: p.name, category: p.category, unit: p.unit, price: rupeeStr(p.sellingPricePaise), notes: p.notes ?? "" }), [p, open]);
-  const save = useAction(() => api.patch(`/products/${p.id}`, { name: f.name, category: f.category, unit: f.unit, sellingPricePaise: paise(f.price), notes: f.notes || undefined }), { success: "Saved", invalidate: ["product", "products"], onSuccess: onClose });
+  const init = () => ({ name: p.name, category: p.category, unit: p.unit, price: rupeeStr(p.sellingPricePaise), wholesale: rupeeStr(p.wholesalePricePaise), gst: p.gstPct ? String(p.gstPct) : "", businessId: p.businessId ?? "", notes: p.notes ?? "" });
+  const [f, setF] = useState(init);
+  const { data: biz } = useBusinesses();
+  useEffect(() => setF(init()), [p, open]);
+  const save = useAction(() => api.patch(`/products/${p.id}`, { name: f.name, category: f.category, unit: f.unit, sellingPricePaise: paise(f.price), wholesalePricePaise: paise(f.wholesale), gstPct: Number(f.gst) || 0, businessId: f.businessId || null, notes: f.notes || undefined }), { success: "Saved", invalidate: ["product", "products"], onSuccess: onClose });
   const cost = p.avgCostPaise, price = paise(f.price);
   return (
     <Drawer open={open} onClose={onClose} title="Edit item" footer={<><Button variant="ghost" onClick={onClose}>Cancel</Button><Button variant="primary" loading={save.isPending} onClick={() => save.mutate(undefined)}>Save</Button></>}>
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Name" className="sm:col-span-2"><Input value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} /></Field>
         <Field label="Category" hint="Type a new name to create a category."><Input list="cats2" value={f.category} onChange={(e) => setF({ ...f, category: e.target.value })} /><datalist id="cats2">{cats?.categories.map((c) => <option key={c.name} value={c.name} />)}</datalist></Field>
-        <Field label="Unit"><Input value={f.unit} onChange={(e) => setF({ ...f, unit: e.target.value })} /></Field>
-        <Field label="Selling price (₹)" hint={cost && price ? `${price >= cost ? "+" : ""}${Math.round(((price - cost) / cost) * 1000) / 10}% over your real cost of ${formatINR(cost)}` : undefined} className="sm:col-span-2"><Input inputMode="decimal" value={f.price} onChange={(e) => setF({ ...f, price: e.target.value })} /></Field>
+        <Field label="Unit" hint="pcs, kg, ton, bag... your choice."><Input list="units2" value={f.unit} onChange={(e) => setF({ ...f, unit: e.target.value })} /><datalist id="units2">{["pcs", "kg", "ton", "bag", "dozen", "litre", "box"].map((u) => <option key={u} value={u} />)}</datalist></Field>
+        <Field label="Retail price (₹)" hint={cost && price ? `${price >= cost ? "+" : ""}${Math.round(((price - cost) / cost) * 1000) / 10}% over your real cost of ${formatINR(cost)}` : undefined}><Input inputMode="decimal" value={f.price} onChange={(e) => setF({ ...f, price: e.target.value })} /></Field>
+        <Field label="Wholesale price (₹)" hint="Leave empty if you do not sell it wholesale."><Input inputMode="decimal" value={f.wholesale} onChange={(e) => setF({ ...f, wholesale: e.target.value })} /></Field>
+        <Field label="GST on sales (%)" hint="Prices include it. Leave empty for none."><Input inputMode="decimal" value={f.gst} onChange={(e) => setF({ ...f, gst: e.target.value })} placeholder="e.g. 5" /></Field>
+        <Field label="Belongs to"><BusinessSelect value={f.businessId} onChange={(v) => setF({ ...f, businessId: v })} list={biz} /></Field>
         <Field label="Notes" className="sm:col-span-2"><Textarea value={f.notes} onChange={(e) => setF({ ...f, notes: e.target.value })} /></Field>
       </div>
     </Drawer>

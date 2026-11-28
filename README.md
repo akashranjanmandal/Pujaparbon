@@ -28,11 +28,11 @@ Two logins only: **Owner** (everything) and **Employee** (shift).
 ```bash
 npm install
 cp apps/api/.env.example apps/api/.env   # TURSO_DATABASE_URL + TURSO_AUTH_TOKEN, or leave blank for a local file
-npm run db:setup                          # migrations + demo data
+npm run db:setup                          # migrations + owner login + the five businesses (no sample data)
 npm run dev                               # API :4000, web :3000
 ```
-Demo logins (password `PujaParbon@2026`): `owner@pujaparbon.in` (Owner tab), `staff@pujaparbon.in` (Employee tab).
-`npm run db:fresh --workspace apps/api` wipes every table and rebuilds the schema and demo data.
+First login: `owner@pujaparbon.in` / `PujaParbon@2026` (change it in Settings). Employees are added in the app.
+`npm run db:fresh --workspace apps/api` wipes every table and rebuilds a clean, empty setup. It deletes real data, so never run it against the live Turso database.
 
 ## Tests
 ```bash

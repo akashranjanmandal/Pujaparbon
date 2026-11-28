@@ -1,4 +1,5 @@
 "use client";
+import { useActiveBusiness } from "@/lib/business";
 import { useQuery } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "framer-motion";
 import { useRouter } from "next/navigation";
@@ -11,7 +12,8 @@ import { Button, Card, Field, Input, Segmented } from "@/components/ui/primitive
 import { api } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { compactINR, todayKey } from "@/lib/format";
-import { useAction } from "@/lib/hooks";
+import { BusinessSelect } from "@/components/BusinessSelect";
+import { useAction, useBusinesses } from "@/lib/hooks";
 import { paise, rupeeStr } from "@/lib/money";
 
 type Mode = "adjust" | "pct" | "price";
@@ -30,6 +32,9 @@ export default function NewBuyPage() {
   const { data: cat } = useQuery({ queryKey: ["products", ""], queryFn: () => api.get<{ items: CatalogItem[]; categories: { name: string }[] }>("/products") });
   const [date, setDate] = useState(todayKey());
   const [place, setPlace] = useState("");
+  const ab0 = useActiveBusiness();
+  const [businessId, setBusinessId] = useState(ab0.id ?? "");
+  const { data: biz } = useBusinesses();
   const [notes, setNotes] = useState("");
   const [lines, setLines] = useState<Line[]>([newLine()]);
   const [costs, setCosts] = useState<Cost[]>([newCost("Travel"), newCost("Food")]);
@@ -41,7 +46,7 @@ export default function NewBuyPage() {
     const filled = lines.map((l) => {
       const rawPaise = paise(l.paid);
       const gstPct = l.gst ? Math.max(0, Number(l.gstPct) || 0) : 0;
-      return { l, qty: Math.max(0, Math.floor(Number(l.qty) || 0)), rawPaise, gstPct, linePaise: Math.round(rawPaise * (1 + gstPct / 100)) };
+      return { l, qty: Math.max(0, Math.round((Number(l.qty) || 0) * 1000) / 1000), rawPaise, gstPct, linePaise: Math.round(rawPaise * (1 + gstPct / 100)) };
     });
     const usable = filled.filter((f) => f.qty > 0);
     const costRows = costs.map((c) => ({ amountPaise: paise(c.amount) })).filter((c) => c.amountPaise > 0);
@@ -74,14 +79,14 @@ export default function NewBuyPage() {
   lines.forEach((l, i) => {
     if (!l.product) return problems.push(`Item ${i + 1}: choose or type the item`);
     if (!l.product.id && !l.product.category.trim()) problems.push(`${l.product.name}: type a category`);
-    if (!(Number(l.qty) >= 1)) problems.push(`${l.product.name}: how many pieces?`);
+    if (!(Number(l.qty) > 0)) problems.push(`${l.product.name}: how many ${l.product.unit || "pieces"}?`);
     if (l.paid.trim() === "") problems.push(`${l.product.name}: how much did you pay for them?`);
   });
 
   const save = useAction(
     () =>
       api.post<Saved>("/trips", {
-        date, place: place || undefined, notes: notes || undefined,
+        date, place: place || undefined, businessId: businessId || undefined, notes: notes || undefined,
         items: calc.rows.map((r) => ({
           ...(r.l.product!.id ? { productId: r.l.product!.id } : { newProduct: { name: r.l.product!.name, category: r.l.product!.category.trim(), unit: r.l.product!.unit || "pcs" } }),
           qty: r.qty, linePaise: r.rawPaise, gstPct: r.gstPct || undefined, unitPricePaise: r.price,
@@ -101,6 +106,7 @@ export default function NewBuyPage() {
           {/* trip details */}
           <Card>
             <div className="grid gap-4 p-6 sm:grid-cols-3">
+              <Field label="Paid by which business?" className="sm:col-span-3"><BusinessSelect value={businessId} onChange={setBusinessId} list={biz} none="Shared / not sure" /></Field>
               <Field label="Date"><Input type="date" value={date} max={todayKey()} onChange={(e) => setDate(e.target.value)} /></Field>
               <Field label="Where did you buy?" className="sm:col-span-2"><Input value={place} onChange={(e) => setPlace(e.target.value)} placeholder="e.g. Barabazar wholesale" /></Field>
             </div>
@@ -123,7 +129,7 @@ export default function NewBuyPage() {
                       onChange={(p) => setLine(r.l.id, p?.id && p.sellingPricePaise ? { product: p, mode: "price", value: rupeeStr(p.sellingPricePaise) } : { product: p })}
                     />
                     <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
-                      <Field label="How many pieces?"><Input inputMode="numeric" value={r.l.qty} onChange={(e) => setLine(r.l.id, { qty: e.target.value.replace(/\D/g, "") })} placeholder="100" /></Field>
+                      <Field label={`How many ${r.l.product?.unit && r.l.product.unit !== "pcs" ? r.l.product.unit : "pieces"}?`}><Input inputMode="decimal" value={r.l.qty} onChange={(e) => setLine(r.l.id, { qty: e.target.value.replace(/[^\d.]/g, "") })} placeholder="100" /></Field>
                       <Field label="Total you paid (₹)" className="col-span-1 sm:col-span-2"><Input inputMode="decimal" value={r.l.paid} onChange={(e) => setLine(r.l.id, { paid: e.target.value })} placeholder="1000" /></Field>
                     </div>
                     <div className="mt-3">

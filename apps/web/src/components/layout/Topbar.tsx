@@ -2,21 +2,18 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { Bell, LogOut, Search } from "lucide-react";
+import { Bell, LogOut, Menu, Search } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Logo } from "@/components/brand/Logo";
 import { Avatar } from "@/components/ui/primitives";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { cn } from "@/lib/cn";
-import { groupOf, navFor } from "@/lib/nav";
 
 interface Note { id: string; level: "critical" | "warning" | "info"; title: string; body: string; href: string }
 
-export function Topbar({ onSearch }: { onSearch: () => void }) {
+export function Topbar({ onSearch, onMenu }: { onSearch: () => void; onMenu: () => void }) {
   const { user, logout } = useAuth();
-  const path = usePathname();
   const [open, setOpen] = useState<"alerts" | "me" | null>(null);
   const ref = useRef<HTMLDivElement>(null);
   const { data: notes = [] } = useQuery({ queryKey: ["notifications"], queryFn: () => api.get<Note[]>("/insights/notifications"), refetchInterval: 60_000, enabled: !!user });
@@ -26,26 +23,13 @@ export function Topbar({ onSearch }: { onSearch: () => void }) {
     return () => document.removeEventListener("mousedown", close);
   }, []);
   if (!user) return null;
-  const group = navFor(user.permissions, user.role).find((g) => g.id === groupOf(path)?.id);
   const icon = "relative grid h-10 w-10 place-items-center rounded-xl text-muted transition hover:bg-line/[0.05] hover:text-text";
 
   return (
     <header className="sticky top-0 z-30 border-b hairline bg-bg/85 backdrop-blur-xl" ref={ref}>
-      <div className="mx-auto flex h-16 max-w-[1440px] items-center gap-4 px-4 sm:px-8">
-        <Link href={user.role === "STAFF" ? "/me" : "/dashboard"} className="shrink-0"><Logo className="[&>div:last-child]:hidden sm:[&>div:last-child]:block" /></Link>
-        {group && (
-          <nav className="ml-4 hidden items-center gap-1 lg:flex">
-            {group.items.map((i) => {
-              const active = path === i.href || path.startsWith(`${i.href}/`);
-              return (
-                <Link key={i.href} href={i.href} className={cn("relative rounded-xl px-3.5 py-2 text-[15.5px] font-medium transition-colors", active ? "text-text" : "text-muted hover:text-text")}>
-                  {active && <motion.span layoutId="top-tab" className="absolute inset-0 -z-10 rounded-xl bg-primary-tint" transition={{ type: "spring", bounce: 0.15, duration: 0.45 }} />}
-                  {i.label}
-                </Link>
-              );
-            })}
-          </nav>
-        )}
+      <div className="flex h-16 items-center gap-3 px-4 sm:px-8">
+        <button onClick={onMenu} className="grid h-10 w-10 shrink-0 place-items-center rounded-xl text-text hover:bg-line/[0.06] lg:hidden" aria-label="Open menu"><Menu className="h-6 w-6" /></button>
+        <Link href={user.role === "STAFF" ? "/me" : "/dashboard"} className="shrink-0 lg:hidden"><Logo className="[&>div:last-child]:hidden sm:[&>div:last-child]:block" /></Link>
         <div className="ml-auto flex items-center gap-1.5">
           <button onClick={onSearch} className="hidden h-10 items-center gap-2.5 rounded-xl border border-line/[0.1] bg-panel px-3.5 text-[15px] text-muted shadow-[0_1px_2px_rgb(var(--line)/0.04)] transition hover:border-line/20 md:flex md:w-64">
             <Search className="h-4 w-4" /><span className="flex-1 text-left">Search anything</span><kbd className="rounded-md bg-bg2 px-1.5 py-0.5 text-[11px]">⌘K</kbd>
@@ -87,14 +71,6 @@ export function Topbar({ onSearch }: { onSearch: () => void }) {
           </div>
         </div>
       </div>
-      {group && group.items.length > 1 && (
-        <nav className="flex gap-1 overflow-x-auto px-4 pb-2.5 lg:hidden">
-          {group.items.map((i) => {
-            const active = path === i.href || path.startsWith(`${i.href}/`);
-            return <Link key={i.href} href={i.href} className={cn("whitespace-nowrap rounded-full px-3.5 py-1.5 text-[15px] font-medium", active ? "bg-primary-tint text-primary" : "text-muted")}>{i.label}</Link>;
-          })}
-        </nav>
-      )}
     </header>
   );
 }

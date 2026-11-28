@@ -1,5 +1,6 @@
 import { and, desc, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import { allocateTrip, pctOver, tripTotals, type TripInput } from "@pp/shared";
+import { assertBusiness } from "../business/service";
 import { db } from "../../db/client";
 import { products, stockMovements, tripCosts, tripItems, trips } from "../../db/schema";
 import { audit } from "../../lib/audit";
@@ -18,6 +19,7 @@ const withGst = (linePaise: number, gstPct?: number) => (gstPct ? Math.round(lin
  * items, adds stock at landed cost, and sets the selling prices he decided on. All in one transaction.
  */
 export async function create(c: Ctx, input: TripInput) {
+  await assertBusiness(c.tenantId, input.businessId);
   const id = await db.transaction(async (tx) => {
     // Resolve every line to a product, creating new ones.
     const resolved: { productId: string; qty: number; linePaise: number; unitPricePaise: number; gstPct: number | null }[] = [];
@@ -34,7 +36,7 @@ export async function create(c: Ctx, input: TripInput) {
         if (!productId) {
           [{ id: productId }] = await tx
             .insert(products)
-            .values({ tenantId: c.tenantId, code: await newProductCode(tx, c.tenantId), name: np.name, category: np.category, unit: np.unit })
+            .values({ tenantId: c.tenantId, code: await newProductCode(tx, c.tenantId), name: np.name, category: np.category, unit: np.unit, businessId: input.businessId ?? null })
             .returning({ id: products.id });
         }
       }
@@ -50,7 +52,7 @@ export async function create(c: Ctx, input: TripInput) {
     const [trip] = await tx
       .insert(trips)
       .values({
-        tenantId: c.tenantId, code: await newTripCode(tx, c.tenantId), date: input.date, title: input.title ?? null, place: input.place ?? null, notes: input.notes ?? null,
+        tenantId: c.tenantId, code: await newTripCode(tx, c.tenantId), businessId: input.businessId ?? null, date: input.date, title: input.title ?? null, place: input.place ?? null, notes: input.notes ?? null,
         basis: input.basis, itemsPaise: totals.itemsPaise, costsPaise: totals.costsPaise, totalPaise: totals.totalPaise, createdById: c.userId,
       })
       .returning();
@@ -98,8 +100,9 @@ export async function get(tenantId: string, ref: string) {
   };
 }
 
-export async function list(tenantId: string, q: { from?: string; to?: string }) {
+export async function list(tenantId: string, q: { from?: string; to?: string; businessId?: string }) {
   const where = [eq(trips.tenantId, tenantId)];
+  if (q.businessId) where.push(eq(trips.businessId, q.businessId));
   if (q.from) where.push(gte(trips.date, q.from));
   if (q.to) where.push(lte(trips.date, q.to));
   const rows = await db.select().from(trips).where(and(...where)).orderBy(desc(trips.date), desc(trips.createdAt)).limit(300);

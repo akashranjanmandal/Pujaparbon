@@ -6,18 +6,21 @@ import { audit } from "../../lib/audit";
 import { newProductCode } from "../../lib/codes";
 import { conflict, notFound } from "../../lib/errors";
 import type { AuthContext } from "../../lib/http";
+import { assertBusiness } from "../business/service";
 import { levels, recordMovement } from "../stock/service";
 
 type Ctx = Pick<AuthContext, "tenantId" | "userId">;
 
 export interface ProductRow {
-  id: string; code: string; name: string; category: string; unit: string; sellingPricePaise: number; notes: string | null;
+  id: string; code: string; name: string; category: string; unit: string; sellingPricePaise: number; wholesalePricePaise: number; gstPct: number; businessId: string | null; notes: string | null;
   onHand: number; valuePaise: number; avgCostPaise: number; marginPct: number; lastCountAt: number | null;
 }
 
-export async function list(tenantId: string, q: { search?: string; category?: string }) {
+export async function list(tenantId: string, q: { search?: string; category?: string; businessId?: string }) {
   const where = [eq(products.tenantId, tenantId), isNull(products.archivedAt)];
   if (q.category) where.push(eq(products.category, q.category));
+  // A business sees its own items and the shared ones.
+  if (q.businessId) where.push(or(eq(products.businessId, q.businessId), isNull(products.businessId))!);
   if (q.search) {
     const s = `%${q.search}%`;
     where.push(or(like(products.name, s), like(products.code, s), like(products.category, s))!);
@@ -27,7 +30,7 @@ export async function list(tenantId: string, q: { search?: string; category?: st
     const l = lv.get(p.id) ?? { qty: 0, valuePaise: 0, lastCountAt: null };
     const avg = l.qty > 0 ? Math.round(l.valuePaise / l.qty) : 0;
     return {
-      id: p.id, code: p.code, name: p.name, category: p.category, unit: p.unit, sellingPricePaise: p.sellingPricePaise, notes: p.notes,
+      id: p.id, code: p.code, name: p.name, category: p.category, unit: p.unit, sellingPricePaise: p.sellingPricePaise, wholesalePricePaise: p.wholesalePricePaise, gstPct: p.gstPct, businessId: p.businessId, notes: p.notes,
       onHand: l.qty, valuePaise: l.valuePaise, avgCostPaise: avg, marginPct: pctOver(avg, p.sellingPricePaise), lastCountAt: l.lastCountAt,
     };
   });
@@ -86,7 +89,7 @@ export async function get(tenantId: string, ref: string) {
       platform: platforms.name, color: platforms.color, units: sql<number>`sum(case when ${platformSales.status} = 'DELIVERED' then ${platformSales.qty} else 0 end)`,
       netPaise: sql<number>`sum(case when ${platformSales.status} = 'DELIVERED' then ${platformSales.netPaise} else 0 end)`,
       costPaise: sql<number>`sum(case when ${platformSales.status} = 'DELIVERED' then ${platformSales.costPaise} else 0 end)`,
-      returns: sql<number>`sum(case when ${platformSales.status} = 'RETURNED' then ${platformSales.qty} else 0 end)`,
+      returns: sql<number>`sum(case when ${platformSales.status} in ('RETURNED', 'RTO') then ${platformSales.qty} else 0 end)`,
     })
     .from(platformSales)
     .innerJoin(platforms, eq(platforms.id, platformSales.platformId))
@@ -101,12 +104,13 @@ export async function get(tenantId: string, ref: string) {
 }
 
 export async function create(c: Ctx, input: ProductInput) {
+  await assertBusiness(c.tenantId, input.businessId);
   const id = await db.transaction(async (tx) => {
     const [dup] = await tx.select({ id: products.id }).from(products).where(and(eq(products.tenantId, c.tenantId), eq(products.name, input.name), eq(products.category, input.category), isNull(products.archivedAt)));
     if (dup) throw conflict(`"${input.name}" already exists in ${input.category}`);
     const [p] = await tx
       .insert(products)
-      .values({ tenantId: c.tenantId, code: await newProductCode(tx, c.tenantId), name: input.name, category: input.category, unit: input.unit, sellingPricePaise: input.sellingPricePaise, notes: input.notes ?? null })
+      .values({ tenantId: c.tenantId, code: await newProductCode(tx, c.tenantId), name: input.name, category: input.category, unit: input.unit, sellingPricePaise: input.sellingPricePaise, wholesalePricePaise: input.wholesalePricePaise, gstPct: input.gstPct, businessId: input.businessId ?? null, notes: input.notes ?? null })
       .returning({ id: products.id });
     if (input.openingQty > 0) {
       await recordMovement(tx, c, { productId: p.id, qty: input.openingQty, valuePaise: input.openingQty * input.openingUnitCostPaise, type: "OPENING", note: "Opening stock" });
@@ -117,7 +121,8 @@ export async function create(c: Ctx, input: ProductInput) {
   return get(c.tenantId, id);
 }
 
-export async function update(c: Ctx, id: string, input: Partial<Pick<ProductInput, "name" | "category" | "unit" | "sellingPricePaise" | "notes">>) {
+export async function update(c: Ctx, id: string, input: Partial<Pick<ProductInput, "name" | "category" | "unit" | "sellingPricePaise" | "wholesalePricePaise" | "gstPct" | "businessId" | "notes">>) {
+  await assertBusiness(c.tenantId, input.businessId);
   const res = await db.update(products).set(input).where(and(eq(products.id, id), eq(products.tenantId, c.tenantId)));
   if (!res.rowsAffected) throw notFound("Product");
   await audit(db, c, "product.update", "product", id);

@@ -6,7 +6,7 @@ import { ctx, handler, str } from "../../lib/http";
 import * as catalog from "./service";
 
 export const productRoutes = Router();
-productRoutes.get("/", requirePermission("stock.view"), handler((req) => catalog.list(ctx(req).tenantId, { search: str(req.query.search), category: str(req.query.category) })));
+productRoutes.get("/", requirePermission("stock.view"), handler((req) => catalog.list(ctx(req).tenantId, { search: str(req.query.search), category: str(req.query.category), businessId: str(req.query.businessId) })));
 productRoutes.get("/categories", requirePermission("stock.view"), handler((req) => catalog.categories(ctx(req).tenantId)));
 productRoutes.post("/categories/rename", requirePermission("products.manage"), handler((req) => {
   const { from, to } = parse(categoryRenameSchema, req.body);

@@ -1,11 +1,14 @@
 import { z } from "zod";
-import { PLATFORM_COLORS, REPORT_KINDS } from "./constants";
+import { BUSINESS_KINDS, ENTRY_KINDS, LOCATION_KINDS, LOSS_REASONS, PARTY_KINDS, CLAIM_KINDS, CLAIM_STATUSES, PLATFORM_COLORS, REPORT_KINDS, SALE_CHANNELS, WEEKDAYS } from "./constants";
 import { ATTENDANCE_STATUSES } from "./hr";
 import { ASSIGNABLE_PERMISSIONS, ROLES } from "./permissions";
 
 /** Request schemas: the web forms and the API validate with the same rules. */
 
 const paise = z.number().int().nonnegative();
+/** Quantities may be fractional (kg, tons), up to three decimals. */
+const qty = z.number().positive().max(1_000_000).transform((n) => Math.round(n * 1000) / 1000);
+const qty0 = z.number().nonnegative().max(1_000_000).transform((n) => Math.round(n * 1000) / 1000);
 const id = z.string().min(1);
 const dateKey = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD");
 const monthKey = z.string().regex(/^\d{4}-\d{2}$/, "Use YYYY-MM");
@@ -25,13 +28,19 @@ export const productSchema = z.object({
   name: text(120).min(2),
   category: text(60).min(1, "Choose or type a category"),
   unit: text(20).default("pcs"),
+  /** Retail price. Wholesale is separate; 0 means he does not sell it wholesale. */
   sellingPricePaise: paise.default(0),
+  wholesalePricePaise: paise.default(0),
+  /** GST rate charged on sales of this item (prices include it). 0 = none. */
+  gstPct: z.number().min(0).max(100).default(0),
+  /** The business this item belongs to; empty = shared by all. */
+  businessId: id.nullish(),
   notes: optionalText(),
   /** Stock already on the shelf before using the app. */
-  openingQty: z.number().int().nonnegative().default(0),
+  openingQty: qty0.default(0),
   openingUnitCostPaise: paise.default(0),
 });
-export const productUpdateSchema = productSchema.pick({ name: true, category: true, unit: true, sellingPricePaise: true, notes: true }).partial();
+export const productUpdateSchema = productSchema.pick({ name: true, category: true, unit: true, sellingPricePaise: true, wholesalePricePaise: true, gstPct: true, businessId: true, notes: true }).partial();
 export const categoryRenameSchema = z.object({ from: text(60).min(1), to: text(60).min(1) });
 
 /* ── Buying trips ── */
@@ -39,7 +48,7 @@ export const tripItemSchema = z
   .object({
     productId: id.optional(),
     newProduct: z.object({ name: text(120).min(2), category: text(60).min(1), unit: text(20).default("pcs") }).optional(),
-    qty: z.number().int().positive("Quantity must be at least 1"),
+    qty,
     /** What he paid in total for all pieces of this line. */
     linePaise: paise,
     /** Only when the market price does NOT include GST: the percentage added on top. */
@@ -62,13 +71,110 @@ export const tripSchema = z.object({
   place: optionalText(80),
   notes: optionalText(),
   basis: z.enum(["VALUE", "QTY"]).default("QTY"),
+  /** Which business paid for this trip. */
+  businessId: id.nullish(),
   items: z.array(tripItemSchema).min(1, "Add at least one item"),
   costs: z.array(tripCostSchema).default([]),
 });
 
+/* ── Businesses and places ── */
+export const businessSchema = z.object({ name: text(60).min(2), kind: z.enum(BUSINESS_KINDS), color: z.string().regex(/^#[0-9A-Fa-f]{6}$/).default("#B45309") });
+export const locationSchema = z.object({
+  name: text(60).min(2),
+  kind: z.enum(LOCATION_KINDS),
+  businessId: id.nullish(),
+  /** Days a haat or stall is open, e.g. SUN and WED. */
+  days: z.array(z.enum(WEEKDAYS)).default([]),
+  active: z.boolean().default(true),
+});
+
+/* ── Selling, dues, losses ── */
+export const saleSchema = z.object({
+  businessId: id,
+  locationId: id.nullish(),
+  channel: z.enum(SALE_CHANNELS),
+  date: dateKey,
+  customerId: id.nullish(),
+  /** One bill with items, or just the day's total when he does not list every sale. */
+  items: z.array(z.object({ productId: id, qty, unitPricePaise: paise })).default([]),
+  totalPaise: paise.optional(),
+  /** Money received now. Anything less than the total becomes a due on the customer. */
+  paidPaise: paise.optional(),
+  note: optionalText(200),
+}).refine((s) => s.items.length > 0 || (s.totalPaise ?? 0) > 0, { message: "Add items or enter the day's total" });
+export const returnSchema = z.object({
+  businessId: id,
+  locationId: id.nullish(),
+  productId: id,
+  qty,
+  date: dateKey,
+  condition: z.enum(["GOOD", "DAMAGED"]),
+  refundPaise: paise.default(0),
+  note: optionalText(200),
+});
+export const lossSchema = z.object({
+  businessId: id.nullish(),
+  locationId: id.nullish(),
+  productId: id,
+  qty,
+  date: dateKey,
+  reason: z.enum(LOSS_REASONS),
+  note: optionalText(200),
+});
+export const transferSchema = z.object({ productId: id, qty, fromLocationId: id.nullable(), toLocationId: id, note: optionalText(200) }).refine((t) => t.fromLocationId !== t.toLocationId, { message: "Choose two different places" });
+export const partySchema = z.object({ name: text(80).min(2), kind: z.enum(PARTY_KINDS), phone: optionalText(20), note: optionalText(200) });
+export const entrySchema = z.object({
+  partyId: id,
+  kind: z.enum(ENTRY_KINDS),
+  amountPaise: paise.refine((n) => n > 0, "Enter an amount"),
+  date: dateKey,
+  businessId: id.nullish(),
+  note: optionalText(200),
+});
+
+/* ── Processing, couriers, funds ── */
+export const batchSchema = z.object({
+  businessId: id,
+  date: dateKey,
+  name: text(80).min(2),
+  /** Raw goods used up. */
+  inputs: z.array(z.object({ productId: id, qty })).min(1, "Add the goods you used"),
+  /** Finished goods made. */
+  outputs: z.array(z.object({ productId: id, qty })).min(1, "Add what came out"),
+  /** Colour, labour, packing material... */
+  costs: z.array(z.object({ kind: text(40).min(1), label: optionalText(80), amountPaise: paise })).default([]),
+  note: optionalText(200),
+});
+export const courierMoveSchema = z.object({
+  date: dateKey,
+  platformId: id.nullish(),
+  courier: text(40).min(2),
+  outgoing: z.number().int().nonnegative().default(0),
+  customerReturn: z.number().int().nonnegative().default(0),
+  rto: z.number().int().nonnegative().default(0),
+  time: optionalText(10),
+});
+export const fundTransferSchema = z.object({ date: dateKey, fromBusinessId: id, toBusinessId: id, amountPaise: paise.refine((n) => n > 0, "Enter an amount"), note: optionalText(200) }).refine((t) => t.fromBusinessId !== t.toBusinessId, { message: "Choose two different businesses" });
+
+/* ── Marketplace claims ── */
+export const claimSchema = z.object({
+  platformId: id,
+  orderId: text(60).min(1, "Enter the order number"),
+  productId: id.nullish(),
+  date: dateKey,
+  kind: z.enum(CLAIM_KINDS),
+  status: z.enum(CLAIM_STATUSES).default("RAISED"),
+  /** Why it was approved or rejected, as the platform said. */
+  reason: optionalText(200),
+  /** What he expected to get back, and what the platform actually paid. */
+  expectedPaise: paise.default(0),
+  receivedPaise: paise.default(0),
+  note: optionalText(200),
+});
+
 /* ── Stock ── */
 export const countSchema = z.object({
-  counts: z.array(z.object({ productId: id, counted: z.number().int().nonnegative() })).min(1),
+  counts: z.array(z.object({ productId: id, counted: qty0 })).min(1),
   note: optionalText(200),
 });
 export const priceUpdateSchema = z.object({ prices: z.array(z.object({ productId: id, sellingPricePaise: paise })).min(1) });
@@ -91,6 +197,10 @@ export const investmentSchema = z.object({
   date: dateKey,
   label: text(100).min(2),
   category: text(60).min(1),
+  /** Which business this spending belongs to; empty = shared. */
+  businessId: id.nullish(),
+  /** A fair or haat this spending was for (stall rent, transport...). */
+  locationId: id.nullish(),
   amountPaise: paise.refine((n) => n > 0, "Amount must be more than zero"),
   note: optionalText(),
 });
@@ -104,6 +214,8 @@ export const employeeSchema = z.object({
   shiftStart: z.string().regex(/^\d{2}:\d{2}$/).default("10:00"),
   /** Monthly salary, paid in cash. Only the owner ever sees it. */
   salaryPaise: paise.default(0),
+  /** Which business pays this salary, so it shows in that business's accounts. */
+  businessId: id.nullish(),
 });
 export const checkInSchema = z.object({
   lat: z.number().min(-90).max(90),
@@ -165,3 +277,6 @@ export type CheckInInput = z.infer<typeof checkInSchema>;
 export type EmployeeInput = z.infer<typeof employeeSchema>;
 export type InvestmentInput = z.infer<typeof investmentSchema>;
 export type SettingsInput = z.infer<typeof settingsSchema>;
+export type BusinessInput = z.infer<typeof businessSchema>;
+export type LocationInput = z.infer<typeof locationSchema>;
+export type SaleInput = z.infer<typeof saleSchema>;

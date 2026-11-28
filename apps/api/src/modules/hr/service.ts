@@ -1,5 +1,6 @@
 import { and, between, desc, eq, sql } from "drizzle-orm";
 import { LIMITED_LEAVES, attendanceStatus, checkGeofence, computePay, istDateKey, workingDaysInMonth, type AttendanceStatus, type CheckInInput, type EmployeeInput } from "@pp/shared";
+import { assertBusiness } from "../business/service";
 import { db } from "../../db/client";
 import { attendance, employees, tenants, users } from "../../db/schema";
 import { AppError, badRequest, conflict, notFound } from "../../lib/errors";
@@ -45,13 +46,15 @@ export async function getEmployee(tenantId: string, id: string) {
 }
 
 export async function createEmployee(c: Ctx, input: EmployeeInput) {
+  await assertBusiness(c.tenantId, input.businessId);
   const [{ n }] = await db.select({ n: sql<number>`count(*)` }).from(employees).where(eq(employees.tenantId, c.tenantId));
-  const [row] = await db.insert(employees).values({ ...input, tenantId: c.tenantId, code: `E${String(Number(n) + 1).padStart(3, "0")}`, avatarHue: Math.floor(Math.random() * 360) }).returning();
+  const [row] = await db.insert(employees).values({ ...input, businessId: input.businessId ?? null, tenantId: c.tenantId, code: `E${String(Number(n) + 1).padStart(3, "0")}`, avatarHue: Math.floor(Math.random() * 360) }).returning();
   await audit(db, c, "employee.create", "employee", row.id);
   return row;
 }
 
 export async function updateEmployee(c: Ctx, id: string, input: Partial<EmployeeInput> & { active?: boolean }) {
+  await assertBusiness(c.tenantId, input.businessId);
   const [row] = await db.update(employees).set(input).where(and(eq(employees.id, id), eq(employees.tenantId, c.tenantId))).returning();
   if (!row) throw notFound("Employee");
   if (input.active === false) await db.update(users).set({ active: false }).where(eq(users.employeeId, id));
@@ -215,7 +218,7 @@ export async function payroll(tenantId: string, month: string) {
     }
     const pay = computePay({ salaryPaise: e.salaryPaise, workingDays, counts, allowance, usedBefore });
     return {
-      employee: { id: e.id, name: e.name, code: e.code, designation: e.designation, avatarHue: e.avatarHue },
+      employee: { id: e.id, name: e.name, code: e.code, designation: e.designation, avatarHue: e.avatarHue, businessId: e.businessId },
       salaryPaise: e.salaryPaise, counts, usedBefore, ...pay,
     };
   });

@@ -85,7 +85,9 @@ export function parseDateKey(v: string | undefined): string | null {
 export const parseStatus = (v: string | undefined): SaleStatus => {
   const s = (v ?? "").toLowerCase();
   if (/cancel/.test(s)) return "CANCELLED";
-  if (/return|rto|refund|rts/.test(s)) return "RETURNED";
+  if (/\brto\b|rto_|rts|undelivered|delivery.failed/.test(s)) return "RTO"; // went back to the seller undelivered
+  if (/return|refund/.test(s)) return "RETURNED"; // the customer sent it back
+  if (/ship|transit|dispatch|pending|ready.to|out.for/.test(s)) return "IN_TRANSIT"; // not paid for yet
   return "DELIVERED";
 };
 

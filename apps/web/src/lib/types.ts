@@ -11,3 +11,6 @@ export interface User {
   tenant: { name: string } | null;
   permissions: Permission[];
 }
+
+export interface Business { id: string; name: string; kind: "CLAY" | "FISH" | "MELA" | "PAINT" | "ONLINE"; color: string }
+export interface Place { id: string; name: string; kind: "SHOP" | "HAAT" | "MELA" | "WAREHOUSE" | "ONLINE"; businessId: string | null; days: string[]; active: boolean }

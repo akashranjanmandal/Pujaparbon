@@ -13,4 +13,4 @@ export interface Summary {
 
 export const monthShort = (m: string) => new Date(`${m}-01T00:00:00Z`).toLocaleString("en-IN", { month: "short", timeZone: "UTC" });
 
-export interface Product { id: string; code: string; name: string; category: string; unit: string; sellingPricePaise: number; notes: string | null; onHand: number; valuePaise: number; avgCostPaise: number; marginPct: number; lastCountAt: number | null }
+export interface Product { id: string; code: string; name: string; category: string; unit: string; sellingPricePaise: number; wholesalePricePaise: number; gstPct: number; businessId: string | null; notes: string | null; onHand: number; valuePaise: number; avgCostPaise: number; marginPct: number; lastCountAt: number | null }

@@ -41,12 +41,12 @@ That's it. Every push to `main` redeploys automatically.
 Render → service → **Settings → Custom Domains** → add e.g. `app.pujaparbon.in`, then add the
 CNAME record Render shows at your domain registrar. HTTPS is issued automatically.
 
-## 5. Loading or resetting demo data
+## 5. First-time setup
 
 The live site uses the Turso database directly. From a developer laptop with `apps/api/.env` filled in:
 
 ```bash
-npm run db:setup      # migrations + demo data (wipes and rebuilds the demo tenant)
+npm run db:setup      # migrations; creates the owner login and the five businesses only if none exist (never wipes data)
 ```
 
 ## 6. Troubleshooting
