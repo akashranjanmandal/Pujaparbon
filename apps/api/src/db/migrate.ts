@@ -9,6 +9,9 @@ export const migrationsFolder = path.resolve(here, "../../drizzle");
 
 export async function runMigrations() {
   await migrate(db, { migrationsFolder });
+  // Every account gets its businesses, and rows from before businesses existed get an owner.
+  const { ensureAllTenants } = await import("../modules/business/service");
+  await ensureAllTenants();
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) {

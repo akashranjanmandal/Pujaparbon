@@ -5,12 +5,15 @@ import { employees, investments, platformReports, platformSales, platforms, prod
 import { levels } from "../stock/service";
 
 const num = (v: unknown) => Number(v ?? 0);
+/** Restricts marketplace sales to the platforms of one business. */
+const inBiz = (biz: string) => sql`${platformSales.platformId} in (select ${platforms.id} from ${platforms} where ${platforms.businessId} = ${biz})`;
 const hhmm = (s: string) => { const [h, m] = s.split(":").map(Number); return h * 60 + m; };
 
 /** Everything that adds up to profit or loss for a date range (optionally one platform). */
-async function totalsFor(tenantId: string, r: DateRange, platformId?: string) {
+async function totalsFor(tenantId: string, r: DateRange, platformId?: string, biz?: string) {
   const saleWhere = [eq(platformSales.tenantId, tenantId), gte(platformSales.orderDate, r.from), lte(platformSales.orderDate, r.to)];
   if (platformId) saleWhere.push(eq(platformSales.platformId, platformId));
+  if (biz) saleWhere.push(inBiz(biz));
   const [[sales], [trip], [other]] = await Promise.all([
     db
       .select({
@@ -29,11 +32,11 @@ async function totalsFor(tenantId: string, r: DateRange, platformId?: string) {
     db
       .select({ items: sql<number>`coalesce(sum(${trips.itemsPaise}), 0)`, costs: sql<number>`coalesce(sum(${trips.costsPaise}), 0)`, n: sql<number>`count(*)` })
       .from(trips)
-      .where(and(eq(trips.tenantId, tenantId), gte(trips.date, r.from), lte(trips.date, r.to))),
+      .where(and(eq(trips.tenantId, tenantId), gte(trips.date, r.from), lte(trips.date, r.to), ...(biz ? [eq(trips.businessId, biz)] : []))),
     db
       .select({ amount: sql<number>`coalesce(sum(${investments.amountPaise}), 0)` })
       .from(investments)
-      .where(and(eq(investments.tenantId, tenantId), gte(investments.date, r.from), lte(investments.date, r.to))),
+      .where(and(eq(investments.tenantId, tenantId), gte(investments.date, r.from), lte(investments.date, r.to), ...(biz ? [eq(investments.businessId, biz)] : []))),
   ]);
   const t = {
     tripsItemsPaise: num(trip.items), tripsCostsPaise: num(trip.costs), trips: num(trip.n), otherPaise: num(other.amount),
@@ -48,26 +51,29 @@ async function totalsFor(tenantId: string, r: DateRange, platformId?: string) {
 
 const shiftMonth = (m: string, n: number) => { const [y, mo] = m.split("-").map(Number); return new Date(Date.UTC(y, mo - 1 + n, 1)).toISOString().slice(0, 7); };
 
-export async function summary(tenantId: string, range: DateRange, platformId?: string) {
+export async function summary(tenantId: string, range: DateRange, platformId?: string, biz?: string) {
   // A period that reaches into the future only counts the days that have happened, and is compared with the same number of days before it.
   const today = istDateKey();
   const elapsed: DateRange = range.to > today && range.from <= today ? { from: range.from, to: today } : range;
   const saleWhere = [eq(platformSales.tenantId, tenantId), gte(platformSales.orderDate, range.from), lte(platformSales.orderDate, range.to), eq(platformSales.status, "DELIVERED")];
   if (platformId) saleWhere.push(eq(platformSales.platformId, platformId));
+  if (biz) saleWhere.push(inBiz(biz));
+  const tripBiz = biz ? [eq(trips.businessId, biz)] : [];
+  const invBiz = biz ? [eq(investments.businessId, biz)] : [];
 
   const [now, before, costKinds, otherByCat, byPlatform, byProduct, byCategory, byState, lastBuy] = await Promise.all([
-    totalsFor(tenantId, range, platformId),
-    totalsFor(tenantId, previousRange(elapsed), platformId),
+    totalsFor(tenantId, range, platformId, biz),
+    totalsFor(tenantId, previousRange(elapsed), platformId, biz),
     db
       .select({ kind: tripCosts.kind, amount: sql<number>`sum(${tripCosts.amountPaise})` })
       .from(tripCosts)
       .innerJoin(trips, eq(trips.id, tripCosts.tripId))
-      .where(and(eq(trips.tenantId, tenantId), gte(trips.date, range.from), lte(trips.date, range.to)))
+      .where(and(eq(trips.tenantId, tenantId), gte(trips.date, range.from), lte(trips.date, range.to), ...tripBiz))
       .groupBy(tripCosts.kind),
     db
       .select({ category: investments.category, amount: sql<number>`sum(${investments.amountPaise})` })
       .from(investments)
-      .where(and(eq(investments.tenantId, tenantId), gte(investments.date, range.from), lte(investments.date, range.to)))
+      .where(and(eq(investments.tenantId, tenantId), gte(investments.date, range.from), lte(investments.date, range.to), ...invBiz))
       .groupBy(investments.category),
     db
       .select({
@@ -101,7 +107,7 @@ export async function summary(tenantId: string, range: DateRange, platformId?: s
       .where(and(...saleWhere))
       .groupBy(sql`coalesce(${platformSales.state}, 'Unknown')`)
       .orderBy(desc(sql`sum(${platformSales.netPaise})`)),
-    db.select({ date: trips.date }).from(trips).where(eq(trips.tenantId, tenantId)).orderBy(desc(trips.date)).limit(1),
+    db.select({ date: trips.date }).from(trips).where(and(eq(trips.tenantId, tenantId), ...tripBiz)).orderBy(desc(trips.date)).limit(1),
   ]);
 
   // Month-by-month: always the last six months (or the whole range if it is longer), so the chart is never a single dot.
@@ -111,12 +117,13 @@ export async function summary(tenantId: string, range: DateRange, platformId?: s
   const tFrom = `${months[0]}-01`, tTo = `${months.at(-1)}-31`;
   const trendSale = [eq(platformSales.tenantId, tenantId), gte(platformSales.orderDate, tFrom), lte(platformSales.orderDate, tTo), eq(platformSales.status, "DELIVERED")];
   if (platformId) trendSale.push(eq(platformSales.platformId, platformId));
+  if (biz) trendSale.push(inBiz(biz));
   const monthExprT = sql<string>`substr(${trips.date}, 1, 7)`;
   const monthExprI = sql<string>`substr(${investments.date}, 1, 7)`;
   const monthExprS = sql<string>`substr(${platformSales.orderDate}, 1, 7)`;
   const [mTrips, mOther, mSales] = await Promise.all([
-    db.select({ m: monthExprT, v: sql<number>`sum(${trips.totalPaise})` }).from(trips).where(and(eq(trips.tenantId, tenantId), gte(trips.date, tFrom), lte(trips.date, tTo))).groupBy(monthExprT),
-    db.select({ m: monthExprI, v: sql<number>`sum(${investments.amountPaise})` }).from(investments).where(and(eq(investments.tenantId, tenantId), gte(investments.date, tFrom), lte(investments.date, tTo))).groupBy(monthExprI),
+    db.select({ m: monthExprT, v: sql<number>`sum(${trips.totalPaise})` }).from(trips).where(and(eq(trips.tenantId, tenantId), gte(trips.date, tFrom), lte(trips.date, tTo), ...tripBiz)).groupBy(monthExprT),
+    db.select({ m: monthExprI, v: sql<number>`sum(${investments.amountPaise})` }).from(investments).where(and(eq(investments.tenantId, tenantId), gte(investments.date, tFrom), lte(investments.date, tTo), ...invBiz)).groupBy(monthExprI),
     db.select({ m: monthExprS, net: sql<number>`sum(${platformSales.netPaise})`, cogs: sql<number>`sum(${platformSales.costPaise})` }).from(platformSales).where(and(...trendSale)).groupBy(monthExprS),
   ]);
   const trend = months.map((m) => {
@@ -126,7 +133,8 @@ export async function summary(tenantId: string, range: DateRange, platformId?: s
     return { month: m, moneyOutPaise: platformId ? 0 : out, netPaise: net, profitPaise: net - cogs - (platformId ? 0 : num(mOther.find((x) => x.m === m)?.v)) };
   });
 
-  const lv = await levels(db, tenantId);
+  const bizProducts = biz ? (await db.select({ id: products.id }).from(products).where(and(eq(products.tenantId, tenantId), eq(products.businessId, biz)))).map((p) => p.id) : undefined;
+  const lv = bizProducts && !bizProducts.length ? new Map() : await levels(db, tenantId, bizProducts);
   const stockValue = [...lv.values()].reduce((s, l) => s + l.valuePaise, 0);
   const stockUnits = [...lv.values()].reduce((s, l) => s + Math.max(0, l.qty), 0);
   const lastCount = [...lv.values()].reduce<number | null>((m, l) => (l.lastCountAt && (!m || l.lastCountAt > m) ? l.lastCountAt : m), null);
@@ -158,9 +166,10 @@ export async function summary(tenantId: string, range: DateRange, platformId?: s
 export type Attention = { id: string; level: "critical" | "warning" | "info"; title: string; body: string; href: string };
 
 /** Things the owner should do today, computed live. */
-export async function attention(tenantId: string, now = new Date()): Promise<Attention[]> {
+export async function attention(tenantId: string, biz?: string, now = new Date()): Promise<Attention[]> {
   const out: Attention[] = [];
-  const [prods, lv] = [await db.select({ id: products.id }).from(products).where(and(eq(products.tenantId, tenantId), isNull(products.archivedAt))), await levels(db, tenantId)];
+  const prods = await db.select({ id: products.id }).from(products).where(and(eq(products.tenantId, tenantId), isNull(products.archivedAt), ...(biz ? [eq(products.businessId, biz)] : [])));
+  const lv = prods.length ? await levels(db, tenantId, biz ? prods.map((p) => p.id) : undefined) : new Map();
   if (prods.length) {
     const last = [...lv.values()].reduce<number | null>((m, l) => (l.lastCountAt && (!m || l.lastCountAt > m) ? l.lastCountAt : m), null);
     const days = last ? Math.floor((now.getTime() - last) / 86_400_000) : null;
@@ -169,14 +178,14 @@ export async function attention(tenantId: string, now = new Date()): Promise<Att
   const month = istDateKey(now).slice(0, 7);
   const prev = (() => { const [y, m] = month.split("-").map(Number); return m === 1 ? `${y - 1}-12` : `${y}-${String(m - 1).padStart(2, "0")}`; })();
   const [plats, reps] = await Promise.all([
-    db.select({ id: platforms.id, name: platforms.name }).from(platforms).where(eq(platforms.tenantId, tenantId)),
+    db.select({ id: platforms.id, name: platforms.name }).from(platforms).where(and(eq(platforms.tenantId, tenantId), ...(biz ? [eq(platforms.businessId, biz)] : []))),
     db.select({ platformId: platformReports.platformId, kind: platformReports.kind }).from(platformReports).where(and(eq(platformReports.tenantId, tenantId), eq(platformReports.month, prev))),
   ]);
   for (const p of plats) {
     const has = reps.some((r) => r.platformId === p.id && r.kind === "SALES");
     if (!has) out.push({ id: `rep-${p.id}`, level: "warning", title: `${p.name}: last month's sales report is missing`, body: "Upload it so your profit figures include it.", href: `/platforms/${p.id}` });
   }
-  const [{ n: unmatched }] = await db.select({ n: sql<number>`count(distinct ${platformSales.productName})` }).from(platformSales).where(and(eq(platformSales.tenantId, tenantId), isNull(platformSales.productId)));
+  const [{ n: unmatched }] = await db.select({ n: sql<number>`count(distinct ${platformSales.productName})` }).from(platformSales).where(and(eq(platformSales.tenantId, tenantId), isNull(platformSales.productId), ...(biz ? [inBiz(biz)] : [])));
   if (num(unmatched) > 0) out.push({ id: "unmatched", level: "info", title: `${unmatched} sold ${num(unmatched) === 1 ? "item is" : "items are"} not matched to your products`, body: "Match them once so profit counts their cost.", href: "/platforms" });
   const [t] = await db.select().from(tenants).where(eq(tenants.id, tenantId));
   if (t) {
@@ -191,10 +200,10 @@ export async function attention(tenantId: string, now = new Date()): Promise<Att
   return out;
 }
 
-export async function recentActivity(tenantId: string) {
+export async function recentActivity(tenantId: string, biz?: string) {
   const [recentTrips, recentReports] = await Promise.all([
-    db.select({ id: trips.id, date: trips.date, title: trips.title, place: trips.place, totalPaise: trips.totalPaise, code: trips.code }).from(trips).where(eq(trips.tenantId, tenantId)).orderBy(desc(trips.date), desc(trips.createdAt)).limit(5),
-    db.select({ id: platformReports.id, platformId: platformReports.platformId, kind: platformReports.kind, month: platformReports.month, fileName: platformReports.fileName, createdAt: platformReports.createdAt, rows: platformReports.rowsImported }).from(platformReports).where(eq(platformReports.tenantId, tenantId)).orderBy(desc(platformReports.createdAt)).limit(5),
+    db.select({ id: trips.id, date: trips.date, title: trips.title, place: trips.place, totalPaise: trips.totalPaise, code: trips.code }).from(trips).where(and(eq(trips.tenantId, tenantId), ...(biz ? [eq(trips.businessId, biz)] : []))).orderBy(desc(trips.date), desc(trips.createdAt)).limit(5),
+    db.select({ id: platformReports.id, platformId: platformReports.platformId, kind: platformReports.kind, month: platformReports.month, fileName: platformReports.fileName, createdAt: platformReports.createdAt, rows: platformReports.rowsImported }).from(platformReports).where(and(eq(platformReports.tenantId, tenantId), ...(biz ? [sql`${platformReports.platformId} in (select ${platforms.id} from ${platforms} where ${platforms.businessId} = ${biz})`] : []))).orderBy(desc(platformReports.createdAt)).limit(5),
   ]);
   return { trips: recentTrips, reports: recentReports };
 }

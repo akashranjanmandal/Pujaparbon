@@ -33,14 +33,14 @@ export const productSchema = z.object({
   wholesalePricePaise: paise.default(0),
   /** GST rate charged on sales of this item (prices include it). 0 = none. */
   gstPct: z.number().min(0).max(100).default(0),
-  /** The business this item belongs to; empty = shared by all. */
-  businessId: id.nullish(),
+  /** The business this item belongs to. Items are never shared between businesses. */
+  businessId: id,
   notes: optionalText(),
   /** Stock already on the shelf before using the app. */
   openingQty: qty0.default(0),
   openingUnitCostPaise: paise.default(0),
 });
-export const productUpdateSchema = productSchema.pick({ name: true, category: true, unit: true, sellingPricePaise: true, wholesalePricePaise: true, gstPct: true, businessId: true, notes: true }).partial();
+export const productUpdateSchema = productSchema.pick({ name: true, category: true, unit: true, sellingPricePaise: true, wholesalePricePaise: true, gstPct: true, notes: true }).partial();
 export const categoryRenameSchema = z.object({ from: text(60).min(1), to: text(60).min(1) });
 
 /* ── Buying trips ── */
@@ -72,7 +72,7 @@ export const tripSchema = z.object({
   notes: optionalText(),
   basis: z.enum(["VALUE", "QTY"]).default("QTY"),
   /** Which business paid for this trip. */
-  businessId: id.nullish(),
+  businessId: id,
   items: z.array(tripItemSchema).min(1, "Add at least one item"),
   costs: z.array(tripCostSchema).default([]),
 });
@@ -82,7 +82,7 @@ export const businessSchema = z.object({ name: text(60).min(2), kind: z.enum(BUS
 export const locationSchema = z.object({
   name: text(60).min(2),
   kind: z.enum(LOCATION_KINDS),
-  businessId: id.nullish(),
+  businessId: id,
   /** Days a haat or stall is open, e.g. SUN and WED. */
   days: z.array(z.enum(WEEKDAYS)).default([]),
   active: z.boolean().default(true),
@@ -113,7 +113,7 @@ export const returnSchema = z.object({
   note: optionalText(200),
 });
 export const lossSchema = z.object({
-  businessId: id.nullish(),
+  businessId: id,
   locationId: id.nullish(),
   productId: id,
   qty,
@@ -122,13 +122,12 @@ export const lossSchema = z.object({
   note: optionalText(200),
 });
 export const transferSchema = z.object({ productId: id, qty, fromLocationId: id.nullable(), toLocationId: id, note: optionalText(200) }).refine((t) => t.fromLocationId !== t.toLocationId, { message: "Choose two different places" });
-export const partySchema = z.object({ name: text(80).min(2), kind: z.enum(PARTY_KINDS), phone: optionalText(20), note: optionalText(200) });
+export const partySchema = z.object({ businessId: id, name: text(80).min(2), kind: z.enum(PARTY_KINDS), phone: optionalText(20), note: optionalText(200) });
 export const entrySchema = z.object({
   partyId: id,
   kind: z.enum(ENTRY_KINDS),
   amountPaise: paise.refine((n) => n > 0, "Enter an amount"),
   date: dateKey,
-  businessId: id.nullish(),
   note: optionalText(200),
 });
 
@@ -146,6 +145,7 @@ export const batchSchema = z.object({
   note: optionalText(200),
 });
 export const courierMoveSchema = z.object({
+  businessId: id,
   date: dateKey,
   platformId: id.nullish(),
   courier: text(40).min(2),
@@ -180,7 +180,7 @@ export const countSchema = z.object({
 export const priceUpdateSchema = z.object({ prices: z.array(z.object({ productId: id, sellingPricePaise: paise })).min(1) });
 
 /* ── Platforms ── */
-export const platformSchema = z.object({ name: text(40).min(2), color: z.string().regex(/^#[0-9A-Fa-f]{6}$/).default(PLATFORM_COLORS[0]) });
+export const platformSchema = z.object({ businessId: id, name: text(40).min(2), color: z.string().regex(/^#[0-9A-Fa-f]{6}$/).default(PLATFORM_COLORS[0]) });
 export const reportUploadSchema = z.object({
   kind: z.enum(REPORT_KINDS),
   /** Optional: sales reports take their month from the order dates inside the file. */
@@ -197,8 +197,8 @@ export const investmentSchema = z.object({
   date: dateKey,
   label: text(100).min(2),
   category: text(60).min(1),
-  /** Which business this spending belongs to; empty = shared. */
-  businessId: id.nullish(),
+  /** Which business this spending belongs to. */
+  businessId: id,
   /** A fair or haat this spending was for (stall rent, transport...). */
   locationId: id.nullish(),
   amountPaise: paise.refine((n) => n > 0, "Amount must be more than zero"),
@@ -261,6 +261,7 @@ export const roleSchema = z.object({
   permissions: z.array(z.enum(ASSIGNABLE_PERMISSIONS)).default([]),
 });
 export const materialSchema = z.object({
+  businessId: id,
   name: text(80).min(2),
   qty: z.number().int().nonnegative(),
   /** At or below this count the item shows as "needs buying". */

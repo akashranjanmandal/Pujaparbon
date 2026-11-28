@@ -28,7 +28,7 @@ describe("employee roles", () => {
     await t.asOwner.patch(`/api/v1/users/${t.staff.id}`).send({ roleId: role.body.id });
     const tok = (await login(t, { lat: FENCE.lat, lng: FENCE.lng, accuracyM: 10 })).body.accessToken;
     const as = (url: string) => api().get(url).set("Authorization", `Bearer ${tok}`);
-    expect((await as("/api/v1/packaging")).status).toBe(200);
+    expect((await as(`/api/v1/packaging?businessId=${t.online}`)).status).toBe(200);
     for (const url of ["/api/v1/products", "/api/v1/insights/summary", "/api/v1/attendance/payroll", "/api/v1/employees"]) expect((await as(url)).status, url).toBe(403);
   });
   it("cannot hand out money permissions", async () => {

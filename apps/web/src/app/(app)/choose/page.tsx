@@ -33,7 +33,7 @@ export default function ChoosePage() {
         <motion.button onClick={() => go("ALL")} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: list.length * 0.05 }}
           className="flex items-center gap-4 rounded-2xl border border-dashed border-line/30 bg-bg2 p-5 text-left transition hover:border-primary sm:col-span-2">
           <span className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-primary text-white"><LayoutGrid className="h-6 w-6" /></span>
-          <span><span className="block text-[18px] font-semibold">{t("All businesses together")}</span><span className="text-[14px] text-muted">{t("Combined view of everything")}</span></span>
+          <span><span className="block text-[18px] font-semibold">{t("All businesses together")}</span><span className="text-[14px] text-muted">{t("Money only: profit and loss of every business added together")}</span></span>
         </motion.button>
       </div>
     </div>

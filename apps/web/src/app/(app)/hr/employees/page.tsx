@@ -78,7 +78,7 @@ function EmployeeForm({ employee, onClose }: { employee?: Employee; onClose: () 
         <Field label="Phone"><Input inputMode="tel" value={f.phone} onChange={set("phone")} /></Field>
         <Field label="Job title"><Input value={f.designation} onChange={set("designation")} placeholder="e.g. Helper, Packing" /></Field>
         <Field label="Joined on"><Input type="date" value={f.joinDate} onChange={set("joinDate")} /></Field>
-        <Field label="Works for" hint="This business's accounts carry the salary." className="sm:col-span-2"><BusinessSelect value={f.businessId} onChange={(v) => setF({ ...f, businessId: v })} list={biz} none="Not assigned to a business" /></Field>
+        <Field label="Works for" hint="This business's accounts carry the salary." className="sm:col-span-2"><BusinessSelect any value={f.businessId} onChange={(v) => setF({ ...f, businessId: v })} list={biz} none="Not assigned to a business" /></Field>
         <Field label="Monthly salary (₹)" hint="Paid in cash. Only you can see this." className="sm:col-span-2"><Input inputMode="decimal" value={f.salary} onChange={set("salary")} placeholder="e.g. 12000" /></Field>
         <Field label="Shift starts"><Input type="time" value={f.shiftStart} onChange={set("shiftStart")} /></Field>
       </div>

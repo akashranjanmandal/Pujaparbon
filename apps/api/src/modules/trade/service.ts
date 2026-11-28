@@ -5,38 +5,20 @@ import { businesses, fundTransfers, investments, locations, losses, parties, par
 import { audit } from "../../lib/audit";
 import { badRequest, conflict, isUniqueViolation, notFound } from "../../lib/errors";
 import type { AuthContext } from "../../lib/http";
-import { assertBusiness } from "../business/service";
+import { partyIn, placeIn, productsIn, requireBusiness } from "../../lib/isolation";
 import { payroll } from "../hr/service";
 import { recordMovement, unitCost } from "../stock/service";
 
 type Ctx = Pick<AuthContext, "tenantId" | "userId">;
 const num = (v: unknown) => Number(v ?? 0);
 
-async function assertLocation(ex: Executor, tenantId: string, id?: string | null) {
-  if (!id) return;
-  const [l] = await ex.select({ id: locations.id }).from(locations).where(and(eq(locations.id, id), eq(locations.tenantId, tenantId)));
-  if (!l) throw badRequest("Unknown place");
-}
-async function assertProducts(ex: Executor, tenantId: string, ids: string[]) {
-  for (const id of new Set(ids)) {
-    const [p] = await ex.select({ id: products.id }).from(products).where(and(eq(products.id, id), eq(products.tenantId, tenantId)));
-    if (!p) throw notFound("Product");
-  }
-}
-async function assertParty(ex: Executor, tenantId: string, id?: string | null) {
-  if (!id) return null;
-  const [p] = await ex.select().from(parties).where(and(eq(parties.id, id), eq(parties.tenantId, tenantId)));
-  if (!p) throw badRequest("Unknown customer or supplier");
-  return p;
-}
-
 /* ───────────── sales ───────────── */
 
 export async function createSale(c: Ctx, input: SaleInput) {
-  await assertBusiness(c.tenantId, input.businessId);
-  await assertLocation(db, c.tenantId, input.locationId);
-  await assertParty(db, c.tenantId, input.customerId);
-  await assertProducts(db, c.tenantId, input.items.map((i) => i.productId));
+  await requireBusiness(db, c.tenantId, input.businessId);
+  await placeIn(db, c.tenantId, input.businessId, input.locationId);
+  await partyIn(db, c.tenantId, input.businessId, input.customerId);
+  await productsIn(db, c.tenantId, input.businessId, input.items.map((i) => i.productId));
   return db.transaction(async (tx) => {
     const lines: { productId: string; qty: number; unitPricePaise: number; linePaise: number; costPaise: number; gstPct: number }[] = [];
     for (const it of input.items) {
@@ -60,11 +42,10 @@ export async function createSale(c: Ctx, input: SaleInput) {
   });
 }
 
-export async function listSales(tenantId: string, q: { from?: string; to?: string; businessId?: string; limit?: number }) {
-  const where = [eq(sales.tenantId, tenantId)];
+export async function listSales(tenantId: string, q: { from?: string; to?: string; businessId: string; limit?: number }) {
+  const where = [eq(sales.tenantId, tenantId), eq(sales.businessId, q.businessId)];
   if (q.from) where.push(gte(sales.date, q.from));
   if (q.to) where.push(lte(sales.date, q.to));
-  if (q.businessId) where.push(eq(sales.businessId, q.businessId));
   const rows = await db
     .select({ id: sales.id, date: sales.date, channel: sales.channel, totalPaise: sales.totalPaise, paidPaise: sales.paidPaise, costPaise: sales.costPaise, note: sales.note, businessId: sales.businessId, business: businesses.name, place: locations.name, customer: parties.name, createdAt: sales.createdAt })
     .from(sales)
@@ -93,9 +74,9 @@ export async function removeSale(c: Ctx, id: string) {
 /* ───────────── returns, losses, transfers ───────────── */
 
 export async function createReturn(c: Ctx, i: { businessId: string; locationId?: string | null; productId: string; qty: number; date: string; condition: "GOOD" | "DAMAGED"; refundPaise: number; note?: string }) {
-  await assertBusiness(c.tenantId, i.businessId);
-  await assertLocation(db, c.tenantId, i.locationId);
-  await assertProducts(db, c.tenantId, [i.productId]);
+  await requireBusiness(db, c.tenantId, i.businessId);
+  await placeIn(db, c.tenantId, i.businessId, i.locationId);
+  await productsIn(db, c.tenantId, i.businessId, [i.productId]);
   return db.transaction(async (tx) => {
     const cost = Math.round(i.qty * (await unitCost(tx, c.tenantId, i.productId)));
     const [r] = await tx.insert(saleReturns).values({ tenantId: c.tenantId, businessId: i.businessId, locationId: i.locationId ?? null, productId: i.productId, qty: i.qty, date: i.date, condition: i.condition, refundPaise: i.refundPaise, costPaise: cost, note: i.note ?? null, createdById: c.userId }).returning();
@@ -110,22 +91,21 @@ export async function createReturn(c: Ctx, i: { businessId: string; locationId?:
   });
 }
 
-export async function createLoss(c: Ctx, i: { businessId?: string | null; locationId?: string | null; productId: string; qty: number; date: string; reason: "DAMAGED_RETURN" | "WASTE" | "SPOILAGE" | "OTHER"; note?: string }) {
-  await assertBusiness(c.tenantId, i.businessId);
-  await assertLocation(db, c.tenantId, i.locationId);
-  await assertProducts(db, c.tenantId, [i.productId]);
+export async function createLoss(c: Ctx, i: { businessId: string; locationId?: string | null; productId: string; qty: number; date: string; reason: "DAMAGED_RETURN" | "WASTE" | "SPOILAGE" | "OTHER"; note?: string }) {
+  await requireBusiness(db, c.tenantId, i.businessId);
+  await placeIn(db, c.tenantId, i.businessId, i.locationId);
+  await productsIn(db, c.tenantId, i.businessId, [i.productId]);
   return db.transaction(async (tx) => {
     const value = Math.round(i.qty * (await unitCost(tx, c.tenantId, i.productId)));
-    const [l] = await tx.insert(losses).values({ tenantId: c.tenantId, businessId: i.businessId ?? null, locationId: i.locationId ?? null, productId: i.productId, qty: i.qty, valuePaise: value, date: i.date, reason: i.reason, note: i.note ?? null, createdById: c.userId }).returning();
+    const [l] = await tx.insert(losses).values({ tenantId: c.tenantId, businessId: i.businessId, locationId: i.locationId ?? null, productId: i.productId, qty: i.qty, valuePaise: value, date: i.date, reason: i.reason, note: i.note ?? null, createdById: c.userId }).returning();
     await recordMovement(tx, c, { productId: i.productId, qty: -i.qty, valuePaise: -value, type: "LOSS", refType: "loss", refId: l.id, locationId: i.locationId ?? null });
     await audit(tx, c, "loss.create", "loss", l.id, { reason: i.reason, value });
     return l;
   });
 }
 
-export async function listLossesAndReturns(tenantId: string, q: { from?: string; to?: string; businessId?: string }) {
-  const lw = [eq(losses.tenantId, tenantId)], rw = [eq(saleReturns.tenantId, tenantId)];
-  if (q.businessId) { lw.push(eq(losses.businessId, q.businessId)); rw.push(eq(saleReturns.businessId, q.businessId)); }
+export async function listLossesAndReturns(tenantId: string, q: { from?: string; to?: string; businessId: string }) {
+  const lw = [eq(losses.tenantId, tenantId), eq(losses.businessId, q.businessId)], rw = [eq(saleReturns.tenantId, tenantId), eq(saleReturns.businessId, q.businessId)];
   if (q.from) { lw.push(gte(losses.date, q.from)); rw.push(gte(saleReturns.date, q.from)); }
   if (q.to) { lw.push(lte(losses.date, q.to)); rw.push(lte(saleReturns.date, q.to)); }
   const [l, r] = await Promise.all([
@@ -137,9 +117,11 @@ export async function listLossesAndReturns(tenantId: string, q: { from?: string;
 }
 
 export async function transfer(c: Ctx, i: { productId: string; qty: number; fromLocationId: string | null; toLocationId: string; note?: string }) {
-  await assertLocation(db, c.tenantId, i.fromLocationId);
-  await assertLocation(db, c.tenantId, i.toLocationId);
-  await assertProducts(db, c.tenantId, [i.productId]);
+  // The item decides the business; both places must belong to it, so stock never crosses between businesses.
+  const [prod] = await db.select({ b: products.businessId }).from(products).where(and(eq(products.id, i.productId), eq(products.tenantId, c.tenantId)));
+  if (!prod?.b) throw badRequest("Unknown product");
+  await placeIn(db, c.tenantId, prod.b, i.fromLocationId);
+  await placeIn(db, c.tenantId, prod.b, i.toLocationId);
   return db.transaction(async (tx) => {
     const value = Math.round(i.qty * (await unitCost(tx, c.tenantId, i.productId)));
     const ref = crypto.randomUUID();
@@ -151,19 +133,20 @@ export async function transfer(c: Ctx, i: { productId: string; qty: number; from
 }
 
 /** What is where: every product's quantity in each place ("Main stock" = not placed anywhere yet). */
-export async function stockByPlace(tenantId: string) {
+export async function stockByPlace(tenantId: string, businessId: string) {
   const rows = await db
     .select({ productId: stockMovements.productId, name: products.name, unit: products.unit, locationId: stockMovements.locationId, qty: sql<number>`sum(${stockMovements.qty})`, value: sql<number>`sum(${stockMovements.valuePaise})` })
     .from(stockMovements)
     .innerJoin(products, eq(products.id, stockMovements.productId))
-    .where(eq(stockMovements.tenantId, tenantId))
+    .where(and(eq(stockMovements.tenantId, tenantId), eq(products.businessId, businessId)))
     .groupBy(stockMovements.productId, stockMovements.locationId);
   return rows.filter((r) => Math.abs(num(r.qty)) > 1e-9).map((r) => ({ productId: r.productId, name: r.name, unit: r.unit, locationId: r.locationId, qty: Math.round(num(r.qty) * 1000) / 1000, valuePaise: num(r.value) }));
 }
 
 /* ───────────── dues ───────────── */
 
-export async function createParty(c: Ctx, i: { name: string; kind: "CUSTOMER" | "SUPPLIER"; phone?: string; note?: string }) {
+export async function createParty(c: Ctx, i: { businessId: string; name: string; kind: "CUSTOMER" | "SUPPLIER"; phone?: string; note?: string }) {
+  await requireBusiness(db, c.tenantId, i.businessId);
   try {
     const [p] = await db.insert(parties).values({ tenantId: c.tenantId, ...i, phone: i.phone ?? null, note: i.note ?? null }).returning();
     await audit(db, c, "party.create", "party", p.id, { name: p.name });
@@ -174,9 +157,9 @@ export async function createParty(c: Ctx, i: { name: string; kind: "CUSTOMER" | 
   }
 }
 
-export async function listParties(tenantId: string) {
+export async function listParties(tenantId: string, businessId: string) {
   const [ps, es] = await Promise.all([
-    db.select().from(parties).where(eq(parties.tenantId, tenantId)).orderBy(parties.name),
+    db.select().from(parties).where(and(eq(parties.tenantId, tenantId), eq(parties.businessId, businessId))).orderBy(parties.name),
     db.select({ partyId: partyEntries.partyId, kind: partyEntries.kind, amount: sql<number>`sum(${partyEntries.amountPaise})` }).from(partyEntries).where(eq(partyEntries.tenantId, tenantId)).groupBy(partyEntries.partyId, partyEntries.kind),
   ]);
   return ps.map((p) => {
@@ -186,16 +169,17 @@ export async function listParties(tenantId: string) {
   });
 }
 
-export async function addEntry(c: Ctx, i: { partyId: string; kind: "BILL" | "PAYMENT" | "ADVANCE"; amountPaise: number; date: string; businessId?: string | null; note?: string }) {
-  await assertParty(db, c.tenantId, i.partyId);
-  await assertBusiness(c.tenantId, i.businessId);
-  const [e] = await db.insert(partyEntries).values({ tenantId: c.tenantId, ...i, businessId: i.businessId ?? null, note: i.note ?? null, createdById: c.userId }).returning();
+export async function addEntry(c: Ctx, i: { partyId: string; kind: "BILL" | "PAYMENT" | "ADVANCE"; amountPaise: number; date: string; note?: string }) {
+  const [party] = await db.select().from(parties).where(and(eq(parties.id, i.partyId), eq(parties.tenantId, c.tenantId)));
+  if (!party?.businessId) throw badRequest("Unknown customer or supplier");
+  const [e] = await db.insert(partyEntries).values({ tenantId: c.tenantId, ...i, businessId: party.businessId, note: i.note ?? null, createdById: c.userId }).returning();
   await audit(db, c, "party.entry", "party_entry", e.id, { kind: i.kind, amountPaise: i.amountPaise });
   return e;
 }
 
 export async function partyEntriesFor(tenantId: string, partyId: string) {
-  await assertParty(db, tenantId, partyId);
+  const [p] = await db.select({ id: parties.id }).from(parties).where(and(eq(parties.id, partyId), eq(parties.tenantId, tenantId)));
+  if (!p) throw notFound("Customer or supplier");
   return db.select().from(partyEntries).where(and(eq(partyEntries.tenantId, tenantId), eq(partyEntries.partyId, partyId))).orderBy(desc(partyEntries.date), desc(partyEntries.createdAt));
 }
 

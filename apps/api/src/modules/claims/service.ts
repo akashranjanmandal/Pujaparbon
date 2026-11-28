@@ -5,24 +5,22 @@ import { db } from "../../db/client";
 import { claims, platforms, products } from "../../db/schema";
 import { audit } from "../../lib/audit";
 import { badRequest, notFound } from "../../lib/errors";
+import { productsIn } from "../../lib/isolation";
 import type { AuthContext } from "../../lib/http";
 
 type Ctx = Pick<AuthContext, "tenantId" | "userId">;
 type Input = z.infer<typeof claimSchema>;
 
+/** A claim belongs to its platform's business, and its item must be of that business too. */
 async function check(tenantId: string, i: Partial<Input>) {
-  if (i.platformId) {
-    const [p] = await db.select({ id: platforms.id }).from(platforms).where(and(eq(platforms.id, i.platformId), eq(platforms.tenantId, tenantId)));
-    if (!p) throw badRequest("Unknown platform");
-  }
-  if (i.productId) {
-    const [p] = await db.select({ id: products.id }).from(products).where(and(eq(products.id, i.productId), eq(products.tenantId, tenantId)));
-    if (!p) throw badRequest("Unknown product");
-  }
+  if (!i.platformId) return;
+  const [pl] = await db.select({ b: platforms.businessId }).from(platforms).where(and(eq(platforms.id, i.platformId), eq(platforms.tenantId, tenantId)));
+  if (!pl?.b) throw badRequest("Unknown platform");
+  await productsIn(db, tenantId, pl.b, i.productId ? [i.productId] : []);
 }
 
-export async function list(tenantId: string, platformId?: string) {
-  const where = [eq(claims.tenantId, tenantId)];
+export async function list(tenantId: string, businessId: string, platformId?: string) {
+  const where = [eq(claims.tenantId, tenantId), eq(platforms.businessId, businessId)];
   if (platformId) where.push(eq(claims.platformId, platformId));
   const rows = await db
     .select({ id: claims.id, platformId: claims.platformId, platform: platforms.name, orderId: claims.orderId, date: claims.date, kind: claims.kind, status: claims.status, reason: claims.reason, expectedPaise: claims.expectedPaise, receivedPaise: claims.receivedPaise, note: claims.note, product: products.name })

@@ -19,7 +19,7 @@ function Menu({ onNavigate }: { onNavigate?: () => void }) {
   const path = usePathname();
   const t = useT();
   if (!user) return null;
-  const groups = navFor(user.permissions, user.role, biz.kind);
+  const groups = navFor(user.permissions, user.role, biz.kind, biz.chosen && !biz.id);
   const home = user.role === "STAFF" ? "/me" : "/dashboard";
   return (
     <div className="flex h-full flex-col">

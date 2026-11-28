@@ -20,7 +20,10 @@ export function useAction<TVars, TRes = unknown>(fn: (v: TVars) => Promise<TRes>
   });
 }
 
-export const usePlaces = () => useQuery({ queryKey: ["places"], queryFn: () => api.get<import("./types").Place[]>("/locations"), staleTime: 5 * 60_000 });
+export function usePlaces() {
+  const { id } = useActiveBusiness();
+  return useQuery({ queryKey: ["places", id ?? ""], queryFn: () => api.get<import("./types").Place[]>("/locations"), staleTime: 60_000, enabled: !!id });
+}
 /** Items for the open business (its own plus shared ones), or all items when viewing everything. */
 export function useProducts() {
   const { id } = useActiveBusiness();

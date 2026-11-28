@@ -29,10 +29,10 @@ export const REPORTS: Record<string, { title: string; ranged: boolean; blurb: st
   attendance: { title: "Employee attendance", ranged: true, blurb: "Daily check-in and check-out times with distance from the shop." },
 };
 
-export async function build(tenantId: string, type: string, r: DateRange): Promise<Report> {
+export async function build(tenantId: string, type: string, r: DateRange, businessId: string): Promise<Report> {
   switch (type) {
     case "pnl": {
-      const s = await summary(tenantId, r);
+      const s = await summary(tenantId, r, undefined, businessId);
       const t = s.totals;
       const rows: Report["rows"] = [
         { line: "Sales (delivered, before fees)", amount: t.grossPaise },
@@ -58,7 +58,7 @@ export async function build(tenantId: string, type: string, r: DateRange): Promi
         .from(tripItems)
         .innerJoin(trips, eq(trips.id, tripItems.tripId))
         .innerJoin(products, eq(products.id, tripItems.productId))
-        .where(and(eq(trips.tenantId, tenantId), between(trips.date, r.from, r.to)))
+        .where(and(eq(trips.tenantId, tenantId), eq(trips.businessId, businessId), between(trips.date, r.from, r.to)))
         .orderBy(desc(trips.date));
       return {
         title: REPORTS.buys.title,
@@ -71,7 +71,7 @@ export async function build(tenantId: string, type: string, r: DateRange): Promi
       };
     }
     case "stock": {
-      const s = await catalog.list(tenantId, {});
+      const s = await catalog.list(tenantId, { businessId });
       return {
         title: REPORTS.stock.title,
         columns: [{ key: "category", label: "Category", width: 85 }, { key: "name", label: "Item", width: 130 }, { key: "code", label: "Code", width: 55 }, { key: "qty", label: "In stock", width: 45, align: "right" }, { key: "cost", label: "Cost/pc", width: 55, align: "right", money: true }, { key: "value", label: "Value at cost", width: 70, align: "right", money: true }, { key: "price", label: "Price/pc", width: 50, align: "right", money: true }],
@@ -84,7 +84,7 @@ export async function build(tenantId: string, type: string, r: DateRange): Promi
         .select({ s: platformSales, platform: platforms.name })
         .from(platformSales)
         .innerJoin(platforms, eq(platforms.id, platformSales.platformId))
-        .where(and(eq(platformSales.tenantId, tenantId), gte(platformSales.orderDate, r.from), lte(platformSales.orderDate, r.to)))
+        .where(and(eq(platformSales.tenantId, tenantId), eq(platforms.businessId, businessId), gte(platformSales.orderDate, r.from), lte(platformSales.orderDate, r.to)))
         .orderBy(desc(platformSales.orderDate));
       return {
         title: REPORTS.sales.title,
@@ -103,7 +103,7 @@ export async function build(tenantId: string, type: string, r: DateRange): Promi
       };
     }
     case "investments": {
-      const o = await invest.overview(tenantId, r);
+      const o = await invest.overview(tenantId, r, businessId);
       return {
         title: REPORTS.investments.title,
         columns: [{ key: "date", label: "Date", width: 60 }, { key: "type", label: "Type", width: 70 }, { key: "title", label: "What", width: 180 }, { key: "category", label: "Category", width: 90 }, { key: "amount", label: "Amount", width: 80, align: "right", money: true }],

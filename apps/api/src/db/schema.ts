@@ -87,7 +87,7 @@ export const locations = sqliteTable(
     active: integer("active", { mode: "boolean" }).notNull().default(true),
     createdAt: createdAt(),
   },
-  (t) => [uniqueIndex("locations_name_uq").on(t.tenantId, t.name)],
+  (t) => [uniqueIndex("locations_name_uq").on(t.tenantId, t.businessId, t.name)],
 );
 
 /** A thing he sells. Category is free text: he creates categories simply by typing them. */
@@ -209,10 +209,12 @@ export const platforms = sqliteTable(
     tenantId: tenant(),
     name: text("name").notNull(),
     color: text("color").notNull(),
+    /** The business this marketplace account belongs to. */
+    businessId: text("business_id"),
     columnMap: text("column_map", { mode: "json" }).$type<Record<string, string>>(),
     createdAt: createdAt(),
   },
-  (t) => [uniqueIndex("platforms_name_uq").on(t.tenantId, t.name)],
+  (t) => [uniqueIndex("platforms_name_uq").on(t.tenantId, t.businessId, t.name)],
 );
 
 /** An uploaded monthly sales report or invoice. The original file is kept so it can be downloaded again. */
@@ -354,6 +356,7 @@ export const roles = sqliteTable("roles", {
 export const packagingMaterials = sqliteTable("packaging_materials", {
   id: pk(),
   tenantId: tenant(),
+  businessId: text("business_id"),
   name: text("name").notNull(),
   unit: text("unit").notNull().default("pcs"),
   qty: integer("qty").notNull().default(0),
@@ -443,13 +446,14 @@ export const parties = sqliteTable(
   {
     id: pk(),
     tenantId: tenant(),
+    businessId: text("business_id"),
     name: text("name").notNull(),
     kind: text("kind", { enum: ["CUSTOMER", "SUPPLIER"] }).notNull(),
     phone: text("phone"),
     note: text("note"),
     createdAt: createdAt(),
   },
-  (t) => [uniqueIndex("parties_name_uq").on(t.tenantId, t.kind, t.name)],
+  (t) => [uniqueIndex("parties_name_uq").on(t.tenantId, t.businessId, t.kind, t.name)],
 );
 
 /** bill − payments − advances = what is still due (customer owes us / we owe the supplier). */
@@ -529,6 +533,7 @@ export const courierMoves = sqliteTable(
     id: pk(),
     tenantId: tenant(),
     date: text("date").notNull(),
+    businessId: text("business_id"),
     platformId: text("platform_id"),
     courier: text("courier").notNull(),
     outgoing: integer("outgoing").notNull().default(0),

@@ -8,15 +8,17 @@ import { Logo } from "@/components/brand/Logo";
 import { Avatar } from "@/components/ui/primitives";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
+import { useActiveBusiness } from "@/lib/business";
 import { cn } from "@/lib/cn";
 
 interface Note { id: string; level: "critical" | "warning" | "info"; title: string; body: string; href: string }
 
 export function Topbar({ onSearch, onMenu }: { onSearch: () => void; onMenu: () => void }) {
   const { user, logout } = useAuth();
+  const biz = useActiveBusiness();
   const [open, setOpen] = useState<"alerts" | "me" | null>(null);
   const ref = useRef<HTMLDivElement>(null);
-  const { data: notes = [] } = useQuery({ queryKey: ["notifications"], queryFn: () => api.get<Note[]>("/insights/notifications"), refetchInterval: 60_000, enabled: !!user });
+  const { data: notes = [] } = useQuery({ queryKey: ["notifications", biz.id ?? ""], queryFn: () => api.get<Note[]>("/insights/notifications"), refetchInterval: 60_000, enabled: !!user && !!biz.id });
   useEffect(() => {
     const close = (e: MouseEvent) => ref.current && !ref.current.contains(e.target as Node) && setOpen(null);
     document.addEventListener("mousedown", close);

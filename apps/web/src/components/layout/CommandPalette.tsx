@@ -8,6 +8,7 @@ import { ArrowRight, Search } from "lucide-react";
 import { ProductGlyph } from "@/components/ui/ProductGlyph";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
+import { useActiveBusiness } from "@/lib/business";
 import { navFor } from "@/lib/nav";
 
 interface Results { items: { id: string; name: string; code: string; category: string }[] }
@@ -15,8 +16,9 @@ interface Results { items: { id: string; name: string; code: string; category: s
 export function CommandPalette({ open, setOpen }: { open: boolean; setOpen: (v: boolean) => void }) {
   const router = useRouter();
   const { user } = useAuth();
+  const biz = useActiveBusiness();
   const [q, setQ] = useState("");
-  const { data } = useQuery({ queryKey: ["search", q], queryFn: () => api.get<Results>(`/products?search=${encodeURIComponent(q)}`), enabled: open && q.length >= 2 && !!user && user.role === "OWNER" });
+  const { data } = useQuery({ queryKey: ["search", q], queryFn: () => api.get<Results>(`/products?search=${encodeURIComponent(q)}`), enabled: open && q.length >= 2 && !!user && user.role === "OWNER" && !!biz.id });
 
   useEffect(() => {
     let g = false;

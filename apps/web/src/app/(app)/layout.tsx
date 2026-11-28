@@ -8,6 +8,7 @@ import { Topbar } from "@/components/layout/Topbar";
 import { Loader } from "@/components/ui/Loader";
 import { useAuth } from "@/lib/auth";
 import { useActiveBusiness } from "@/lib/business";
+import { allowedWhenAll } from "@/lib/nav";
 
 export default function AppLayout({ children }: { children: ReactNode }) {
   const { user, ready } = useAuth();
@@ -22,7 +23,11 @@ export default function AppLayout({ children }: { children: ReactNode }) {
     if (ready && !user) router.replace("/login");
   }, [ready, user, router]);
   useEffect(() => { if (needsChoice) router.replace("/choose"); }, [needsChoice, router]);
-  if (!ready || !user || needsChoice) return <Loader label="Authenticating" />;
+  // Looking at all businesses together shows money only, so the working pages are closed in that view.
+  const allView = !!user && user.role === "OWNER" && biz.chosen && !biz.id;
+  const blocked = allView && !allowedWhenAll(path);
+  useEffect(() => { if (blocked) router.replace("/dashboard"); }, [blocked, router]);
+  if (!ready || !user || needsChoice || blocked) return <Loader label="Authenticating" />;
 
   if (path === "/choose") return <div className="min-h-screen px-4 sm:px-6">{children}</div>;
 

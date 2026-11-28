@@ -83,8 +83,8 @@ function MoveMoney({ onClose }: { onClose: () => void }) {
     <Drawer open onClose={onClose} title="Move money between businesses" subtitle="Records money lent or shared from one business to another. It does not change profit."
       footer={<><Button variant="ghost" onClick={onClose}>Cancel</Button><Button variant="primary" loading={save.isPending} disabled={!f.from || !f.to || f.from === f.to || !paise(f.amount)} onClick={() => save.mutate(undefined)}>Save</Button></>}>
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="From"><BusinessSelect value={f.from} onChange={(v) => setF({ ...f, from: v })} list={biz} none="Choose…" /></Field>
-        <Field label="To"><BusinessSelect value={f.to} onChange={(v) => setF({ ...f, to: v })} list={biz} none="Choose…" /></Field>
+        <Field label="From"><BusinessSelect any value={f.from} onChange={(v) => setF({ ...f, from: v })} list={biz} none="Choose…" /></Field>
+        <Field label="To"><BusinessSelect any value={f.to} onChange={(v) => setF({ ...f, to: v })} list={biz} none="Choose…" /></Field>
         <Field label="Amount (₹)"><Input inputMode="decimal" value={f.amount} onChange={(e) => setF({ ...f, amount: e.target.value })} /></Field>
         <Field label="Date"><Input type="date" value={f.date} max={todayKey()} onChange={(e) => setF({ ...f, date: e.target.value })} /></Field>
         <Field label="Note" hint="Optional" className="sm:col-span-2"><Input value={f.note} onChange={(e) => setF({ ...f, note: e.target.value })} /></Field>

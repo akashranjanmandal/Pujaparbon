@@ -20,14 +20,26 @@ export async function makeTenant(tag = Math.random().toString(36).slice(2, 8)) {
   const [staff] = await db.insert(users).values({ tenantId: t.id, name: `Staff ${tag}`, email: `staff-${tag}@test.in`, passwordHash: hash, role: "STAFF", employeeId: emp.id }).returning();
   const token = async (u: { email: string }) => (await api().post("/api/v1/auth/login").send({ email: u.email, password: PASSWORD, location: { ...atShop, accuracyM: 10 } })).body.accessToken as string;
   const [ownerT, staffT] = await Promise.all([token(owner), token(staff)]);
-  const as = (tok: string) => ({
-    get: (url: string) => api().get(url).set("Authorization", `Bearer ${tok}`),
-    post: (url: string) => api().post(url).set("Authorization", `Bearer ${tok}`),
-    put: (url: string) => api().put(url).set("Authorization", `Bearer ${tok}`),
-    patch: (url: string) => api().patch(url).set("Authorization", `Bearer ${tok}`),
-    del: (url: string) => api().delete(url).set("Authorization", `Bearer ${tok}`),
-  });
-  return { tenant: t, tag, owner, staff, emp, password: PASSWORD, asOwner: as(ownerT), asStaff: as(staffT) };
+  const biz = (await api().get("/api/v1/businesses").set("Authorization", `Bearer ${ownerT}`)).body as { id: string; kind: string; name: string }[];
+  const online = biz.find((b) => b.kind === "ONLINE")!.id;
+  /**
+   * A client for one login. With `def` it names a business on every call that does not name one itself,
+   * the way the app always does. Without it nothing is filled in, so strictness can be tested.
+   */
+  const as = (tok: string, def?: string) => {
+    const call = (method: "get" | "post" | "put" | "patch" | "delete", url: string) => {
+      const u = def && method === "get" && !/businessId=/.test(url) ? `${url}${url.includes("?") ? "&" : "?"}businessId=${def}` : url;
+      const r = api()[method](u).set("Authorization", `Bearer ${tok}`);
+      if (def && method !== "get" && method !== "delete") {
+        const send = r.send.bind(r);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (r as any).send = (b: any) => send(b && typeof b === "object" && !Array.isArray(b) && !("businessId" in b) ? { ...b, businessId: def } : b);
+      }
+      return r;
+    };
+    return { get: (u: string) => call("get", u), post: (u: string) => call("post", u), put: (u: string) => call("put", u), patch: (u: string) => call("patch", u), del: (u: string) => call("delete", u) };
+  };
+  return { tenant: t, tag, owner, staff, emp, password: PASSWORD, biz, online, asOwner: as(ownerT, online), rawOwner: as(ownerT), asStaff: as(staffT, online) };
 }
 
 export type Tenant = Awaited<ReturnType<typeof makeTenant>>;

@@ -3,14 +3,15 @@ import { categoryRenameSchema, productSchema, productUpdateSchema } from "@pp/sh
 import { requirePermission } from "../../middleware/auth";
 import { parse } from "../../middleware/validate";
 import { ctx, handler, str } from "../../lib/http";
+import { needBusiness } from "../../lib/isolation";
 import * as catalog from "./service";
 
 export const productRoutes = Router();
-productRoutes.get("/", requirePermission("stock.view"), handler((req) => catalog.list(ctx(req).tenantId, { search: str(req.query.search), category: str(req.query.category), businessId: str(req.query.businessId) })));
-productRoutes.get("/categories", requirePermission("stock.view"), handler((req) => catalog.categories(ctx(req).tenantId)));
+productRoutes.get("/", requirePermission("stock.view"), handler((req) => catalog.list(ctx(req).tenantId, { search: str(req.query.search), category: str(req.query.category), businessId: needBusiness(req.query.businessId) })));
+productRoutes.get("/categories", requirePermission("stock.view"), handler((req) => catalog.categories(ctx(req).tenantId, needBusiness(req.query.businessId))));
 productRoutes.post("/categories/rename", requirePermission("products.manage"), handler((req) => {
   const { from, to } = parse(categoryRenameSchema, req.body);
-  return catalog.renameCategory(ctx(req), from, to);
+  return catalog.renameCategory(ctx(req), from, to, needBusiness(req.query.businessId));
 }));
 productRoutes.post("/", requirePermission("products.manage"), handler(async (req, res) => {
   res.status(201);

@@ -3,6 +3,7 @@ import { monthsBetween, istDateKey, SALES_FIELDS, type ReportKind } from "@pp/sh
 import { db } from "../../db/client";
 import { productAliases, platformReports, platformSales, platforms, products } from "../../db/schema";
 import { audit } from "../../lib/audit";
+import { requireBusiness } from "../../lib/isolation";
 import { badRequest, conflict, isUniqueViolation, notFound } from "../../lib/errors";
 import type { AuthContext } from "../../lib/http";
 import { levels, unitCost } from "../stock/service";
@@ -17,10 +18,10 @@ async function mine(tenantId: string, id: string) {
   return p;
 }
 
-export async function list(tenantId: string) {
+export async function list(tenantId: string, businessId: string) {
   const month = istDateKey().slice(0, 7);
   const [rows, reports, sales] = await Promise.all([
-    db.select().from(platforms).where(eq(platforms.tenantId, tenantId)).orderBy(platforms.name),
+    db.select().from(platforms).where(and(eq(platforms.tenantId, tenantId), eq(platforms.businessId, businessId))).orderBy(platforms.name),
     db.select({ platformId: platformReports.platformId, kind: platformReports.kind, month: platformReports.month }).from(platformReports).where(eq(platformReports.tenantId, tenantId)),
     db
       .select({
@@ -41,9 +42,10 @@ export async function list(tenantId: string) {
   });
 }
 
-export async function create(c: Ctx, input: { name: string; color: string }) {
+export async function create(c: Ctx, input: { businessId: string; name: string; color: string }) {
+  await requireBusiness(db, c.tenantId, input.businessId);
   try {
-    const [p] = await db.insert(platforms).values({ tenantId: c.tenantId, name: input.name, color: input.color }).returning();
+    const [p] = await db.insert(platforms).values({ tenantId: c.tenantId, businessId: input.businessId, name: input.name, color: input.color }).returning();
     await audit(db, c, "platform.create", "platform", p.id, { name: p.name });
     return p;
   } catch (e) {
@@ -147,7 +149,7 @@ export async function upload(c: Ctx, platformId: string, file: { buffer: Buffer;
 
   const [aliases, prods, existing] = await Promise.all([
     db.select().from(productAliases).where(eq(productAliases.platformId, platformId)),
-    db.select({ id: products.id, name: products.name, code: products.code }).from(products).where(eq(products.tenantId, c.tenantId)),
+    db.select({ id: products.id, name: products.name, code: products.code }).from(products).where(and(eq(products.tenantId, c.tenantId), eq(products.businessId, p.businessId ?? ""))),
     db.select({ k: platformSales.lineKey }).from(platformSales).where(eq(platformSales.platformId, platformId)),
   ]);
   const byAlias = new Map(aliases.map((a) => [a.alias, a.productId]));
@@ -212,9 +214,10 @@ export async function unmatched(tenantId: string, platformId: string) {
 }
 
 export async function mapAlias(c: Ctx, platformId: string, alias: string, productId: string) {
-  await mine(c.tenantId, platformId);
-  const [prod] = await db.select({ id: products.id }).from(products).where(and(eq(products.id, productId), eq(products.tenantId, c.tenantId)));
-  if (!prod) throw notFound("Product");
+  const plat = await mine(c.tenantId, platformId);
+  // A marketplace can only be matched to items of its own business.
+  const [prod] = await db.select({ id: products.id }).from(products).where(and(eq(products.id, productId), eq(products.tenantId, c.tenantId), eq(products.businessId, plat.businessId ?? "")));
+  if (!prod) throw badRequest("That item belongs to a different business");
   const key = alias.toLowerCase().trim();
   const cost = await unitCost(db, c.tenantId, productId);
   await db.transaction(async (tx) => {

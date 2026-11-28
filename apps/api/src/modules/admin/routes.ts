@@ -3,6 +3,7 @@ import { z } from "zod";
 import { resolveRange, roleSchema, settingsSchema, userCreateSchema, type RangePreset } from "@pp/shared";
 import { requirePermission } from "../../middleware/auth";
 import { parse } from "../../middleware/validate";
+import { needBusiness } from "../../lib/isolation";
 import { ctx, handler, str } from "../../lib/http";
 import * as admin from "./service";
 import * as insights from "../insights/service";
@@ -38,16 +39,17 @@ const rangeOf = (q: Record<string, unknown>) => {
 };
 
 export const insightRoutes = Router();
-insightRoutes.get("/summary", requirePermission("analytics.view"), handler((req) => insights.summary(ctx(req).tenantId, rangeOf(req.query), str(req.query.platformId))));
+insightRoutes.get("/summary", requirePermission("analytics.view"), handler((req) => insights.summary(ctx(req).tenantId, rangeOf(req.query), str(req.query.platformId), needBusiness(req.query.businessId))));
 insightRoutes.get("/home", requirePermission("dashboard.view"), handler(async (req) => {
   const c = ctx(req);
+  const biz = needBusiness(req.query.businessId);
   const [sum, attention, recent, team, buys] = await Promise.all([
-    insights.summary(c.tenantId, rangeOf(req.query)),
-    insights.attention(c.tenantId),
-    insights.recentActivity(c.tenantId),
+    insights.summary(c.tenantId, rangeOf(req.query), undefined, biz),
+    insights.attention(c.tenantId, biz),
+    insights.recentActivity(c.tenantId, biz),
     todayBoard(c.tenantId),
-    listTrips(c.tenantId, {}),
+    listTrips(c.tenantId, { businessId: biz }),
   ]);
   return { summary: sum, attention, recent, team: team.summary, allTimeInvestedPaise: buys.totals.totalPaise };
 }));
-insightRoutes.get("/notifications", handler(async (req) => (ctx(req).role === "OWNER" ? insights.attention(ctx(req).tenantId) : [])));
+insightRoutes.get("/notifications", handler(async (req) => (ctx(req).role === "OWNER" && str(req.query.businessId) ? insights.attention(ctx(req).tenantId, str(req.query.businessId)) : [])));

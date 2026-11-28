@@ -2,12 +2,13 @@ import { Router } from "express";
 import { tripSchema } from "@pp/shared";
 import { requirePermission } from "../../middleware/auth";
 import { parse } from "../../middleware/validate";
+import { needBusiness } from "../../lib/isolation";
 import { ctx, handler, str } from "../../lib/http";
 import * as trips from "./service";
 
 export const tripRoutes = Router();
 tripRoutes.use(requirePermission("buy.manage"));
-tripRoutes.get("/", handler((req) => trips.list(ctx(req).tenantId, { from: str(req.query.from), to: str(req.query.to), businessId: str(req.query.businessId) })));
+tripRoutes.get("/", handler((req) => trips.list(ctx(req).tenantId, { from: str(req.query.from), to: str(req.query.to), businessId: needBusiness(req.query.businessId) })));
 tripRoutes.post("/", handler(async (req, res) => {
   res.status(201);
   return trips.create(ctx(req), parse(tripSchema, req.body));

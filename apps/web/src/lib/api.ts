@@ -11,6 +11,22 @@ let refreshing: Promise<boolean> | null = null;
 const listeners = new Set<() => void>();
 
 export const setAccessToken = (t: string | null) => (accessToken = t);
+
+/**
+ * The business the owner has open. Every request for business data carries it, so a screen can never
+ * ask for, or save, anything that belongs to another business. An id written into a request by the screen itself wins.
+ */
+let activeBusiness: string | null = null;
+export const setActiveBusiness = (id: string | null) => { activeBusiness = id; };
+const SCOPED = /^\/(products|trips|platforms|locations|dues|investments|packaging|insights|reports|batches|couriers|claims|place-stock|losses|sales|stock)(\/|\?|$)/;
+function scoped(path: string, o: Opts): [string, Opts] {
+  if (!activeBusiness || !SCOPED.test(path) || o.form) return [path, o];
+  const method = o.method ?? (o.body !== undefined ? "POST" : "GET");
+  if (method === "GET" && !/[?&]businessId=/.test(path)) return [`${path}${path.includes("?") ? "&" : "?"}businessId=${activeBusiness}`, o];
+  const b = o.body;
+  if (method !== "GET" && method !== "DELETE" && b && typeof b === "object" && !Array.isArray(b) && !("businessId" in b)) return [path, { ...o, body: { ...b, businessId: activeBusiness } }];
+  return [path, o];
+}
 export const onSessionExpired = (fn: () => void) => {
   listeners.add(fn);
   return () => {
@@ -41,7 +57,8 @@ interface Opts {
   signal?: AbortSignal;
 }
 
-async function raw(path: string, o: Opts = {}, retry = true): Promise<Response> {
+async function raw(path0: string, o0: Opts = {}, retry = true): Promise<Response> {
+  const [path, o] = scoped(path0, o0);
   const headers: Record<string, string> = {};
   if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
   if (o.body !== undefined) headers["Content-Type"] = "application/json";
@@ -53,7 +70,7 @@ async function raw(path: string, o: Opts = {}, retry = true): Promise<Response> 
     signal: o.signal,
   });
   if (res.status === 401 && retry && !path.startsWith("/auth/")) {
-    if (await refreshSession()) return raw(path, o, false);
+    if (await refreshSession()) return raw(path0, o0, false);
     listeners.forEach((l) => l());
   }
   if (!res.ok) {

@@ -6,6 +6,7 @@ import { tenants } from "../../db/schema";
 import { requirePermission } from "../../middleware/auth";
 import { notFound } from "../../lib/errors";
 import { ctx, handler, str } from "../../lib/http";
+import { needBusiness } from "../../lib/isolation";
 import { REPORTS, build, toPdf, toXlsx } from "./service";
 
 export const reportRoutes = Router();
@@ -18,7 +19,7 @@ reportRoutes.get("/:type", handler(async (req, res) => {
   if (!def) throw notFound("Report");
   const d = resolveRange("month");
   const range = { from: str(req.query.from) ?? d.from, to: str(req.query.to) ?? d.to };
-  const rep = await build(c.tenantId, type, range);
+  const rep = await build(c.tenantId, type, range, needBusiness(req.query.businessId));
   const format = str(req.query.format) ?? "json";
   const name = `${type}-${range.from}-to-${range.to}`;
   if (format === "xlsx") {

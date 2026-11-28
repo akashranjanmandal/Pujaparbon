@@ -13,8 +13,7 @@ import { Badge, Button, Card, Field, Input, Textarea } from "@/components/ui/pri
 import { api } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { fmtDate, fmtDateTime } from "@/lib/format";
-import { BusinessSelect } from "@/components/BusinessSelect";
-import { useAction, useBusinesses } from "@/lib/hooks";
+import { useAction } from "@/lib/hooks";
 import { paise, rupeeStr } from "@/lib/money";
 import type { Product } from "@/lib/summary";
 
@@ -104,11 +103,10 @@ const Tile = ({ label, value, sub, tone }: { label: string; value: string; sub?:
 
 function EditDrawer({ p, open, onClose }: { p: Detail; open: boolean; onClose: () => void }) {
   const { data: cats } = useQuery({ queryKey: ["products", ""], queryFn: () => api.get<{ categories: { name: string }[] }>("/products"), enabled: open });
-  const init = () => ({ name: p.name, category: p.category, unit: p.unit, price: rupeeStr(p.sellingPricePaise), wholesale: rupeeStr(p.wholesalePricePaise), gst: p.gstPct ? String(p.gstPct) : "", businessId: p.businessId ?? "", notes: p.notes ?? "" });
+  const init = () => ({ name: p.name, category: p.category, unit: p.unit, price: rupeeStr(p.sellingPricePaise), wholesale: rupeeStr(p.wholesalePricePaise), gst: p.gstPct ? String(p.gstPct) : "", notes: p.notes ?? "" });
   const [f, setF] = useState(init);
-  const { data: biz } = useBusinesses();
   useEffect(() => setF(init()), [p, open]);
-  const save = useAction(() => api.patch(`/products/${p.id}`, { name: f.name, category: f.category, unit: f.unit, sellingPricePaise: paise(f.price), wholesalePricePaise: paise(f.wholesale), gstPct: Number(f.gst) || 0, businessId: f.businessId || null, notes: f.notes || undefined }), { success: "Saved", invalidate: ["product", "products"], onSuccess: onClose });
+  const save = useAction(() => api.patch(`/products/${p.id}`, { name: f.name, category: f.category, unit: f.unit, sellingPricePaise: paise(f.price), wholesalePricePaise: paise(f.wholesale), gstPct: Number(f.gst) || 0, notes: f.notes || undefined }), { success: "Saved", invalidate: ["product", "products"], onSuccess: onClose });
   const cost = p.avgCostPaise, price = paise(f.price);
   return (
     <Drawer open={open} onClose={onClose} title="Edit item" footer={<><Button variant="ghost" onClick={onClose}>Cancel</Button><Button variant="primary" loading={save.isPending} onClick={() => save.mutate(undefined)}>Save</Button></>}>
@@ -119,7 +117,6 @@ function EditDrawer({ p, open, onClose }: { p: Detail; open: boolean; onClose: (
         <Field label="Retail price (₹)" hint={cost && price ? `${price >= cost ? "+" : ""}${Math.round(((price - cost) / cost) * 1000) / 10}% over your real cost of ${formatINR(cost)}` : undefined}><Input inputMode="decimal" value={f.price} onChange={(e) => setF({ ...f, price: e.target.value })} /></Field>
         <Field label="Wholesale price (₹)" hint="Leave empty if you do not sell it wholesale."><Input inputMode="decimal" value={f.wholesale} onChange={(e) => setF({ ...f, wholesale: e.target.value })} /></Field>
         <Field label="GST on sales (%)" hint="Prices include it. Leave empty for none."><Input inputMode="decimal" value={f.gst} onChange={(e) => setF({ ...f, gst: e.target.value })} placeholder="e.g. 5" /></Field>
-        <Field label="Belongs to"><BusinessSelect value={f.businessId} onChange={(v) => setF({ ...f, businessId: v })} list={biz} /></Field>
         <Field label="Notes" className="sm:col-span-2"><Textarea value={f.notes} onChange={(e) => setF({ ...f, notes: e.target.value })} /></Field>
       </div>
     </Drawer>

@@ -5,7 +5,7 @@ import { batchLines, batches, businesses, courierMoves, fundTransfers, investmen
 import { audit } from "../../lib/audit";
 import { badRequest, notFound } from "../../lib/errors";
 import type { AuthContext } from "../../lib/http";
-import { assertBusiness } from "../business/service";
+import { platformIn, productsIn, requireBusiness } from "../../lib/isolation";
 import { recordMovement, unitCost } from "../stock/service";
 
 type Ctx = Pick<AuthContext, "tenantId" | "userId">;
@@ -14,11 +14,8 @@ const num = (v: unknown) => Number(v ?? 0);
 /* ───────────── processing batches (painting, packing for wholesale) ───────────── */
 
 export async function createBatch(c: Ctx, i: { businessId: string; date: string; name: string; inputs: { productId: string; qty: number }[]; outputs: { productId: string; qty: number }[]; costs: { kind: string; label?: string; amountPaise: number }[]; note?: string }) {
-  await assertBusiness(c.tenantId, i.businessId);
-  for (const l of [...i.inputs, ...i.outputs]) {
-    const [p] = await db.select({ id: products.id }).from(products).where(and(eq(products.id, l.productId), eq(products.tenantId, c.tenantId)));
-    if (!p) throw notFound("Product");
-  }
+  await requireBusiness(db, c.tenantId, i.businessId);
+  await productsIn(db, c.tenantId, i.businessId, [...i.inputs, ...i.outputs].map((l) => l.productId));
   return db.transaction(async (tx) => {
     const inLines: { productId: string; qty: number; valuePaise: number }[] = [];
     for (const l of i.inputs) inLines.push({ ...l, valuePaise: Math.round(l.qty * (await unitCost(tx, c.tenantId, l.productId))) });
@@ -40,9 +37,9 @@ export async function createBatch(c: Ctx, i: { businessId: string; date: string;
   });
 }
 
-export async function listBatches(tenantId: string, businessId?: string) {
+export async function listBatches(tenantId: string, businessId: string) {
   const [bs, lines] = await Promise.all([
-    db.select({ id: batches.id, name: batches.name, date: batches.date, inputsPaise: batches.inputsPaise, costsPaise: batches.costsPaise, totalPaise: batches.totalPaise, costs: batches.costs, business: businesses.name }).from(batches).innerJoin(businesses, eq(businesses.id, batches.businessId)).where(and(eq(batches.tenantId, tenantId), ...(businessId ? [eq(batches.businessId, businessId)] : []))).orderBy(desc(batches.date), desc(batches.createdAt)).limit(100),
+    db.select({ id: batches.id, name: batches.name, date: batches.date, inputsPaise: batches.inputsPaise, costsPaise: batches.costsPaise, totalPaise: batches.totalPaise, costs: batches.costs, business: businesses.name }).from(batches).innerJoin(businesses, eq(businesses.id, batches.businessId)).where(and(eq(batches.tenantId, tenantId), eq(batches.businessId, businessId))).orderBy(desc(batches.date), desc(batches.createdAt)).limit(100),
     db.select({ batchId: batchLines.batchId, side: batchLines.side, qty: batchLines.qty, valuePaise: batchLines.valuePaise, name: products.name, unit: products.unit }).from(batchLines).innerJoin(batches, eq(batches.id, batchLines.batchId)).innerJoin(products, eq(products.id, batchLines.productId)).where(eq(batches.tenantId, tenantId)),
   ]);
   return bs.map((b) => {
@@ -55,19 +52,17 @@ export async function listBatches(tenantId: string, businessId?: string) {
 
 /* ───────────── courier movement ───────────── */
 
-export async function addCourierMove(c: Ctx, i: { date: string; platformId?: string | null; courier: string; outgoing: number; customerReturn: number; rto: number; time?: string }) {
-  if (i.platformId) {
-    const [p] = await db.select({ id: platforms.id }).from(platforms).where(and(eq(platforms.id, i.platformId), eq(platforms.tenantId, c.tenantId)));
-    if (!p) throw badRequest("Unknown platform");
-  }
+export async function addCourierMove(c: Ctx, i: { businessId: string; date: string; platformId?: string | null; courier: string; outgoing: number; customerReturn: number; rto: number; time?: string }) {
+  await requireBusiness(db, c.tenantId, i.businessId);
+  await platformIn(db, c.tenantId, i.businessId, i.platformId);
   const [row] = await db.insert(courierMoves).values({ tenantId: c.tenantId, ...i, platformId: i.platformId ?? null, time: i.time ?? null, createdById: c.userId }).returning();
   return row;
 }
-export async function listCourierMoves(tenantId: string, r: DateRange) {
+export async function listCourierMoves(tenantId: string, r: DateRange, businessId: string) {
   const rows = await db
     .select({ id: courierMoves.id, date: courierMoves.date, courier: courierMoves.courier, outgoing: courierMoves.outgoing, customerReturn: courierMoves.customerReturn, rto: courierMoves.rto, time: courierMoves.time, platform: platforms.name })
     .from(courierMoves).leftJoin(platforms, eq(platforms.id, courierMoves.platformId))
-    .where(and(eq(courierMoves.tenantId, tenantId), gte(courierMoves.date, r.from), lte(courierMoves.date, r.to)))
+    .where(and(eq(courierMoves.tenantId, tenantId), eq(courierMoves.businessId, businessId), gte(courierMoves.date, r.from), lte(courierMoves.date, r.to)))
     .orderBy(desc(courierMoves.date), desc(courierMoves.createdAt));
   const sum = (k: "outgoing" | "customerReturn" | "rto") => rows.reduce((s, x) => s + x[k], 0);
   return { rows, totals: { outgoing: sum("outgoing"), customerReturn: sum("customerReturn"), rto: sum("rto") } };
@@ -81,8 +76,8 @@ export async function removeCourierMove(c: Ctx, id: string) {
 /* ───────────── fund transfers between businesses ───────────── */
 
 export async function addTransfer(c: Ctx, i: { date: string; fromBusinessId: string; toBusinessId: string; amountPaise: number; note?: string }) {
-  await assertBusiness(c.tenantId, i.fromBusinessId);
-  await assertBusiness(c.tenantId, i.toBusinessId);
+  await requireBusiness(db, c.tenantId, i.fromBusinessId);
+  await requireBusiness(db, c.tenantId, i.toBusinessId);
   const [row] = await db.insert(fundTransfers).values({ tenantId: c.tenantId, ...i, note: i.note ?? null, createdById: c.userId }).returning();
   await audit(db, c, "fund.transfer", "fund_transfer", row.id, { amountPaise: i.amountPaise });
   return row;

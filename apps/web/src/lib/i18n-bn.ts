@@ -11,6 +11,7 @@ export const BN: Record<string, string> = {
   "Shop, haats, warehouse, and moving goods": "দোকান, হাট, গুদাম ও মাল সরানো", "Painting, colouring and packing batches": "রং, পলিশ ও প্যাকিংয়ের ব্যাচ",
   "Profit for each business and combined": "প্রতিটি ব্যবসার ও সব মিলিয়ে লাভ", "Damaged and wrong returns, and what was paid": "ক্ষতিগ্রস্ত ও ভুল ফেরত, আর কত টাকা পাওয়া গেল",
   "Parcels out, returns and RTO by courier": "কুরিয়ার অনুযায়ী পার্সেল, ফেরত ও RTO", "Sales reports and invoices": "বিক্রির রিপোর্ট ও ইনভয়েস",
+  "Money of all businesses": "সব ব্যবসার টাকার হিসাব", "Only profit and loss figures are added together here. Each business keeps its own items, stock, sales and costs. To work inside one, switch business from the menu.": "এখানে শুধু লাভ-ক্ষতির হিসাব একসাথে দেখানো হয়েছে। প্রতিটি ব্যবসার পণ্য, স্টক, বিক্রি ও খরচ আলাদা থাকে। কোনো একটিতে কাজ করতে মেনু থেকে ব্যবসা বদলান।", "This month, business by business": "এই মাসে, ব্যবসা ধরে ধরে",
   "Switch business": "ব্যবসা বদলান", "Open menu": "মেনু খুলুন",
   // common
   "Save": "সংরক্ষণ", "Cancel": "বাতিল", "Done": "হয়েছে", "Add": "যোগ করুন", "Remove": "মুছুন", "Edit": "সম্পাদনা", "Date": "তারিখ", "Name": "নাম", "Phone": "ফোন", "Note": "নোট", "Optional": "ঐচ্ছিক",
@@ -18,7 +19,7 @@ export const BN: Record<string, string> = {
   "Choose…": "বেছে নিন…", "Choose item…": "পণ্য বেছে নিন…", "Main stock": "মূল স্টক", "Walk-in": "সাধারণ ক্রেতা", "Nothing here.": "এখানে কিছু নেই।",
   // choose business
   "Welcome": "স্বাগতম", "Which business do you want to open?": "কোন ব্যবসা খুলতে চান?", "Each business has its own stock, sales, costs and profit. You can switch any time from the top bar.": "প্রতিটি ব্যবসার নিজস্ব স্টক, বিক্রি, খরচ ও লাভ আছে। উপরের বার থেকে যেকোনো সময় বদলাতে পারেন।",
-  "Open now": "এখন খোলা আছে", "All businesses together": "সব ব্যবসা একসাথে", "Combined view of everything": "সবকিছুর একত্রিত হিসাব",
+  "Open now": "এখন খোলা আছে", "All businesses together": "সব ব্যবসা একসাথে", "Money only: profit and loss of every business added together": "শুধু টাকার হিসাব: সব ব্যবসার লাভ-ক্ষতি একসাথে",
   // sell
   "New sale": "নতুন বিক্রি", "Sold today": "আজ বিক্রি", "Sold at": "কোথায় বিক্রি", "Which business?": "কোন ব্যবসা?", "List the items": "পণ্য তালিকা করুন", "Only the day's total": "শুধু দিনের মোট",
   "Retail prices": "খুচরো দাম", "Wholesale prices": "পাইকারি দাম", "Received now (₹)": "এখন পেলাম (₹)", "Still due": "এখনো বাকি", "Save sale": "বিক্রি সংরক্ষণ", "Add item": "পণ্য যোগ করুন",

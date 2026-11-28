@@ -1,5 +1,5 @@
 "use client";
-import { useQuery } from "@tanstack/react-query";
+import { useQueries, useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { Crosshair, MapPinned, ShieldCheck, Store } from "lucide-react";
 import { BUSINESS_KINDS, LOCATION_KINDS, WEEKDAYS } from "@pp/shared";
@@ -104,18 +104,20 @@ const DAY_LABEL: Record<string, string> = { SUN: "Sun", MON: "Mon", TUE: "Tue", 
 /** The family's businesses, and the shops, haats, melas and warehouses where goods are kept or sold. */
 function Units() {
   const { data: biz } = useBusinesses();
-  const { data: places } = useQuery({ queryKey: ["places"], queryFn: () => api.get<Place[]>("/locations") });
+  // Places are listed one business at a time, since each business keeps its own.
+  const placeLists = useQueries({ queries: (biz ?? []).map((b) => ({ queryKey: ["places", b.id], queryFn: () => api.get<Place[]>(`/locations?businessId=${b.id}`) })) });
+  const places = placeLists.flatMap((q) => q.data ?? []);
   const [nb, setNb] = useState({ name: "", kind: "CLAY" as (typeof BUSINESS_KINDS)[number] });
   const blank = { name: "", kind: "SHOP" as Place["kind"], businessId: "", days: [] as string[] };
   const [np, setNp] = useState(blank);
   const addBiz = useAction(() => api.post("/businesses", { ...nb, color: "#B45309" }), { success: "Business added", invalidate: ["businesses"], onSuccess: () => setNb({ ...nb, name: "" }) });
   const rename = useAction(({ id, name }: { id: string; name: string }) => api.patch(`/businesses/${id}`, { name }), { success: "Renamed", invalidate: ["businesses"] });
-  const addPlace = useAction(() => api.post("/locations", { ...np, businessId: np.businessId || undefined }), { success: "Place added", invalidate: ["places"], onSuccess: () => setNp(blank) });
+  const addPlace = useAction(() => api.post("/locations", { ...np }), { success: "Place added", invalidate: ["places"], onSuccess: () => setNp(blank) });
   const togglePlace = useAction((p: Place) => api.patch(`/locations/${p.id}`, { active: !p.active }), { invalidate: ["places"] });
-  const bizName = (id: string | null) => biz?.find((b) => b.id === id)?.name ?? "All businesses";
+  const bizName = (id: string | null) => biz?.find((b) => b.id === id)?.name ?? "";
   return (
     <div className="grid gap-6 xl:grid-cols-2">
-      <Card title="Your businesses" subtitle="Each one gets its own profit and loss. Items and stock can belong to one, or be shared.">
+      <Card title="Your businesses" subtitle="Each business is kept completely apart: its own items, stock, places, sales and costs. Only the money is added together in the accounts.">
         <div className="space-y-3 p-6">
           {biz?.map((b) => (
             <div key={b.id} className="flex items-center gap-3">
@@ -133,8 +135,8 @@ function Units() {
       </Card>
       <Card title="Shops, haats, melas and warehouses" subtitle="Places where you keep or sell goods. Add the days a haat or stall is open.">
         <div className="space-y-3 p-6">
-          {places?.length === 0 && <p className="text-[15px] text-muted">No places yet. Add your shop, each haat and your warehouse below.</p>}
-          {places?.map((p) => (
+          {places.length === 0 && <p className="text-[15px] text-muted">No places yet. Add your shop, each haat and your warehouse below.</p>}
+          {places.map((p) => (
             <div key={p.id} className="flex items-center gap-3 rounded-xl bg-bg2 px-4 py-3">
               <Store className="h-5 w-5 shrink-0 text-primary" />
               <div className="min-w-0 flex-1"><div className="truncate text-[15.5px] font-semibold">{p.name}</div><div className="text-[13.5px] text-muted">{KIND_LABEL[p.kind] ?? p.kind} · {bizName(p.businessId)}{p.days.length ? ` · ${p.days.map((d) => DAY_LABEL[d]).join(", ")}` : ""}</div></div>
@@ -144,11 +146,11 @@ function Units() {
           <div className="grid gap-3 border-t border-line/10 pt-4 sm:grid-cols-2">
             <Field label="Name"><Input value={np.name} onChange={(e) => setNp({ ...np, name: e.target.value })} placeholder="e.g. Dola haat" /></Field>
             <Field label="Type"><Select value={np.kind} onChange={(e) => setNp({ ...np, kind: e.target.value as Place["kind"] })}>{LOCATION_KINDS.map((k) => <option key={k} value={k}>{KIND_LABEL[k] ?? "Mela"}</option>)}</Select></Field>
-            <Field label="Business" className="sm:col-span-2"><Select value={np.businessId} onChange={(e) => setNp({ ...np, businessId: e.target.value })}><option value="">All businesses</option>{biz?.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</Select></Field>
+            <Field label="Business" className="sm:col-span-2"><Select value={np.businessId} onChange={(e) => setNp({ ...np, businessId: e.target.value })}><option value="">Choose a business…</option>{biz?.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</Select></Field>
             <Field label="Open on" className="sm:col-span-2">
               <div className="flex flex-wrap gap-2">{WEEKDAYS.map((d) => <button type="button" key={d} onClick={() => setNp({ ...np, days: np.days.includes(d) ? np.days.filter((x) => x !== d) : [...np.days, d] })} className={`rounded-full border px-3.5 py-1.5 text-[14px] font-semibold ${np.days.includes(d) ? "border-primary bg-primary text-white" : "border-line/20 text-muted"}`}>{DAY_LABEL[d]}</button>)}</div>
             </Field>
-            <div className="sm:col-span-2"><Button variant="primary" loading={addPlace.isPending} disabled={np.name.trim().length < 2} onClick={() => addPlace.mutate(undefined)}>Add place</Button></div>
+            <div className="sm:col-span-2"><Button variant="primary" loading={addPlace.isPending} disabled={np.name.trim().length < 2 || !np.businessId} onClick={() => addPlace.mutate(undefined)}>Add place</Button></div>
           </div>
         </div>
       </Card>

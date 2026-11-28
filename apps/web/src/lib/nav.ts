@@ -54,10 +54,14 @@ export const NAV: NavGroup[] = [
 ];
 
 /** Employees see "My shift"; the owner sees the rest. */
-export function navFor(perms: Permission[], role: string, kind?: BusinessKind) {
+/** With all businesses together only money is shown: the home summary, accounts, salaries and settings. */
+export const ALL_PAGES = ["/dashboard", "/accounts", "/hr/attendance", "/hr/payroll", "/hr/employees", "/settings", "/me", "/choose"];
+export const allowedWhenAll = (path: string) => ALL_PAGES.some((p) => path === p || path.startsWith(`${p}/`));
+
+export function navFor(perms: Permission[], role: string, kind?: BusinessKind, all = false) {
   const out = NAV.map((g) => ({
     ...g,
-    items: g.items.filter((i) => perms.includes(i.perm) && !(i.href === "/me" && role !== "STAFF") && (!kind || !i.kinds || i.kinds.includes(kind))),
+    items: g.items.filter((i) => perms.includes(i.perm) && !(i.href === "/me" && role !== "STAFF") && (!kind || !i.kinds || i.kinds.includes(kind)) && (!all || allowedWhenAll(i.href))),
   })).filter((g) => g.items.length);
   return out;
 }

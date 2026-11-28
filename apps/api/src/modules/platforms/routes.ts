@@ -6,6 +6,7 @@ import { requirePermission } from "../../middleware/auth";
 import { parse } from "../../middleware/validate";
 import { badRequest } from "../../lib/errors";
 import { ctx, handler } from "../../lib/http";
+import { needBusiness } from "../../lib/isolation";
 import * as svc from "./service";
 import { SAMPLE_CSV } from "./importer";
 
@@ -18,7 +19,7 @@ const upload = multer({
 export const platformRoutes = Router();
 platformRoutes.use(requirePermission("platforms.manage"));
 
-platformRoutes.get("/", handler((req) => svc.list(ctx(req).tenantId)));
+platformRoutes.get("/", handler((req) => svc.list(ctx(req).tenantId, needBusiness(req.query.businessId))));
 platformRoutes.get("/sample.csv", handler((_req, res) => {
   res.type("text/csv").setHeader("Content-Disposition", 'attachment; filename="sales-report-template.csv"');
   res.send(SAMPLE_CSV);
@@ -35,7 +36,7 @@ platformRoutes.get("/reports/:reportId/file", handler(async (req, res) => {
 platformRoutes.delete("/reports/:reportId", handler((req) => svc.removeReport(ctx(req), String(req.params.reportId))));
 
 platformRoutes.get("/:id", handler((req) => svc.tracker(ctx(req).tenantId, String(req.params.id))));
-platformRoutes.patch("/:id", handler((req) => svc.update(ctx(req), String(req.params.id), parse(platformSchema.partial().extend({ resetMapping: z.boolean().optional() }), req.body))));
+platformRoutes.patch("/:id", handler((req) => svc.update(ctx(req), String(req.params.id), parse(platformSchema.omit({ businessId: true }).partial().extend({ resetMapping: z.boolean().optional() }), req.body))));
 platformRoutes.delete("/:id", handler((req) => svc.remove(ctx(req), String(req.params.id))));
 platformRoutes.get("/:id/unmatched", handler((req) => svc.unmatched(ctx(req).tenantId, String(req.params.id))));
 platformRoutes.post("/:id/aliases", handler((req) => {

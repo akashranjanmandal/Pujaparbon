@@ -1,12 +1,12 @@
 "use client";
 import { useQuery } from "@tanstack/react-query";
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
-import { api } from "./api";
+import { api, setActiveBusiness } from "./api";
 import { useAuth } from "./auth";
 import type { Business } from "./types";
 
 const KEY = "pp.business";
-interface Ctx { ready: boolean; chosen: boolean; id: string | undefined; business: Business | undefined; kind: Business["kind"] | undefined; choose: (id: string | "ALL") => void; clear: () => void }
+interface Ctx { ready: boolean; chosen: boolean; /** Set when one business is open; empty when looking at all of them together (money only). */ id: string | undefined; business: Business | undefined; kind: Business["kind"] | undefined; choose: (id: string | "ALL") => void; clear: () => void }
 const C = createContext<Ctx | null>(null);
 
 /**
@@ -23,11 +23,13 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
   const value = useMemo<Ctx>(() => {
     const business = pick && pick !== "ALL" ? list?.find((b) => b.id === pick) : undefined;
     return {
-      ready, chosen: !!pick, id: business?.id, business, kind: business?.kind,
+      ready, chosen: !!pick, id: pick && pick !== "ALL" ? pick : undefined, business, kind: business?.kind,
       choose: (id) => { sessionStorage.setItem(KEY, id); setPick(id); },
       clear: () => { sessionStorage.removeItem(KEY); setPick(null); },
     };
   }, [pick, list, ready]);
+  // Set during render, not in an effect, so the screens' first requests already carry it.
+  setActiveBusiness(value.id ?? null);
   return <C.Provider value={value}>{children}</C.Provider>;
 }
 

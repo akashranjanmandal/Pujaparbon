@@ -18,6 +18,7 @@ import { compactINR, fmtDate, timeAgo } from "@/lib/format";
 import { monthShort, type Summary } from "@/lib/summary";
 import { PeriodStrip } from "@/components/PeriodStrip";
 import { BusinessHome } from "@/components/BusinessHome";
+import { CombinedHome } from "@/components/CombinedHome";
 import { useActiveBusiness } from "@/lib/business";
 import { rangeFor } from "@/components/ui/RangePicker";
 
@@ -34,6 +35,7 @@ const greet = () => { const h = Number(new Date().toLocaleString("en-GB", { time
 
 export default function HomePage() {
   const ab = useActiveBusiness();
+  if (ab.chosen && !ab.id) return <CombinedHome />;
   if (ab.business && ab.kind !== "ONLINE") return <BusinessHome />;
   return <OnlineHome />;
 }

@@ -6,7 +6,7 @@ import { audit } from "../../lib/audit";
 import { newProductCode } from "../../lib/codes";
 import { conflict, notFound } from "../../lib/errors";
 import type { AuthContext } from "../../lib/http";
-import { assertBusiness } from "../business/service";
+import { productsIn, requireBusiness } from "../../lib/isolation";
 import { levels, recordMovement } from "../stock/service";
 
 type Ctx = Pick<AuthContext, "tenantId" | "userId">;
@@ -16,11 +16,9 @@ export interface ProductRow {
   onHand: number; valuePaise: number; avgCostPaise: number; marginPct: number; lastCountAt: number | null;
 }
 
-export async function list(tenantId: string, q: { search?: string; category?: string; businessId?: string }) {
-  const where = [eq(products.tenantId, tenantId), isNull(products.archivedAt)];
+export async function list(tenantId: string, q: { search?: string; category?: string; businessId: string }) {
+  const where = [eq(products.tenantId, tenantId), isNull(products.archivedAt), eq(products.businessId, q.businessId)];
   if (q.category) where.push(eq(products.category, q.category));
-  // A business sees its own items and the shared ones.
-  if (q.businessId) where.push(or(eq(products.businessId, q.businessId), isNull(products.businessId))!);
   if (q.search) {
     const s = `%${q.search}%`;
     where.push(or(like(products.name, s), like(products.code, s), like(products.category, s))!);
@@ -34,7 +32,7 @@ export async function list(tenantId: string, q: { search?: string; category?: st
       onHand: l.qty, valuePaise: l.valuePaise, avgCostPaise: avg, marginPct: pctOver(avg, p.sellingPricePaise), lastCountAt: l.lastCountAt,
     };
   });
-  return { items, categories: await categories(tenantId), totals: totals(items) };
+  return { items, categories: await categories(tenantId, q.businessId), totals: totals(items) };
 }
 
 const totals = (items: ProductRow[]) => ({
@@ -46,9 +44,9 @@ const totals = (items: ProductRow[]) => ({
 });
 
 /** Categories exist only because products use them. */
-export async function categories(tenantId: string) {
+export async function categories(tenantId: string, businessId: string) {
   const [rows, lv] = await Promise.all([
-    db.select({ id: products.id, category: products.category }).from(products).where(and(eq(products.tenantId, tenantId), isNull(products.archivedAt))),
+    db.select({ id: products.id, category: products.category }).from(products).where(and(eq(products.tenantId, tenantId), eq(products.businessId, businessId), isNull(products.archivedAt))),
     levels(db, tenantId),
   ]);
   const map = new Map<string, { name: string; products: number; units: number; valuePaise: number }>();
@@ -63,8 +61,8 @@ export async function categories(tenantId: string) {
   return [...map.values()].sort((a, b) => a.name.localeCompare(b.name));
 }
 
-export async function renameCategory(c: Ctx, from: string, to: string) {
-  const res = await db.update(products).set({ category: to }).where(and(eq(products.tenantId, c.tenantId), eq(products.category, from)));
+export async function renameCategory(c: Ctx, from: string, to: string, businessId: string) {
+  const res = await db.update(products).set({ category: to }).where(and(eq(products.tenantId, c.tenantId), eq(products.businessId, businessId), eq(products.category, from)));
   if (!res.rowsAffected) throw notFound("Category");
   await audit(db, c, "category.rename", "category", undefined, { from, to });
   return { renamed: res.rowsAffected };
@@ -104,13 +102,13 @@ export async function get(tenantId: string, ref: string) {
 }
 
 export async function create(c: Ctx, input: ProductInput) {
-  await assertBusiness(c.tenantId, input.businessId);
+  await requireBusiness(db, c.tenantId, input.businessId);
   const id = await db.transaction(async (tx) => {
-    const [dup] = await tx.select({ id: products.id }).from(products).where(and(eq(products.tenantId, c.tenantId), eq(products.name, input.name), eq(products.category, input.category), isNull(products.archivedAt)));
+    const [dup] = await tx.select({ id: products.id }).from(products).where(and(eq(products.tenantId, c.tenantId), eq(products.businessId, input.businessId), eq(products.name, input.name), eq(products.category, input.category), isNull(products.archivedAt)));
     if (dup) throw conflict(`"${input.name}" already exists in ${input.category}`);
     const [p] = await tx
       .insert(products)
-      .values({ tenantId: c.tenantId, code: await newProductCode(tx, c.tenantId), name: input.name, category: input.category, unit: input.unit, sellingPricePaise: input.sellingPricePaise, wholesalePricePaise: input.wholesalePricePaise, gstPct: input.gstPct, businessId: input.businessId ?? null, notes: input.notes ?? null })
+      .values({ tenantId: c.tenantId, code: await newProductCode(tx, c.tenantId), name: input.name, category: input.category, unit: input.unit, sellingPricePaise: input.sellingPricePaise, wholesalePricePaise: input.wholesalePricePaise, gstPct: input.gstPct, businessId: input.businessId, notes: input.notes ?? null })
       .returning({ id: products.id });
     if (input.openingQty > 0) {
       await recordMovement(tx, c, { productId: p.id, qty: input.openingQty, valuePaise: input.openingQty * input.openingUnitCostPaise, type: "OPENING", note: "Opening stock" });
@@ -121,8 +119,7 @@ export async function create(c: Ctx, input: ProductInput) {
   return get(c.tenantId, id);
 }
 
-export async function update(c: Ctx, id: string, input: Partial<Pick<ProductInput, "name" | "category" | "unit" | "sellingPricePaise" | "wholesalePricePaise" | "gstPct" | "businessId" | "notes">>) {
-  await assertBusiness(c.tenantId, input.businessId);
+export async function update(c: Ctx, id: string, input: Partial<Pick<ProductInput, "name" | "category" | "unit" | "sellingPricePaise" | "wholesalePricePaise" | "gstPct" | "notes">>) {
   const res = await db.update(products).set(input).where(and(eq(products.id, id), eq(products.tenantId, c.tenantId)));
   if (!res.rowsAffected) throw notFound("Product");
   await audit(db, c, "product.update", "product", id);

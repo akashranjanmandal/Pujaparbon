@@ -109,7 +109,7 @@ describe("stock counts", () => {
   it("renames a category everywhere", async () => {
     const t = await makeTenant();
     await buy(t);
-    await t.asOwner.post("/api/v1/products/categories/rename").send({ from: "Bottles", to: "Bottles & Flasks" });
+    await t.asOwner.post(`/api/v1/products/categories/rename?businessId=${t.online}`).send({ from: "Bottles", to: "Bottles & Flasks" });
     expect((await t.asOwner.get("/api/v1/products/categories")).body.map((c: { name: string }) => c.name)).toContain("Bottles & Flasks");
   });
 });
