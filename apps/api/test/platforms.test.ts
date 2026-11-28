@@ -118,15 +118,33 @@ describe("platform sales reports", () => {
     expect(inv.status).toBe(201);
     const sales = await upload(t, flipkart.id, CSV, month);
     const tracker = (await t.asOwner.get(`/api/v1/platforms/${flipkart.id}`)).body;
-    const m = tracker.months.find((x: { month: string }) => x.month === month);
-    expect(m.invoices).toHaveLength(1);
-    expect(m.sales).toHaveLength(1);
-    expect(m.invoices[0].amountPaise).toBe(1200);
+    const inv0 = tracker.reports.find((x: { kind: string }) => x.kind === "INVOICE");
+    expect(tracker.reports).toHaveLength(2);
+    expect(inv0.amountPaise).toBe(1200);
     const file = await t.asOwner.get(`/api/v1/platforms/reports/${inv.body.id}/file`);
     expect(file.headers["content-type"]).toMatch(/pdf/);
     expect(Buffer.from(file.body).toString()).toBe("%PDF-1.4 invoice");
     expect((await t.asOwner.del(`/api/v1/platforms/reports/${sales.body.id}`)).status).toBe(200);
     expect((await t.asOwner.get(`/api/v1/insights/summary?${range}`)).body.totals.netPaise).toBe(0);
+  });
+
+  it("reads a Meesho orders file and a Flipkart returns file with no month given", async () => {
+    const { t, flipkart } = await setup();
+    const meesho = '"Reason for Credit Entry","Sub Order No","Order Date","Customer State","Product Name","SKU","Quantity","Supplier Discounted Price (Incl GST and Commision)"\n'
+      + '"DELIVERED","1_1","2026-09-05","Assam","Grinder","ST-1","1","450.0"\n"RTO_COMPLETE","2_1","2026-09-06","Bihar","Grinder","ST-1","1","450.0"\n"CANCELLED","3_1","2026-10-02","Bihar","Grinder","ST-1","1","450.0"';
+    const pre = await t.asOwner.post(`/api/v1/platforms/${flipkart.id}/preview`).attach("file", Buffer.from(meesho), "m.csv");
+    expect(pre.body.missing).toEqual([]);
+    expect(pre.body.mapping).toMatchObject({ amount: "Supplier Discounted Price (Incl GST and Commision)", status: "Reason for Credit Entry", orderId: "Sub Order No", state: "Customer State" });
+    const up = await t.asOwner.post(`/api/v1/platforms/${flipkart.id}/reports`).field("kind", "SALES").attach("file", Buffer.from(meesho), "m.csv");
+    expect(up.status).toBe(201);
+    expect(up.body.imported).toBe(3);
+    const rep = (await t.asOwner.get(`/api/v1/platforms/${flipkart.id}`)).body.reports[0];
+    expect(rep.month).toBe("2026-09");
+    expect([rep.from, rep.to]).toEqual(["2026-09-05", "2026-10-02"]);
+    const returns = 'Order ID,Return ID,SKU,Product,Total Price,Quantity,Return Requested Date\nOD1,R1,TP-1,Tadka Pan,134.0,1,"21 November, 2026"';
+    const pre2 = await t.asOwner.post(`/api/v1/platforms/${flipkart.id}/preview`).attach("file", Buffer.from(returns), "r.csv");
+    expect(pre2.body.returns).toBe(true);
+    expect(pre2.body.missing).toEqual([]);
   });
 
   it("refuses a duplicate platform and removes a platform with everything under it", async () => {

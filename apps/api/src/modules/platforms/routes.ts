@@ -49,7 +49,7 @@ platformRoutes.post("/:id/preview", upload.single("file"), handler(async (req) =
 platformRoutes.post("/:id/reports", upload.single("file"), handler(async (req, res) => {
   if (!req.file) throw badRequest("Attach a file");
   const body = parse(reportUploadSchema, {
-    kind: req.body.kind, month: req.body.month, note: req.body.note || undefined,
+    kind: req.body.kind, month: req.body.month || undefined, note: req.body.note || undefined,
     mapping: req.body.mapping ? JSON.parse(String(req.body.mapping)) : undefined,
     amountPaise: req.body.amountPaise ? Number(req.body.amountPaise) : undefined,
   });

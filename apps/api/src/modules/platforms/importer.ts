@@ -10,15 +10,15 @@ const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 
 const ALIASES: Record<SalesFieldKey, string[]> = {
   orderId: ["order id", "order item id", "amazon order id", "order no", "order number", "sub order no", "suborder number", "suborder id", "store order id", "order"],
-  date: ["order date", "purchase date", "order date time", "order created date", "ordered on", "created on", "date", "invoice date", "order placed date"],
+  date: ["order date", "purchase date", "order date time", "order created date", "return requested date", "ordered on", "created on", "date", "invoice date", "order placed date"],
   product: ["product name", "product", "item name", "title", "product title", "listing title", "item", "description", "product description"],
   sku: ["sku", "seller sku", "sku id", "sku code", "seller sku code", "product sku", "style code", "fsn", "asin", "catalog id"],
   qty: ["quantity", "qty", "quantity purchased", "item quantity", "units", "units sold"],
-  amount: ["sale amount", "selling price", "invoice amount", "item price", "total price", "final amount", "order amount", "total amount", "sale value", "selling price total", "gross amount", "amount"],
+  amount: ["sale amount", "selling price", "invoice amount", "item price", "total price", "final amount", "order amount", "total amount", "sale value", "selling price total", "gross amount", "supplier discounted price", "total price", "amount"],
   fees: ["platform fee", "marketplace fee", "commission", "total fees", "fees", "commission fee", "fee", "total marketplace fee", "referral fee"],
   settled: ["settlement amount", "settled amount", "net amount", "bank settlement value", "payout", "net payout", "amount received", "settlement value", "net settlement"],
   state: ["state", "customer state", "ship state", "shipping state", "delivery state", "buyer state", "ship to state"],
-  status: ["status", "order status", "item status", "shipment status", "delivery status", "return status"],
+  status: ["status", "order status", "item status", "shipment status", "delivery status", "return status", "reason for credit entry"],
 };
 
 export type Mapping = Partial<Record<SalesFieldKey, string>>;
@@ -116,7 +116,10 @@ export interface ParsedSale {
 }
 export interface ParseIssue { row: number; message: string }
 
-export function parseSales(rows: Record<string, string>[], mapping: Mapping, fallbackDate: string) {
+/** A returns report (e.g. Flipkart's) lists orders that came back, so none of its rows are sales. */
+export const isReturnsReport = (headers: string[]) => headers.some((h) => ["return id", "return requested date"].includes(norm(h)));
+
+export function parseSales(rows: Record<string, string>[], mapping: Mapping, fallbackDate: string, allReturned = false) {
   const sales: ParsedSale[] = [];
   const issues: ParseIssue[] = [];
   const seen = new Map<string, number>();
@@ -142,7 +145,7 @@ export function parseSales(rows: Record<string, string>[], mapping: Mapping, fal
     sales.push({
       lineKey: `${base}#${n}`, orderId, orderDate: parseDateKey(get(r, "date")) ?? fallbackDate, productName: name, sku: get(r, "sku") || null, qty,
       grossPaise: gross, feesPaise: fees, netPaise: settled != null ? Math.abs(settled) : Math.max(0, gross - fees),
-      state: get(r, "state") || null, status: parseStatus(get(r, "status")),
+      state: get(r, "state") || null, status: allReturned ? "RETURNED" : parseStatus(get(r, "status")),
     });
   });
   return { sales, issues };

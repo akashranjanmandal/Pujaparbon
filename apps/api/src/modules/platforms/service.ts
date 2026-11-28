@@ -6,7 +6,7 @@ import { audit } from "../../lib/audit";
 import { badRequest, conflict, isUniqueViolation, notFound } from "../../lib/errors";
 import type { AuthContext } from "../../lib/http";
 import { levels, unitCost } from "../stock/service";
-import { detectMapping, headersOf, missingRequired, parseSales, readRows, type Mapping } from "./importer";
+import { detectMapping, headersOf, isReturnsReport, missingRequired, parseSales, readRows, type Mapping } from "./importer";
 
 type Ctx = Pick<AuthContext, "tenantId" | "userId">;
 const MAX_FILE = 8 * 1024 * 1024;
@@ -83,6 +83,12 @@ export async function tracker(tenantId: string, platformId: string, months = 12)
     .from(platformReports)
     .where(and(eq(platformReports.tenantId, tenantId), eq(platformReports.platformId, platformId)))
     .orderBy(desc(platformReports.createdAt));
+  const spans = await db
+    .select({ reportId: platformSales.reportId, from: sql<string>`min(${platformSales.orderDate})`, to: sql<string>`max(${platformSales.orderDate})` })
+    .from(platformSales)
+    .where(and(eq(platformSales.tenantId, tenantId), eq(platformSales.platformId, platformId)))
+    .groupBy(platformSales.reportId);
+  const spanOf = new Map(spans.map((s) => [s.reportId, { from: s.from, to: s.to }]));
   const today = istDateKey();
   const [y, m] = today.split("-").map(Number);
   const start = new Date(Date.UTC(y, m - 1 - (months - 1), 1)).toISOString().slice(0, 7);
@@ -94,7 +100,7 @@ export async function tracker(tenantId: string, platformId: string, months = 12)
       sales: reports.filter((r) => r.month === month && r.kind === "SALES"),
       invoices: reports.filter((r) => r.month === month && r.kind === "INVOICE"),
     })),
-    reports,
+    reports: reports.map((r) => ({ ...r, from: spanOf.get(r.id)?.from ?? null, to: spanOf.get(r.id)?.to ?? null })),
   };
 }
 
@@ -108,19 +114,20 @@ export async function preview(tenantId: string, platformId: string, file: { buff
   const missing = missingRequired(mapping);
   const dates = rows.map((r) => r[mapping.date ?? ""]).filter(Boolean);
   return {
-    rows: rows.length, headers, mapping, missing, usedSaved: !!p.columnMap, fields: SALES_FIELDS,
+    rows: rows.length, returns: isReturnsReport(headers), headers, mapping, missing, usedSaved: !!p.columnMap, fields: SALES_FIELDS,
     sample: rows.slice(0, 5), dateSample: dates.slice(0, 3),
   };
 }
 
-export async function upload(c: Ctx, platformId: string, file: { buffer: Buffer; originalname: string; mimetype: string; size: number }, input: { kind: ReportKind; month: string; mapping?: Record<string, string>; amountPaise?: number; note?: string }) {
+export async function upload(c: Ctx, platformId: string, file: { buffer: Buffer; originalname: string; mimetype: string; size: number }, input: { kind: ReportKind; month?: string; mapping?: Record<string, string>; amountPaise?: number; note?: string }) {
   const p = await mine(c.tenantId, platformId);
   if (file.size > MAX_FILE) throw badRequest("File is larger than 8 MB");
-  const base = { tenantId: c.tenantId, platformId, kind: input.kind, month: input.month, fileName: file.originalname, mime: file.mimetype || "application/octet-stream", size: file.size, data: file.buffer, note: input.note ?? null, createdById: c.userId };
+  const today = istDateKey();
+  const base = { tenantId: c.tenantId, platformId, kind: input.kind, month: input.month ?? today.slice(0, 7), fileName: file.originalname, mime: file.mimetype || "application/octet-stream", size: file.size, data: file.buffer, note: input.note ?? null, createdById: c.userId };
 
   if (input.kind === "INVOICE") {
     const [r] = await db.insert(platformReports).values({ ...base, amountPaise: input.amountPaise ?? null }).returning({ id: platformReports.id });
-    await audit(db, c, "report.invoice", "platform_report", r.id, { platform: p.name, month: input.month });
+    await audit(db, c, "report.invoice", "platform_report", r.id, { platform: p.name, month: base.month });
     return { id: r.id, kind: "INVOICE" as const, imported: 0, duplicates: 0, issues: [] as { row: number; message: string }[], unmatched: 0 };
   }
 
@@ -129,8 +136,14 @@ export async function upload(c: Ctx, platformId: string, file: { buffer: Buffer;
   const mapping = detectMapping(headers, { ...(p.columnMap ?? {}), ...(input.mapping ?? {}) });
   const missing = missingRequired(mapping);
   if (missing.length) throw badRequest(`Match these columns first: ${missing.join(", ")}`);
-  const { sales, issues } = parseSales(rows, mapping, `${input.month}-01`);
+  const { sales, issues } = parseSales(rows, mapping, today, isReturnsReport(headers));
   if (!sales.length) throw badRequest("No usable rows found in this file.");
+  // The report covers whatever dates are inside it; file it under the month most of its orders fall in.
+  if (!input.month) {
+    const perMonth = new Map<string, number>();
+    for (const s of sales) perMonth.set(s.orderDate.slice(0, 7), (perMonth.get(s.orderDate.slice(0, 7)) ?? 0) + 1);
+    base.month = [...perMonth.entries()].sort((a, b) => b[1] - a[1] || b[0].localeCompare(a[0]))[0][0];
+  }
 
   const [aliases, prods, existing] = await Promise.all([
     db.select().from(productAliases).where(eq(productAliases.platformId, platformId)),
@@ -162,7 +175,7 @@ export async function upload(c: Ctx, platformId: string, file: { buffer: Buffer;
     }
     // Remember the column match for next month.
     await tx.update(platforms).set({ columnMap: mapping as Record<string, string> }).where(eq(platforms.id, platformId));
-    await audit(tx, c, "report.sales", "platform_report", r.id, { platform: p.name, month: input.month, imported: fresh.length });
+    await audit(tx, c, "report.sales", "platform_report", r.id, { platform: p.name, month: base.month, imported: fresh.length });
     return r.id;
   });
   return { id: reportId, kind: "SALES" as const, imported: fresh.length, duplicates: sales.length - fresh.length, issues, unmatched };

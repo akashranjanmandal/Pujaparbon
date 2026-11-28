@@ -77,7 +77,8 @@ export const priceUpdateSchema = z.object({ prices: z.array(z.object({ productId
 export const platformSchema = z.object({ name: text(40).min(2), color: z.string().regex(/^#[0-9A-Fa-f]{6}$/).default(PLATFORM_COLORS[0]) });
 export const reportUploadSchema = z.object({
   kind: z.enum(REPORT_KINDS),
-  month: monthKey,
+  /** Optional: sales reports take their month from the order dates inside the file. */
+  month: monthKey.optional(),
   /** field key → header name in the file. Saved on the platform after first use. */
   mapping: z.record(z.string(), z.string()).optional(),
   amountPaise: paise.optional(),

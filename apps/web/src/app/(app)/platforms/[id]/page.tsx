@@ -16,17 +16,17 @@ import { useAction } from "@/lib/hooks";
 import { paise } from "@/lib/money";
 import type { Product } from "@/lib/summary";
 
-interface Rep { id: string; kind: "SALES" | "INVOICE"; month: string; fileName: string; size: number; rowsImported: number; rowsSkipped: number; amountPaise: number | null; note: string | null; createdAt: number }
-interface Tracker { platform: { id: string; name: string; color: string; hasMapping: boolean }; months: { month: string; sales: Rep[]; invoices: Rep[] }[] }
-interface Preview { rows: number; headers: string[]; mapping: Record<string, string>; missing: string[]; usedSaved: boolean; sample: Record<string, string>[] }
+interface Rep { id: string; kind: "SALES" | "INVOICE"; month: string; from: string | null; to: string | null; fileName: string; size: number; rowsImported: number; rowsSkipped: number; amountPaise: number | null; note: string | null; createdAt: number }
+interface Tracker { platform: { id: string; name: string; color: string; hasMapping: boolean }; reports: Rep[] }
+interface Preview { rows: number; returns: boolean; headers: string[]; mapping: Record<string, string>; missing: string[]; usedSaved: boolean; sample: Record<string, string>[] }
 interface Summary { totals: { grossPaise: number; feesPaise: number; netPaise: number; cogsPaise: number; profitPaise: number; orders: number; returnOrders: number }; states: { state: string; netPaise: number }[]; products: { best: { name: string; profitPaise: number; units: number }[] } }
-const monthName = (m: string) => new Date(`${m}-01T00:00:00Z`).toLocaleString("en-IN", { month: "long", year: "numeric", timeZone: "UTC" });
+const span = (r: Rep) => (r.from && r.to ? (r.from === r.to ? fmtDate(r.from) : `${fmtDate(r.from)} – ${fmtDate(r.to)}`) : null);
 
 export default function PlatformPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const [range, setRange] = useState<RangeValue>(rangeFor("month"));
-  const [upload, setUpload] = useState<{ kind: "SALES" | "INVOICE"; month: string } | null>(null);
+  const [upload, setUpload] = useState<{ kind: "SALES" | "INVOICE" } | null>(null);
   const { data: t } = useQuery({ queryKey: ["platform", id], queryFn: () => api.get<Tracker>(`/platforms/${id}`) });
   const { data: s } = useQuery({ queryKey: ["summary", id, range.from, range.to], queryFn: () => api.get<Summary>(`/insights/summary?from=${range.from}&to=${range.to}&platformId=${id}`) });
   const del = useAction((rid: string) => api.del(`/platforms/reports/${rid}`), { success: "Removed", invalidate: ["platform", "platforms", "summary"] });
@@ -45,8 +45,8 @@ export default function PlatformPage() {
           <div><div className="eyebrow">Platform</div><h1 className="display text-[36px] leading-tight">{p.name}</h1></div>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button variant="primary" icon={<Upload className="h-4 w-4" />} onClick={() => setUpload({ kind: "SALES", month: new Date().toISOString().slice(0, 7) })}>Upload sales report</Button>
-          <Button icon={<FileText className="h-4 w-4" />} onClick={() => setUpload({ kind: "INVOICE", month: new Date().toISOString().slice(0, 7) })}>Upload invoice</Button>
+          <Button variant="primary" icon={<Upload className="h-4 w-4" />} onClick={() => setUpload({ kind: "SALES" })}>Upload sales report</Button>
+          <Button icon={<FileText className="h-4 w-4" />} onClick={() => setUpload({ kind: "INVOICE" })}>Upload invoice</Button>
         </div>
       </div>
 
@@ -58,16 +58,12 @@ export default function PlatformPage() {
         <Tile label="Profit on these sales" value={compactINR(x?.profitPaise ?? 0)} sub="After cost of items" tone="bg-panel text-leaf" />
       </div>
 
-      <Card title="Monthly checklist" subtitle="Upload each month's sales report and invoice from the platform. A tick means it is done." plain className="overflow-hidden">
-        <div className="divide-y divide-line/[0.06]">
-          {t.months.map((m) => (
-            <div key={m.month} className="grid gap-3 px-6 py-4 md:grid-cols-[170px_1fr_1fr] md:items-center">
-              <div className="text-[16px] font-semibold">{monthName(m.month)}</div>
-              <Slot label="Sales report" icon={<FileSpreadsheet className="h-4 w-4" />} reps={m.sales} onUpload={() => setUpload({ kind: "SALES", month: m.month })} onDelete={(r) => confirm(`Remove ${r.fileName}? Its sales will be taken out of your profit figures.`) && del.mutate(r.id)} />
-              <Slot label="Invoice" icon={<FileText className="h-4 w-4" />} reps={m.invoices} onUpload={() => setUpload({ kind: "INVOICE", month: m.month })} onDelete={(r) => confirm(`Remove ${r.fileName}?`) && del.mutate(r.id)} />
-            </div>
-          ))}
-        </div>
+      <Card title="Uploaded reports" subtitle="Add the report as it comes from the platform, for any period. The dates inside it decide which months it counts in; re-uploading overlapping reports never double counts." plain className="overflow-hidden">
+        {t.reports.length === 0 ? <div className="px-6 py-8 text-[15px] text-muted">Nothing uploaded yet.</div> : (
+          <div className="divide-y divide-line/[0.06] px-6 py-2">
+            {t.reports.map((r) => <ReportRow key={r.id} r={r} onDelete={() => confirm(r.kind === "SALES" ? `Remove ${r.fileName}? Its sales will be taken out of your profit figures.` : `Remove ${r.fileName}?`) && del.mutate(r.id)} />)}
+          </div>
+        )}
       </Card>
 
       <Unmatched platformId={id} />
@@ -91,21 +87,17 @@ const Tile = ({ label, value, sub, tone }: { label: string; value: string; sub?:
   <div className={`rounded-2xl p-5 ${tone}`}><div className="text-[14px] font-semibold">{label}</div><div className="display mt-1 text-[30px] leading-none text-text">{value}</div>{sub && <div className="mt-2 text-[13.5px] text-text/60">{sub}</div>}</div>
 );
 
-function Slot({ label, icon, reps, onUpload, onDelete }: { label: string; icon: React.ReactNode; reps: Rep[]; onUpload: () => void; onDelete: (r: Rep) => void }) {
-  if (!reps.length) return <button onClick={onUpload} className="flex items-center gap-2.5 rounded-xl border border-dashed border-line/25 px-4 py-3 text-left text-[15px] text-muted transition hover:border-primary hover:text-primary"><span className="grid h-7 w-7 place-items-center rounded-full border border-line/20" /> {icon} Upload {label.toLowerCase()}</button>;
+function ReportRow({ r, onDelete }: { r: Rep; onDelete: () => void }) {
+  const dates = span(r);
   return (
-    <div className="space-y-1.5">
-      {reps.map((r) => (
-        <div key={r.id} className="flex items-center gap-3 rounded-xl bg-leaf/[0.07] px-4 py-3">
-          <CheckCircle2 className="h-5 w-5 shrink-0 text-leaf" />
-          <div className="min-w-0 flex-1">
-            <div className="truncate text-[15px] font-semibold">{r.fileName}</div>
-            <div className="text-[13px] text-muted">{r.kind === "SALES" ? `${r.rowsImported} sales read${r.rowsSkipped ? ` · ${r.rowsSkipped} skipped` : ""}` : r.amountPaise ? `Fees ${formatINR(r.amountPaise, { decimals: false })}` : "Invoice saved"} · {fmtDate(r.createdAt)}</div>
-          </div>
-          <button onClick={() => download(`/platforms/reports/${r.id}/file`, r.fileName)} className="rounded-lg p-2 text-muted hover:bg-panel hover:text-primary" aria-label="Download"><Download className="h-4 w-4" /></button>
-          <button onClick={() => onDelete(r)} className="rounded-lg p-2 text-muted hover:bg-panel hover:text-sindoor" aria-label="Remove"><Trash2 className="h-4 w-4" /></button>
-        </div>
-      ))}
+    <div className="flex items-center gap-3 py-3">
+      {r.kind === "SALES" ? <FileSpreadsheet className="h-5 w-5 shrink-0 text-primary" /> : <FileText className="h-5 w-5 shrink-0 text-peach" />}
+      <div className="min-w-0 flex-1">
+        <div className="truncate text-[15px] font-semibold">{r.fileName}</div>
+        <div className="text-[13px] text-muted">{r.kind === "SALES" ? `${r.rowsImported} sales read${r.rowsSkipped ? ` · ${r.rowsSkipped} skipped` : ""}${dates ? ` · orders ${dates}` : ""}` : r.amountPaise ? `Invoice · fees ${formatINR(r.amountPaise, { decimals: false })}` : "Invoice saved"} · uploaded {fmtDate(r.createdAt)}</div>
+      </div>
+      <button onClick={() => download(`/platforms/reports/${r.id}/file`, r.fileName)} className="rounded-lg p-2 text-muted hover:bg-panel hover:text-primary" aria-label="Download"><Download className="h-4 w-4" /></button>
+      <button onClick={onDelete} className="rounded-lg p-2 text-muted hover:bg-panel hover:text-sindoor" aria-label="Remove"><Trash2 className="h-4 w-4" /></button>
     </div>
   );
 }
@@ -133,9 +125,8 @@ function Unmatched({ platformId }: { platformId: string }) {
   );
 }
 
-function UploadDrawer({ platformId, initial, onClose }: { platformId: string; initial: { kind: "SALES" | "INVOICE"; month: string }; onClose: () => void }) {
+function UploadDrawer({ platformId, initial, onClose }: { platformId: string; initial: { kind: "SALES" | "INVOICE" }; onClose: () => void }) {
   const [kind, setKind] = useState(initial.kind);
-  const [month, setMonth] = useState(initial.month);
   const [file, setFile] = useState<File | null>(null);
   const [prev, setPrev] = useState<Preview | null>(null);
   const [mapping, setMapping] = useState<Record<string, string>>({});
@@ -149,7 +140,7 @@ function UploadDrawer({ platformId, initial, onClose }: { platformId: string; in
   const missing = prev ? (!mapping.amount ? ["Sale amount"] : []).concat(!mapping.product && !mapping.sku ? ["Product name or SKU"] : []) : [];
   const send = useAction(() => {
     const fd = new FormData();
-    fd.append("file", file!); fd.append("kind", kind); fd.append("month", month);
+    fd.append("file", file!); fd.append("kind", kind);
     if (kind === "SALES") fd.append("mapping", JSON.stringify(mapping));
     if (amount) fd.append("amountPaise", String(paise(amount)));
     if (note) fd.append("note", note);
@@ -157,7 +148,7 @@ function UploadDrawer({ platformId, initial, onClose }: { platformId: string; in
   }, { invalidate: ["platform", "platforms", "summary", "unmatched", "notifications", "home"], onSuccess: (r) => setResult(r) });
 
   return (
-    <Drawer open onClose={onClose} wide title={kind === "SALES" ? "Upload a sales report" : "Upload an invoice"} subtitle={kind === "SALES" ? "Download the month's orders or settlement report from the platform and add it here." : "Keep the platform's monthly invoice safely with your records."}
+    <Drawer open onClose={onClose} wide title={kind === "SALES" ? "Upload a sales report" : "Upload an invoice"} subtitle={kind === "SALES" ? "Download an orders or settlement report from the platform for any period and add it here. Dates come from the file." : "Keep the platform's invoice safely with your records."}
       footer={result ? <Button variant="primary" onClick={onClose}>Done</Button> : <><Button variant="ghost" onClick={onClose}>Cancel</Button><Button variant="primary" loading={send.isPending} disabled={!file || (kind === "SALES" && (!prev || missing.length > 0))} onClick={() => send.mutate(undefined)}>{kind === "SALES" ? "Read this report" : "Save invoice"}</Button></>}>
       {result ? (
         <div className="space-y-5 py-4 text-center">
@@ -174,8 +165,7 @@ function UploadDrawer({ platformId, initial, onClose }: { platformId: string; in
       ) : (
         <div className="space-y-6">
           <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="What is it?"><Select value={kind} onChange={(e) => { setKind(e.target.value as "SALES" | "INVOICE"); setPrev(null); if (file && e.target.value === "SALES") read.mutate(file); }}><option value="SALES">Monthly sales report (Excel or CSV)</option><option value="INVOICE">Platform invoice (PDF, Excel or photo)</option></Select></Field>
-            <Field label="Which month is it for?"><Input type="month" value={month} onChange={(e) => setMonth(e.target.value)} /></Field>
+            <Field label="What is it?"><Select value={kind} onChange={(e) => { setKind(e.target.value as "SALES" | "INVOICE"); setPrev(null); if (file && e.target.value === "SALES") read.mutate(file); }}><option value="SALES">Sales or returns report (Excel or CSV)</option><option value="INVOICE">Platform invoice (PDF, Excel or photo)</option></Select></Field>
           </div>
           <button type="button" onClick={() => input.current?.click()} onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.preventDefault(); pick(e.dataTransfer.files[0] ?? null); }} className="flex w-full flex-col items-center gap-2 rounded-2xl border-2 border-dashed border-line/25 bg-bg/60 px-6 py-10 text-center transition hover:border-primary">
             <Upload className="h-7 w-7 text-primary" />
@@ -196,7 +186,7 @@ function UploadDrawer({ platformId, initial, onClose }: { platformId: string; in
             {kind === "SALES" && prev && (
               <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
                 <div className={cn("rounded-xl p-4 text-[15px]", missing.length ? "bg-peach-tint text-peach" : "bg-leaf/10 text-leaf")}>
-                  {missing.length ? <>We could not tell which column is the <b>{missing.join(" and ")}</b>. Choose them below.</> : <>Found {prev.rows} rows. {prev.usedSaved ? "Using the column matching you set earlier." : "Check the matching below."}</>}
+                  {missing.length ? <>We could not tell which column is the <b>{missing.join(" and ")}</b>. Choose them below.</> : <>Found {prev.rows} rows. {prev.returns ? "This looks like a returns report, so every row is counted as a return, not a sale. " : ""}{prev.usedSaved ? "Using the column matching you set earlier." : "Check the matching below."}</>}
                 </div>
                 <div className="grid gap-3 sm:grid-cols-2">
                   {SALES_FIELDS.map((f) => (
